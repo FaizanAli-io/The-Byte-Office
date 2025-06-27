@@ -1,3 +1,9 @@
+# The-Byte-Office
+
+The portfolio website repository for The Byte Office
+
+# Next.JS ReadMe File
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
