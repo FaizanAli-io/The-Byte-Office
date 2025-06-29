@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import SectionHeading from "../components/SectionHeading";
+import { PrimaryCTAButton } from "../components/CTAButtons";
+import BackgroundEffect from "../components/BackgroundEffect";
 
 interface FormData {
   name: string;
@@ -82,23 +85,26 @@ export default function Contact() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-black via-gray-900 to-blue-900 min-h-screen pt-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            Get In{" "}
-            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Touch
-            </span>
-          </h1>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Ready to transform your business? Let's discuss your project and explore how we can help
-            you achieve your goals.
-          </p>
-        </div>
+    <div className="relative bg-black min-h-screen overflow-hidden">
+      <BackgroundEffect />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          title="Get In"
+          highlight="Touch"
+          subtitle={
+            <>
+              Ready to transform your business? Let's discuss your project and explore how we can
+              help{" "}
+              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
+                you achieve your goals
+              </span>
+              .
+            </>
+          }
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-          {/* Form */}
           <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-10 border border-white/10 shadow-lg">
             <h2 className="text-3xl font-bold text-white mb-8">Send us a message</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -154,36 +160,30 @@ export default function Contact() {
                 value={formData.message}
                 onChange={handleChange}
               />
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-lg text-lg font-semibold hover:scale-105 transition-all duration-300"
-              >
-                Send Message
-              </button>
+              <PrimaryCTAButton href="/contact" label="Send Message" />
             </form>
           </div>
 
-          {/* Info */}
           <div className="space-y-12">
             <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-10 border border-white/10 shadow-lg">
               <h2 className="text-3xl font-bold text-white mb-6">Let's Connect</h2>
               <div className="space-y-6 text-white/80">
                 <div className="flex gap-4 items-start">
-                  <span className="text-xl emoji">📧</span>
+                  <span className="text-xl">📧</span>
                   <div>
                     <h4 className="font-semibold text-white">Email</h4>
                     <p>thebyteoffice@gmail.com</p>
                   </div>
                 </div>
                 <div className="flex gap-4 items-start">
-                  <span className="text-xl emoji">💬</span>
+                  <span className="text-xl">💬</span>
                   <div>
                     <h4 className="font-semibold text-white">Response Time</h4>
                     <p>Within 24 hours</p>
                   </div>
                 </div>
                 <div className="flex gap-4 items-start">
-                  <span className="text-xl emoji">🌐</span>
+                  <span className="text-xl">🌐</span>
                   <div>
                     <h4 className="font-semibold text-white">Working Hours</h4>
                     <p>Mon - Fri: 9 AM - 6 PM (PKT)</p>

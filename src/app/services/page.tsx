@@ -1,13 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import SectionHeading from "../components/SectionHeading";
+import { PrimaryCTAButton } from "../components/CTAButtons";
 import BackgroundEffect from "../components/BackgroundEffect";
-
-interface MousePosition {
-  x: number;
-  y: number;
-}
 
 interface Service {
   title: string;
@@ -19,17 +16,7 @@ interface Service {
 }
 
 export default function Services() {
-  const [mousePosition, setMousePosition] = useState<MousePosition>({ x: 0, y: 0 });
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent): void => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
 
   const services: Service[] = [
     {
@@ -92,32 +79,23 @@ export default function Services() {
 
   return (
     <div className="relative bg-black min-h-screen overflow-hidden">
-      <BackgroundEffect mousePosition={mousePosition} />
+      <BackgroundEffect />
 
       {/* Content */}
       <div className="relative z-10">
-        {/* Header Section */}
-        <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto text-center">
-            <div className="mb-8 overflow-hidden">
-              <h1 className="text-6xl md:text-7xl font-black text-white mb-6 leading-tight">
-                Our{" "}
-                <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  Services
-                </span>
-              </h1>
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
-                Comprehensive technology solutions designed to accelerate your business growth and
-                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
-                  {" "}
-                  digital transformation
-                </span>
-              </p>
-            </div>
-          </div>
-        </section>
+        <SectionHeading
+          title="Our"
+          highlight="Services"
+          subtitle={
+            <>
+              Comprehensive technology solutions designed to accelerate your business growth and
+              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
+                {" "}
+                digital transformation
+              </span>
+            </>
+          }
+        />
 
         {/* Services Grid */}
         <section className="pb-32 px-4 sm:px-6 lg:px-8">
@@ -130,7 +108,9 @@ export default function Services() {
                   onMouseEnter={() => setHoveredCard(index)}
                   onMouseLeave={() => setHoveredCard(null)}
                   style={{
-                    animationDelay: `${index * 0.1}s`
+                    animation: "fadeInUp 0.6s ease forwards",
+                    animationDelay: `${index * 0.1}s`,
+                    opacity: 0
                   }}
                 >
                   {/* Gradient Background */}
@@ -226,14 +206,7 @@ export default function Services() {
               Let's discuss how our comprehensive technology solutions can accelerate your growth
               and drive innovation in your industry.
             </p>
-            <Link
-              href="/contact"
-              className="group relative px-12 py-5 text-xl font-bold text-white bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/25 overflow-hidden"
-            >
-              <span className="relative z-10">Discuss Your Project</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-full blur opacity-25 group-hover:opacity-50 transition-opacity duration-300"></div>
-            </Link>
+            <PrimaryCTAButton href="/contact" label="Discuss your Project" />
           </div>
         </section>
       </div>

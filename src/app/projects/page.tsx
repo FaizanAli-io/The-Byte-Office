@@ -1,4 +1,8 @@
-import Link from "next/link";
+"use client";
+
+import SectionHeading from "../components/SectionHeading";
+import { PrimaryCTAButton } from "../components/CTAButtons";
+import BackgroundEffect from "../components/BackgroundEffect";
 
 export default function Projects() {
   const projects = [
@@ -12,13 +16,12 @@ export default function Projects() {
       link: "https://cyberlooper.ai/login"
     },
     {
-      title: "PTCL Data Tracking Dashboard",
+      title: "Retail Sales Digital Dashboard",
       description:
         "Internal analytics and operations tool to track field service agents, record submissions, and geospatial activity.",
       tech: ["Next.js", "PostgreSQL", "Tailwind", "Google Maps API"],
       category: "Automation",
-      image: "📡",
-      link: "https://ptcl-data-tracking.vercel.app/"
+      image: "📡"
     },
     {
       title: "Regenerative Aesthetics Web App",
@@ -56,42 +59,48 @@ export default function Projects() {
   ];
 
   return (
-    <div className="bg-gradient-to-br from-black via-gray-900 to-blue-900 min-h-screen pt-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold text-center text-white mb-6">
-            Our{" "}
-            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Projects
-            </span>
-          </h1>
+    <div className="relative bg-black min-h-screen overflow-hidden">
+      <BackgroundEffect />
 
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Showcasing our diverse experience across AI, automation, and custom web solutions —
-            tailored to deliver real-world impact.
-          </p>
-        </div>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          title="Our"
+          highlight="Projects"
+          subtitle={
+            <>
+              A curated selection of our most impactful work — blending AI, automation, and modern
+              UI to solve{" "}
+              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
+                real problems
+              </span>
+              .
+            </>
+          }
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
           {projects.map((project, index) => (
             <a
               key={index}
               href={project.link || "#"}
               target={project.link ? "_blank" : undefined}
               rel="noopener noreferrer"
-              className="glass-effect rounded-2xl overflow-hidden hover:bg-white/10 transition-all duration-300 group block"
+              className="group relative bg-white/5 backdrop-blur-md rounded-3xl p-8 border border-white/10 transition-all duration-500 hover:bg-white/10 hover:border-white/20 hover:scale-[1.02] hover:shadow-2xl"
+              style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div className="p-8">
-                <div className="text-6xl mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <span className="emoji">{project.image}</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-white/10 opacity-0 group-hover:opacity-10 transition-opacity duration-500 rounded-3xl"></div>
+
+              <div className="relative z-10">
+                <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                  {project.image}
                 </div>
-                <div className="mb-4">
-                  <span className="inline-block bg-blue-600/20 text-blue-300 px-3 py-1 rounded-full text-sm font-medium">
-                    {project.category}
-                  </span>
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-4">{project.title}</h3>
-                <p className="text-gray-300 mb-6 leading-relaxed">{project.description}</p>
+                <span className="inline-block mb-4 bg-blue-600/20 text-blue-300 px-3 py-1 rounded-full text-sm font-medium">
+                  {project.category}
+                </span>
+                <h3 className="text-2xl font-bold text-white mb-3 leading-snug">{project.title}</h3>
+                <p className="text-gray-300 text-base leading-relaxed mb-6">
+                  {project.description}
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {project.tech.map((tech, idx) => (
                     <span
@@ -107,16 +116,13 @@ export default function Projects() {
           ))}
         </div>
 
-        <div className="text-center mt-16">
-          <p className="text-xl text-gray-300 mb-8">
-            Have an idea in mind? Let's turn it into reality.
+        <div className="text-center mt-24">
+          <h2 className="text-4xl font-bold text-white mb-6">Have a bold idea?</h2>
+          <p className="text-xl text-gray-300 mb-10 max-w-xl mx-auto leading-relaxed">
+            Whether it’s building from scratch or enhancing your tech stack, we’re here to bring
+            your vision to life.
           </p>
-          <Link
-            href="/contact"
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-12 py-4 rounded-full text-xl font-semibold hover:scale-105 transition-all duration-300 pulse-glow inline-block"
-          >
-            Start Your Project
-          </Link>
+          <PrimaryCTAButton href="/contact" label="Start Your Project" />
         </div>
       </div>
     </div>

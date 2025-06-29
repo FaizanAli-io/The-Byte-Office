@@ -1,5 +1,7 @@
-import Link from "next/link";
+"use client";
 
+import SectionHeading from "../components/SectionHeading";
+import { PrimaryCTAButton } from "../components/CTAButtons";
 import BackgroundEffect from "../components/BackgroundEffect";
 
 export default function About() {
@@ -37,20 +39,23 @@ export default function About() {
   ];
 
   return (
-    <div className="bg-gradient-to-br from-black via-gray-900 to-blue-900 min-h-screen pt-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            About{" "}
-            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              The Byte Office
-            </span>
-          </h1>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            We're passionate technologists dedicated to transforming businesses through innovative
-            AI, automation, and development solutions.
-          </p>
-        </div>
+    <div className="relative bg-black min-h-screen overflow-hidden">
+      <BackgroundEffect />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          title="About"
+          highlight="The Byte Office"
+          subtitle={
+            <>
+              We're passionate technologists dedicated to transforming businesses through{" "}
+              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
+                innovative AI, automation, and development solutions
+              </span>
+              .
+            </>
+          }
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-20">
           <div>
@@ -66,7 +71,7 @@ export default function About() {
               transformation.
             </p>
           </div>
-          <div className="glass-effect rounded-2xl p-10 text-center">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-10 text-center hover:bg-white/10 hover:border-white/20 transition-all duration-300 shadow-xl">
             <div className="text-6xl mb-4">🎯</div>
             <h3 className="text-2xl font-bold text-white mb-4">Our Vision</h3>
             <p className="text-gray-300">
@@ -83,10 +88,10 @@ export default function About() {
             {features.map((feature, i) => (
               <div
                 key={i}
-                className="glass-effect rounded-2xl p-6 text-center hover:bg-white/10 transition-all duration-300 shadow-xl"
+                className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 text-center hover:bg-white/10 hover:border-white/20 transition-all duration-300 shadow-xl"
               >
                 <div className="text-4xl mb-4">
-                  <span className="emoji">{feature.icon}</span>{" "}
+                  <span>{feature.icon}</span>
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">{feature.title}</h3>
                 <p className="text-gray-300">{feature.description}</p>
@@ -95,18 +100,20 @@ export default function About() {
           </div>
         </div>
 
-        <div className="text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">Ready to Get Started?</h2>
-          <p className="text-xl text-gray-300 mb-8 max-w-xl mx-auto">
+        {/* Final CTA Section */}
+        <div className="text-center py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-900/20 via-purple-900/20 to-pink-900/20 rounded-3xl backdrop-blur-sm">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            Ready to{" "}
+            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Get Started
+            </span>
+            ?
+          </h2>
+          <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
             Let's discuss how we can help transform your business with innovative technology
             solutions.
           </p>
-          <Link
-            href="/contact"
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-12 py-4 rounded-full text-xl font-semibold hover:scale-105 transition-all duration-300 pulse-glow inline-block"
-          >
-            Start Your Project
-          </Link>
+          <PrimaryCTAButton href="/contact" label="Start Your Project" />
         </div>
       </div>
     </div>
