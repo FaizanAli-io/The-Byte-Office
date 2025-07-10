@@ -21,7 +21,8 @@ export default function Projects() {
         "Internal analytics and operations tool to track field service agents, record submissions, and geospatial activity.",
       tech: ["Next.js", "PostgreSQL", "Tailwind", "Google Maps API"],
       category: "Automation",
-      image: "📡"
+      image: "📡",
+      link: "https://ptcl-data-tracking.vercel.app/"
     },
     {
       title: "Regenerative Aesthetics Web App",
@@ -55,6 +56,14 @@ export default function Projects() {
       tech: ["Python", "OpenCV", "MediaPipe", "NumPy"],
       category: "Computer Vision",
       image: "⛷️"
+    },
+    {
+      title: "Legislative AI Assistant with RAG",
+      description:
+        "An AI-powered assistant that uses Retrieval-Augmented Generation to answer legal and policy-related queries based on legislative documents.",
+      tech: ["Python", "LangChain", "Pinecone", "OpenAI API", "FastAPI"],
+      category: "Legal AI / RAG",
+      image: "📜"
     }
   ];
 
