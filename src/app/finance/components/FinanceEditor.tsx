@@ -1,21 +1,29 @@
 "use client";
 
 import { useFinanceHandlers } from "./useFinanceHandlers";
-import { MutualFundsSection, RemoteBanksSection, LocalBanksSection } from "./HoldingTypes";
+import {
+  MutualFundsSection,
+  RemoteBanksSection,
+  LocalBanksSection
+} from "./HoldingTypes";
 import { useState } from "react";
 
 export default function FinanceEditor() {
   const {
     data,
-    loading,
     saving,
+    loading,
     handleChange,
+    addMutualFundBank,
+    deleteMutualFundBank,
     handleChangeMutualFund,
-    handleSave,
+    addFundToBank,
     addRemoteBank,
     addLocalBank,
-    addMutualFundBank,
-    addFundToBank
+    deleteFundFromBank,
+    deleteRemoteBank,
+    deleteLocalBank,
+    handleSave
   } = useFinanceHandlers();
 
   const [snapshotLoading, setSnapshotLoading] = useState(false);
@@ -28,7 +36,7 @@ export default function FinanceEditor() {
     const mutualFundsTotal = data.mutualFunds.reduce((total, mf) => {
       const bankKey = Object.keys(mf)[0];
       const funds = mf[bankKey];
-      return total + funds.reduce((sum, f) => sum + f.units * f.price, 0);
+      return total + funds.reduce((sum, f) => sum + f.value, 0);
     }, 0);
 
     // Remote banks total
@@ -38,7 +46,10 @@ export default function FinanceEditor() {
     );
 
     // Local banks total
-    const localBanksTotal = data.localBanks.reduce((sum, bank) => sum + bank.amountPkr, 0);
+    const localBanksTotal = data.localBanks.reduce(
+      (sum, bank) => sum + bank.amountPkr,
+      0
+    );
 
     return mutualFundsTotal + remoteBanksTotal + localBanksTotal;
   };
@@ -92,11 +103,23 @@ export default function FinanceEditor() {
         onAddFund={addFundToBank}
         onAddBank={addMutualFundBank}
         onChange={handleChangeMutualFund}
+        onDeleteFund={deleteFundFromBank}
+        onDeleteBank={deleteMutualFundBank}
       />
 
-      <RemoteBanksSection data={data} onChange={handleChange} onAdd={addRemoteBank} />
+      <RemoteBanksSection
+        data={data}
+        onAdd={addRemoteBank}
+        onChange={handleChange}
+        onDelete={deleteRemoteBank}
+      />
 
-      <LocalBanksSection data={data} onChange={handleChange} onAdd={addLocalBank} />
+      <LocalBanksSection
+        data={data}
+        onAdd={addLocalBank}
+        onChange={handleChange}
+        onDelete={deleteLocalBank}
+      />
 
       {/* Grand Total Section */}
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-700/50 backdrop-blur-sm">

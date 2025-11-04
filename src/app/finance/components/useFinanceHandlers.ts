@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { SectionMap } from "./helpers";
 import { FinanceDoc } from "@/types/finance";
+import { useState, useEffect } from "react";
 
 export function useFinanceHandlers() {
   const [data, setData] = useState<FinanceDoc | null>(null);
@@ -20,12 +20,10 @@ export function useFinanceHandlers() {
   }, []);
 
   // ------------------ generic handler ------------------
-  function handleChange<K extends keyof SectionMap, F extends keyof SectionMap[K]>(
-    section: K,
-    index: number,
-    field: F,
-    value: SectionMap[K][F]
-  ) {
+  function handleChange<
+    K extends keyof SectionMap,
+    F extends keyof SectionMap[K]
+  >(section: K, index: number, field: F, value: SectionMap[K][F]) {
     setData((prev) => {
       if (!prev) return prev;
       const copy = structuredClone(prev) as FinanceDoc;
@@ -53,7 +51,7 @@ export function useFinanceHandlers() {
     mfIndex: number,
     bankKey: string,
     fundIndex: number | null,
-    field: "fund" | "units" | "price" | "bankName",
+    field: "fund" | "value" | "bankName",
     value: string | number
   ) {
     setData((prev) => {
@@ -77,7 +75,7 @@ export function useFinanceHandlers() {
       if (fundIndex === null) return copy;
 
       const bankFunds = (
-        mfEntry as Record<string, { fund: string; units: number; price: number }[]>
+        mfEntry as Record<string, { fund: string; value: number }[]>
       )[bankKey];
       if (!bankFunds || !bankFunds[fundIndex]) return copy;
 
@@ -93,33 +91,16 @@ export function useFinanceHandlers() {
     });
   }
 
-  // allow renaming a bank/company
-  function renameMutualFundBank(mfIndex: number, oldKey: string, newKey: string) {
-    setData((prev) => {
-      if (!prev) return prev;
-      const copy = structuredClone(prev) as FinanceDoc;
-
-      const mfEntry = copy.mutualFunds[mfIndex];
-      if (!mfEntry) return copy;
-
-      const bankFunds = (mfEntry as Record<string, any>)[oldKey];
-      if (!bankFunds) return copy;
-
-      const newMF = copy.mutualFunds.slice();
-      newMF[mfIndex] = { [newKey]: bankFunds };
-
-      copy.mutualFunds = newMF;
-      return copy;
-    });
-  }
-
   // add a new company/bank with one empty fund
   function addMutualFundBank() {
     setData((prev) =>
       prev
         ? {
             ...prev,
-            mutualFunds: [...prev.mutualFunds, { "New Bank": [{ fund: "", units: 0, price: 0 }] }]
+            mutualFunds: [
+              ...prev.mutualFunds,
+              { "New Bank": [{ fund: "", value: 0 }] }
+            ]
           }
         : prev
     );
@@ -135,11 +116,11 @@ export function useFinanceHandlers() {
       if (!mfEntry) return copy;
 
       const bankFunds = (
-        mfEntry as Record<string, { fund: string; units: number; price: number }[]>
+        mfEntry as Record<string, { fund: string; value: number }[]>
       )[bankKey];
       if (!bankFunds) return copy;
 
-      const newBankFunds = [...bankFunds, { fund: "", units: 0, price: 0 }];
+      const newBankFunds = [...bankFunds, { fund: "", value: 0 }];
 
       const newMF = copy.mutualFunds.slice();
       newMF[mfIndex] = { [bankKey]: newBankFunds };
@@ -149,25 +130,16 @@ export function useFinanceHandlers() {
     });
   }
 
-  // ------------------ save ------------------
-  async function handleSave() {
-    if (!data) return;
-    setSaving(true);
-    await fetch("/api/finance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
-    });
-    setSaving(false);
-  }
-
   // ------------------ simple adders ------------------
   function addRemoteBank() {
     setData((prev) =>
       prev
         ? {
             ...prev,
-            remoteBanks: [...prev.remoteBanks, { name: "", amountUsd: 0, exchangeRate: 0 }]
+            remoteBanks: [
+              ...prev.remoteBanks,
+              { name: "", amountUsd: 0, exchangeRate: 0 }
+            ]
           }
         : prev
     );
@@ -184,17 +156,98 @@ export function useFinanceHandlers() {
     );
   }
 
+  // ------------------ delete handlers ------------------
+
+  // delete a specific fund under a mutual fund bank
+  function deleteFundFromBank(
+    mfIndex: number,
+    bankKey: string,
+    fundIndex: number
+  ) {
+    setData((prev) => {
+      if (!prev) return prev;
+      const copy = structuredClone(prev) as FinanceDoc;
+
+      const mfEntry = copy.mutualFunds[mfIndex];
+      if (!mfEntry) return copy;
+
+      const bankFunds = (
+        mfEntry as Record<string, { fund: string; value: number }[]>
+      )[bankKey];
+      if (!bankFunds) return copy;
+
+      const newBankFunds = bankFunds.filter((_, i) => i !== fundIndex);
+
+      const newMF = copy.mutualFunds.slice();
+      newMF[mfIndex] = { [bankKey]: newBankFunds };
+
+      copy.mutualFunds = newMF;
+      return copy;
+    });
+  }
+
+  // delete an entire mutual fund bank (and all its funds)
+  function deleteMutualFundBank(mfIndex: number) {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            mutualFunds: prev.mutualFunds.filter((_, i) => i !== mfIndex)
+          }
+        : prev
+    );
+  }
+
+  // delete a remote bank
+  function deleteRemoteBank(index: number) {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            remoteBanks: prev.remoteBanks.filter((_, i) => i !== index)
+          }
+        : prev
+    );
+  }
+
+  // delete a local bank
+  function deleteLocalBank(index: number) {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            localBanks: prev.localBanks.filter((_, i) => i !== index)
+          }
+        : prev
+    );
+  }
+
+  // ------------------ save ------------------
+  async function handleSave() {
+    if (!data) return;
+    setSaving(true);
+    await fetch("/api/finance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    setSaving(false);
+  }
+
   return {
     data,
-    loading,
     saving,
+    loading,
     handleChange,
-    handleChangeMutualFund,
-    renameMutualFundBank,
     addMutualFundBank,
+    deleteMutualFundBank,
+    handleChangeMutualFund,
     addFundToBank,
     addRemoteBank,
     addLocalBank,
+    deleteFundFromBank,
+    deleteRemoteBank,
+    deleteLocalBank,
     handleSave
   };
 }

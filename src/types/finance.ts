@@ -6,8 +6,7 @@ export interface FinanceDoc {
   mutualFunds: {
     [bank: string]: {
       fund: string;
-      units: number;
-      price: number;
+      value: number;
     }[];
   }[];
   remoteBanks: {
