@@ -20,7 +20,7 @@ export async function GET() {
     console.error("GET /api/finance/snapshots error:", err);
     return NextResponse.json(
       { error: "Failed to fetch snapshots" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -40,9 +40,9 @@ export async function POST(req: Request) {
         name: data.name,
         mutualFunds: data.mutualFunds,
         remoteBanks: data.remoteBanks,
-        localBanks: data.localBanks
+        localBanks: data.localBanks,
       },
-      grandTotal
+      grandTotal,
     };
 
     const result = await collection.insertOne(snapshot);
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     console.error("POST /api/finance/snapshots error:", err);
     return NextResponse.json(
       { error: "Failed to create snapshot" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -64,7 +64,7 @@ export async function DELETE(req: Request) {
     if (!id) {
       return NextResponse.json(
         { error: "Missing snapshot id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -77,7 +77,7 @@ export async function DELETE(req: Request) {
     if (result.deletedCount === 0) {
       return NextResponse.json(
         { error: "Snapshot not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -86,7 +86,7 @@ export async function DELETE(req: Request) {
     console.error("DELETE /api/snapshots error:", err);
     return NextResponse.json(
       { error: "Failed to delete snapshot" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

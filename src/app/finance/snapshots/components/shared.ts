@@ -1,6 +1,6 @@
 export const percentFormatter = ({
   name,
-  percent
+  percent,
 }: {
   name: string;
   percent: number;

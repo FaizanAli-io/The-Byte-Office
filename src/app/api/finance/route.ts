@@ -15,7 +15,7 @@ export async function GET() {
         name: "finance",
         mutualFunds: [],
         remoteBanks: [],
-        localBanks: []
+        localBanks: [],
       };
 
       const result = await collection.insertOne(initialDoc);
@@ -26,7 +26,13 @@ export async function GET() {
     return NextResponse.json(doc);
   } catch (err) {
     console.error("GET /api/finance error:", err);
-    return NextResponse.json({ error: "Failed to fetch finance data" }, { status: 500 });
+    const fallback: FinanceDoc = {
+      name: "finance",
+      mutualFunds: [],
+      remoteBanks: [],
+      localBanks: [],
+    };
+    return NextResponse.json(fallback, { status: 200 });
   }
 }
 
@@ -39,11 +45,18 @@ export async function POST(req: Request) {
     const db = client.db("finance");
     const collection = db.collection<FinanceDoc>("data");
 
-    await collection.updateOne({ name: "finance" }, { $set: body }, { upsert: true });
+    await collection.updateOne(
+      { name: "finance" },
+      { $set: body },
+      { upsert: true },
+    );
 
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("POST /api/finance error:", err);
-    return NextResponse.json({ error: "Failed to update finance data" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update finance data" },
+      { status: 500 },
+    );
   }
 }

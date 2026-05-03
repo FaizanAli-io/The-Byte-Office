@@ -24,7 +24,7 @@ export default function BackgroundEffect() {
         style={{
           transform: `translate(${mousePosition.x * 0.02}px, ${mousePosition.y * 0.02}px)`,
           left: "10%",
-          top: "20%"
+          top: "20%",
         }}
       />
       <div
@@ -33,7 +33,7 @@ export default function BackgroundEffect() {
           transform: `translate(${mousePosition.x * -0.01}px, ${mousePosition.y * -0.01}px)`,
           right: "10%",
           bottom: "20%",
-          animationDelay: "1s"
+          animationDelay: "1s",
         }}
       />
 

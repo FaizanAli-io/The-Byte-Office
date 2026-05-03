@@ -6,7 +6,7 @@ import {
   Cell,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from "recharts";
 
 const COLORS = ["#60a5fa", "#a78bfa", "#34d399", "#fbbf24", "#f87171"];
@@ -17,10 +17,10 @@ export function MutualFundsPie({ snapshot }: any) {
       const bankKey = Object.keys(mf)[0];
       const total = mf[bankKey].reduce(
         (sum: number, f: any) => sum + f.value,
-        0
+        0,
       );
       return { name: bankKey, value: total };
-    }
+    },
   );
 
   return (

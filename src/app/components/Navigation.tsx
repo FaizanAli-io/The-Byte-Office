@@ -28,7 +28,7 @@ export default function Navigation() {
     { name: "About", href: "/about" },
     { name: "Contact", href: "/contact" },
     { name: "Services", href: "/services" },
-    { name: "Projects", href: "/projects" }
+    { name: "Projects", href: "/projects" },
   ];
 
   const handleMobileMenuToggle = (): void => {
@@ -133,7 +133,7 @@ export default function Navigation() {
                 }`}
                 onClick={closeMobileMenu}
                 style={{
-                  animationDelay: `${index * 50}ms`
+                  animationDelay: `${index * 50}ms`,
                 }}
               >
                 <span className="relative z-10 font-medium">{item.name}</span>

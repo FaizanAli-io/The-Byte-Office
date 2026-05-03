@@ -12,17 +12,45 @@ export function useFinanceHandlers() {
   // ------------------ lifecycle ------------------
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/finance");
-      const json = await res.json();
-      setData(json);
-      setLoading(false);
+      try {
+        const res = await fetch("/api/finance");
+        const json = await res.json();
+
+        if (!res.ok || !json) {
+          console.warn(
+            "/api/finance returned error, falling back to empty data",
+            json,
+          );
+          setData({
+            name: "finance",
+            mutualFunds: [],
+            remoteBanks: [],
+            localBanks: [],
+          });
+        } else {
+          setData(json);
+        }
+      } catch (err) {
+        console.error(
+          "Failed to fetch /api/finance, using empty fallback:",
+          err,
+        );
+        setData({
+          name: "finance",
+          mutualFunds: [],
+          remoteBanks: [],
+          localBanks: [],
+        });
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
   // ------------------ generic handler ------------------
   function handleChange<
     K extends keyof SectionMap,
-    F extends keyof SectionMap[K]
+    F extends keyof SectionMap[K],
   >(section: K, index: number, field: F, value: SectionMap[K][F]) {
     setData((prev) => {
       if (!prev) return prev;
@@ -35,7 +63,7 @@ export function useFinanceHandlers() {
 
       const updated = {
         ...sectionArray[index],
-        [field]: value
+        [field]: value,
       } as SectionMap[K];
 
       const newSection = sectionArray.slice();
@@ -52,7 +80,7 @@ export function useFinanceHandlers() {
     bankKey: string,
     fundIndex: number | null,
     field: "fund" | "value" | "bankName",
-    value: string | number
+    value: string | number,
   ) {
     setData((prev) => {
       if (!prev) return prev;
@@ -99,10 +127,10 @@ export function useFinanceHandlers() {
             ...prev,
             mutualFunds: [
               ...prev.mutualFunds,
-              { "New Bank": [{ fund: "", value: 0 }] }
-            ]
+              { "New Bank": [{ fund: "", value: 0 }] },
+            ],
           }
-        : prev
+        : prev,
     );
   }
 
@@ -138,10 +166,10 @@ export function useFinanceHandlers() {
             ...prev,
             remoteBanks: [
               ...prev.remoteBanks,
-              { name: "", amountUsd: 0, exchangeRate: 0 }
-            ]
+              { name: "", amountUsd: 0, exchangeRate: 0 },
+            ],
           }
-        : prev
+        : prev,
     );
   }
 
@@ -150,9 +178,9 @@ export function useFinanceHandlers() {
       prev
         ? {
             ...prev,
-            localBanks: [...prev.localBanks, { name: "", amountPkr: 0 }]
+            localBanks: [...prev.localBanks, { name: "", amountPkr: 0 }],
           }
-        : prev
+        : prev,
     );
   }
 
@@ -162,7 +190,7 @@ export function useFinanceHandlers() {
   function deleteFundFromBank(
     mfIndex: number,
     bankKey: string,
-    fundIndex: number
+    fundIndex: number,
   ) {
     setData((prev) => {
       if (!prev) return prev;
@@ -192,9 +220,9 @@ export function useFinanceHandlers() {
       prev
         ? {
             ...prev,
-            mutualFunds: prev.mutualFunds.filter((_, i) => i !== mfIndex)
+            mutualFunds: prev.mutualFunds.filter((_, i) => i !== mfIndex),
           }
-        : prev
+        : prev,
     );
   }
 
@@ -204,9 +232,9 @@ export function useFinanceHandlers() {
       prev
         ? {
             ...prev,
-            remoteBanks: prev.remoteBanks.filter((_, i) => i !== index)
+            remoteBanks: prev.remoteBanks.filter((_, i) => i !== index),
           }
-        : prev
+        : prev,
     );
   }
 
@@ -216,9 +244,9 @@ export function useFinanceHandlers() {
       prev
         ? {
             ...prev,
-            localBanks: prev.localBanks.filter((_, i) => i !== index)
+            localBanks: prev.localBanks.filter((_, i) => i !== index),
           }
-        : prev
+        : prev,
     );
   }
 
@@ -229,7 +257,7 @@ export function useFinanceHandlers() {
     await fetch("/api/finance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     setSaving(false);
   }
@@ -248,6 +276,6 @@ export function useFinanceHandlers() {
     deleteFundFromBank,
     deleteRemoteBank,
     deleteLocalBank,
-    handleSave
+    handleSave,
   };
 }

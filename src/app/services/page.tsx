@@ -27,11 +27,11 @@ export default function Services() {
         "Computer Vision",
         "Predictive Analytics",
         "Recommendation Systems",
-        "Chatbots & Virtual Assistants"
+        "Chatbots & Virtual Assistants",
       ],
       icon: "🧠",
       gradient: "from-blue-500 to-cyan-500",
-      color: "blue"
+      color: "blue",
     },
     {
       title: "Automation Solutions",
@@ -41,11 +41,11 @@ export default function Services() {
         "Data Processing",
         "API Integration",
         "Task Scheduling",
-        "Business Process Optimization"
+        "Business Process Optimization",
       ],
       icon: "🔄",
       gradient: "from-purple-500 to-pink-500",
-      color: "purple"
+      color: "purple",
     },
     {
       title: "Full-Stack Development",
@@ -55,11 +55,11 @@ export default function Services() {
         "Node.js Backend Development",
         "Database Design & Management",
         "Cloud Infrastructure",
-        "Mobile-Responsive Design"
+        "Mobile-Responsive Design",
       ],
       icon: "🚀",
       gradient: "from-emerald-500 to-teal-500",
-      color: "emerald"
+      color: "emerald",
     },
     {
       title: "Cloud & DevOps",
@@ -69,12 +69,12 @@ export default function Services() {
         "CI/CD Pipelines",
         "Container Orchestration",
         "Performance Optimization",
-        "Security Implementation"
+        "Security Implementation",
       ],
       icon: "☁️",
       gradient: "from-indigo-500 to-purple-500",
-      color: "indigo"
-    }
+      color: "indigo",
+    },
   ];
 
   return (
@@ -88,7 +88,8 @@ export default function Services() {
           highlight="Services"
           subtitle={
             <>
-              Comprehensive technology solutions designed to accelerate your business growth and
+              Comprehensive technology solutions designed to accelerate your
+              business growth and
               <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
                 {" "}
                 digital transformation
@@ -110,7 +111,7 @@ export default function Services() {
                   style={{
                     animation: "fadeInUp 0.6s ease forwards",
                     animationDelay: `${index * 0.1}s`,
-                    opacity: 0
+                    opacity: 0,
                   }}
                 >
                   {/* Gradient Background */}
@@ -149,7 +150,7 @@ export default function Services() {
                           key={idx}
                           className="flex items-center text-gray-300 group-hover:text-gray-200 transition-all duration-300"
                           style={{
-                            transitionDelay: `${idx * 50}ms`
+                            transitionDelay: `${idx * 50}ms`,
                           }}
                         >
                           <div
@@ -203,8 +204,8 @@ export default function Services() {
               ?
             </h2>
             <p className="text-xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Let's discuss how our comprehensive technology solutions can accelerate your growth
-              and drive innovation in your industry.
+              Let's discuss how our comprehensive technology solutions can
+              accelerate your growth and drive innovation in your industry.
             </p>
             <PrimaryCTAButton href="/contact" label="Discuss your Project" />
           </div>

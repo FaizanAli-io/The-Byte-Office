@@ -7,7 +7,7 @@ const {
   labelClass,
   inputClass,
   addBtnClass,
-  deleteBtnClass
+  deleteBtnClass,
 } = styleClasses;
 
 export function MutualFundsSection({
@@ -16,7 +16,7 @@ export function MutualFundsSection({
   onAddBank,
   onAddFund,
   onDeleteBank,
-  onDeleteFund
+  onDeleteFund,
 }: {
   data: FinanceDoc;
   onChange: (
@@ -24,7 +24,7 @@ export function MutualFundsSection({
     bankKey: string,
     fundIndex: number | null,
     field: "fund" | "value" | "bankName",
-    value: string | number
+    value: string | number,
   ) => void;
   onAddBank: () => void;
   onAddFund: (mfIndex: number, bankKey: string) => void;
@@ -87,7 +87,7 @@ export function MutualFundsSection({
                           bankKey,
                           fundIndex,
                           "fund",
-                          e.target.value
+                          e.target.value,
                         )
                       }
                     />
@@ -106,7 +106,7 @@ export function MutualFundsSection({
                           bankKey,
                           fundIndex,
                           "value",
-                          numberOrZero(e.target.value)
+                          numberOrZero(e.target.value),
                         )
                       }
                     />
@@ -135,7 +135,7 @@ export function MutualFundsSection({
                 </span>
                 <span className="font-bold text-xl bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                   {Math.round(
-                    funds.reduce((sum, f) => sum + f.value, 0)
+                    funds.reduce((sum, f) => sum + f.value, 0),
                   ).toLocaleString()}
                 </span>
               </div>
@@ -155,7 +155,7 @@ export function MutualFundsSection({
                 const bankKey = Object.keys(mf)[0];
                 const funds = mf[bankKey];
                 return total + funds.reduce((sum, f) => sum + f.value, 0);
-              }, 0)
+              }, 0),
             ).toLocaleString()}
           </span>
         </div>

@@ -18,22 +18,22 @@ export default function Home() {
       description:
         "Custom AI solutions, machine learning models, and intelligent systems that adapt to your business needs.",
       icon: "🤖",
-      gradient: "from-blue-500 to-cyan-500"
+      gradient: "from-blue-500 to-cyan-500",
     },
     {
       title: "Automation",
       description:
         "Streamline workflows, reduce manual tasks, and boost productivity with smart automation solutions.",
       icon: "⚙️",
-      gradient: "from-purple-500 to-pink-500"
+      gradient: "from-purple-500 to-pink-500",
     },
     {
       title: "Full-Stack Development",
       description:
         "End-to-end web applications, APIs, and scalable systems built with modern technologies.",
       icon: "💻",
-      gradient: "from-emerald-500 to-teal-500"
-    }
+      gradient: "from-emerald-500 to-teal-500",
+    },
   ];
 
   return (
@@ -49,8 +49,11 @@ export default function Home() {
               highlight="Digital Future"
               subtitle={
                 <>
-                  We're <span className="text-blue-400 font-semibold">The Byte Office</span> —
-                  crafting tomorrow's technology today with{" "}
+                  We're{" "}
+                  <span className="text-blue-400 font-semibold">
+                    The Byte Office
+                  </span>{" "}
+                  — crafting tomorrow's technology today with{" "}
                   <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
                     AI-powered solutions
                   </span>
@@ -77,7 +80,8 @@ export default function Home() {
                 </span>
               </h2>
               <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-                Cutting-edge solutions that push boundaries and deliver extraordinary results
+                Cutting-edge solutions that push boundaries and deliver
+                extraordinary results
               </p>
             </div>
 
@@ -89,7 +93,7 @@ export default function Home() {
                   style={{
                     animation: "fadeInUp 0.6s ease forwards",
                     animationDelay: `${index * 0.1}s`,
-                    opacity: 0
+                    opacity: 0,
                   }}
                 >
                   {/* Gradient Background */}
@@ -134,8 +138,9 @@ export default function Home() {
               ?
             </h2>
             <p className="text-xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Transform your vision into reality with cutting-edge AI, automation, and development
-              solutions. Let's build the future together.
+              Transform your vision into reality with cutting-edge AI,
+              automation, and development solutions. Let's build the future
+              together.
             </p>
             <PrimaryCTAButton href="/contact" label="Start Your Journey" />
           </div>

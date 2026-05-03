@@ -8,21 +8,21 @@ const {
   labelClass,
   inputClass,
   addBtnClass,
-  deleteBtnClass
+  deleteBtnClass,
 } = styleClasses;
 
 export function RemoteBanksSection({
   data,
   onChange,
   onAdd,
-  onDelete
+  onDelete,
 }: {
   data: FinanceDoc;
   onChange: <K extends keyof SectionMap, F extends keyof SectionMap[K]>(
     section: K,
     index: number,
     field: F,
-    value: SectionMap[K][F]
+    value: SectionMap[K][F],
   ) => void;
   onAdd: () => void;
   onDelete: (index: number) => void;
@@ -67,7 +67,7 @@ export function RemoteBanksSection({
                     "remoteBanks",
                     i,
                     "amountUsd",
-                    numberOrZero(e.target.value)
+                    numberOrZero(e.target.value),
                   )
                 }
               />
@@ -86,7 +86,7 @@ export function RemoteBanksSection({
                     "remoteBanks",
                     i,
                     "exchangeRate",
-                    numberOrZero(e.target.value)
+                    numberOrZero(e.target.value),
                   )
                 }
               />
@@ -108,8 +108,8 @@ export function RemoteBanksSection({
             {Math.round(
               data.remoteBanks.reduce(
                 (sum, b) => sum + b.amountUsd * b.exchangeRate,
-                0
-              )
+                0,
+              ),
             ).toLocaleString()}
           </span>
           <span className="text-slate-400 text-sm ml-1">PKR</span>

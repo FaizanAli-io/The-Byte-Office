@@ -6,7 +6,7 @@ import {
   Cell,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from "recharts";
 
 const COLORS = ["#34d399", "#60a5fa", "#a78bfa"];
@@ -14,11 +14,11 @@ const COLORS = ["#34d399", "#60a5fa", "#a78bfa"];
 export function PortfolioPie({ snapshot }: any) {
   const local: number = snapshot.data.localBanks.reduce(
     (sum: number, b: any) => sum + b.amountPkr,
-    0
+    0,
   );
   const remote: number = snapshot.data.remoteBanks.reduce(
     (sum: number, b: any) => sum + b.amountUsd * b.exchangeRate,
-    0
+    0,
   );
   const mutual: number = snapshot.data.mutualFunds.reduce(
     (total: number, mf: any) => {
@@ -26,13 +26,13 @@ export function PortfolioPie({ snapshot }: any) {
       const funds = mf[bankKey];
       return total + funds.reduce((s: number, f: any) => s + f.value, 0);
     },
-    0
+    0,
   );
 
   const data = [
     { name: "Local Banks", value: local },
     { name: "Remote Banks", value: remote },
-    { name: "Mutual Funds", value: mutual }
+    { name: "Mutual Funds", value: mutual },
   ];
 
   return (

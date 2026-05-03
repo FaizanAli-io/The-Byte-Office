@@ -26,7 +26,10 @@ const Input = ({
   type?: string;
 } & React.InputHTMLAttributes<HTMLInputElement>) => (
   <div>
-    <label htmlFor={id} className="block text-gray-300 text-sm font-medium mb-2">
+    <label
+      htmlFor={id}
+      className="block text-gray-300 text-sm font-medium mb-2"
+    >
       {label} {required && "*"}
     </label>
     <input
@@ -51,7 +54,10 @@ const TextArea = ({
   required?: boolean;
 } & React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
   <div>
-    <label htmlFor={id} className="block text-gray-300 text-sm font-medium mb-2">
+    <label
+      htmlFor={id}
+      className="block text-gray-300 text-sm font-medium mb-2"
+    >
       {label} {required && "*"}
     </label>
     <textarea
@@ -70,11 +76,13 @@ export default function Contact() {
     email: "",
     company: "",
     service: "",
-    message: ""
+    message: "",
   });
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -94,8 +102,8 @@ export default function Contact() {
           highlight="Touch"
           subtitle={
             <>
-              Ready to transform your business? Let's discuss your project and explore how we can
-              help{" "}
+              Ready to transform your business? Let's discuss your project and
+              explore how we can help{" "}
               <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
                 you achieve your goals
               </span>
@@ -106,7 +114,9 @@ export default function Contact() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-10 border border-white/10 shadow-lg">
-            <h2 className="text-3xl font-bold text-white mb-8">Send us a message</h2>
+            <h2 className="text-3xl font-bold text-white mb-8">
+              Send us a message
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               <Input
                 id="name"
@@ -133,7 +143,10 @@ export default function Contact() {
                 onChange={handleChange}
               />
               <div>
-                <label htmlFor="service" className="block text-gray-300 text-sm font-medium mb-2">
+                <label
+                  htmlFor="service"
+                  className="block text-gray-300 text-sm font-medium mb-2"
+                >
                   Service Interested In
                 </label>
                 <select
@@ -166,7 +179,9 @@ export default function Contact() {
 
           <div className="space-y-12">
             <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-10 border border-white/10 shadow-lg">
-              <h2 className="text-3xl font-bold text-white mb-6">Let's Connect</h2>
+              <h2 className="text-3xl font-bold text-white mb-6">
+                Let's Connect
+              </h2>
               <div className="space-y-6 text-white/80">
                 <div className="flex gap-4 items-start">
                   <span className="text-xl">📧</span>
@@ -193,12 +208,23 @@ export default function Contact() {
             </div>
 
             <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-10 border border-white/10 shadow-lg">
-              <h3 className="text-2xl font-bold text-white mb-6">What Happens Next?</h3>
+              <h3 className="text-2xl font-bold text-white mb-6">
+                What Happens Next?
+              </h3>
               <div className="space-y-6 text-white/80">
                 {[
-                  ["Initial Consultation", "We'll discuss your project requirements and goals."],
-                  ["Project Proposal", "Detailed proposal with timeline and pricing."],
-                  ["Development & Delivery", "Agile development with regular updates."]
+                  [
+                    "Initial Consultation",
+                    "We'll discuss your project requirements and goals.",
+                  ],
+                  [
+                    "Project Proposal",
+                    "Detailed proposal with timeline and pricing.",
+                  ],
+                  [
+                    "Development & Delivery",
+                    "Agile development with regular updates.",
+                  ],
                 ].map(([title, desc], idx) => (
                   <div key={idx} className="flex items-start gap-4">
                     <span className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">

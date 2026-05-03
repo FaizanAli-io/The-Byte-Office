@@ -6,7 +6,7 @@ import {
   TextSummary,
   PortfolioPie,
   MutualFundsPie,
-  IndividualFundsPie
+  IndividualFundsPie,
 } from "./components";
 
 export default function SnapshotsPage() {
@@ -34,7 +34,7 @@ export default function SnapshotsPage() {
 
   const toggleExpand = (id: string) => {
     setExpandedSnapshots((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -44,7 +44,7 @@ export default function SnapshotsPage() {
       month: "long",
       day: "numeric",
       hour: "2-digit",
-      minute: "2-digit"
+      minute: "2-digit",
     });
 
   if (loading) {
@@ -87,17 +87,17 @@ export default function SnapshotsPage() {
                 const funds = mf[bankKey];
                 return total + funds.reduce((sum, f) => sum + f.value, 0);
               },
-              0
+              0,
             );
 
             const remoteBanksTotal = snapshot.data.remoteBanks.reduce(
               (sum, bank) => sum + bank.amountUsd * bank.exchangeRate,
-              0
+              0,
             );
 
             const localBanksTotal = snapshot.data.localBanks.reduce(
               (sum, bank) => sum + bank.amountPkr,
-              0
+              0,
             );
 
             return (
@@ -130,14 +130,14 @@ export default function SnapshotsPage() {
                         const res = await fetch("/api/snapshots", {
                           method: "DELETE",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ id: snapshot._id })
+                          body: JSON.stringify({ id: snapshot._id }),
                         });
                         if (res.ok) {
                           setSnapshots((prev) =>
-                            prev.filter((s) => s._id !== snapshot._id)
+                            prev.filter((s) => s._id !== snapshot._id),
                           );
                           setExpandedSnapshots((prev) =>
-                            prev.filter((x) => x !== snapshot._id)
+                            prev.filter((x) => x !== snapshot._id),
                           );
                         } else alert("Failed to delete snapshot");
                       } catch {

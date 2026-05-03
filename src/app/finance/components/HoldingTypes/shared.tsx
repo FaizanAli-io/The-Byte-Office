@@ -9,7 +9,7 @@ export const styleClasses = {
   addBtnClass:
     "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-5 py-2.5 rounded-xl shadow-lg transition-all duration-200 font-semibold text-sm hover:shadow-xl transform hover:-translate-y-0.5",
   deleteBtnClass:
-    "bg-red-400 hover:bg-red-500 text-white rounded-lg px-2 py-1 font-bold text-sm shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5"
+    "bg-red-400 hover:bg-red-500 text-white rounded-lg px-2 py-1 font-bold text-sm shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5",
 };
 
 export function numberOrZero(value: string) {

@@ -9,11 +9,11 @@ export function TextSummary({ snapshot }: any) {
 
   const localTotal = localBanks.reduce(
     (sum: number, b: any) => sum + b.amountPkr,
-    0
+    0,
   );
   const remoteTotal = remoteBanks.reduce(
     (sum: number, b: any) => sum + b.amountUsd * b.exchangeRate,
-    0
+    0,
   );
   const mutualTotal = mutualFunds.reduce((total: number, mf: any) => {
     const bankKey = Object.keys(mf)[0];
@@ -86,7 +86,7 @@ export function TextSummary({ snapshot }: any) {
               const funds = mf[bankKey];
               const total = funds.reduce(
                 (sum: number, f: any) => sum + f.value,
-                0
+                0,
               );
 
               return (

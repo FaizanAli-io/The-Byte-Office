@@ -10,12 +10,12 @@ export default function Totals({ data }: { data: any }) {
 
   const remoteTotal = data.remoteBanks.reduce(
     (acc: number, b: any) => acc + b.amountUsd * b.exchangeRate,
-    0
+    0,
   );
 
   const localTotal = data.localBanks.reduce(
     (acc: number, b: any) => acc + b.amountPkr,
-    0
+    0,
   );
 
   return (

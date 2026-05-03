@@ -8,21 +8,21 @@ const {
   labelClass,
   inputClass,
   addBtnClass,
-  deleteBtnClass
+  deleteBtnClass,
 } = styleClasses;
 
 export function LocalBanksSection({
   data,
   onChange,
   onAdd,
-  onDelete
+  onDelete,
 }: {
   data: FinanceDoc;
   onChange: <K extends keyof SectionMap, F extends keyof SectionMap[K]>(
     section: K,
     index: number,
     field: F,
-    value: SectionMap[K][F]
+    value: SectionMap[K][F],
   ) => void;
   onAdd: () => void;
   onDelete: (index: number) => void;
@@ -67,7 +67,7 @@ export function LocalBanksSection({
                     "localBanks",
                     i,
                     "amountPkr",
-                    numberOrZero(e.target.value)
+                    numberOrZero(e.target.value),
                   )
                 }
               />
@@ -87,7 +87,7 @@ export function LocalBanksSection({
           </span>
           <span className="font-bold text-2xl bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             {Math.round(
-              data.localBanks.reduce((sum, b) => sum + b.amountPkr, 0)
+              data.localBanks.reduce((sum, b) => sum + b.amountPkr, 0),
             ).toLocaleString()}
           </span>
           <span className="text-slate-400 text-sm ml-1">PKR</span>

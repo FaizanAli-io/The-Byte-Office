@@ -13,7 +13,7 @@ export default function Projects() {
       tech: ["Next.js", "LangChain", "FastAPI", "PostgreSQL"],
       category: "AI & Full-Stack",
       image: "🧠",
-      link: "https://cyberlooper.ai/login"
+      link: "https://cyberlooper.ai/login",
     },
     {
       title: "Retail Sales Digital Dashboard",
@@ -22,7 +22,7 @@ export default function Projects() {
       tech: ["Next.js", "PostgreSQL", "Tailwind", "Google Maps API"],
       category: "Automation",
       image: "📡",
-      link: "https://ptcl-data-tracking.vercel.app/"
+      link: "https://ptcl-data-tracking.vercel.app/",
     },
     {
       title: "Regenerative Aesthetics Web App",
@@ -31,7 +31,7 @@ export default function Projects() {
       tech: ["Next.js", "Tailwind", "Framer Motion", "React Hook Form"],
       category: "Frontend & UI/UX",
       image: "💅",
-      link: "https://regenerative-aesthetics-web-app.vercel.app/"
+      link: "https://regenerative-aesthetics-web-app.vercel.app/",
     },
     {
       title: "Sales Automation Pipeline (Pipedrive)",
@@ -39,7 +39,7 @@ export default function Projects() {
         "An end-to-end pipeline that automates lead intake, qualification, and follow-ups using the Pipedrive CRM.",
       tech: ["Pipedrive API", "Node.js", "Google Apps Script", "Zapier"],
       category: "Automation",
-      image: "🔁"
+      image: "🔁",
     },
     {
       title: "WhatsApp Bot for Multi-Site Deployment",
@@ -47,7 +47,7 @@ export default function Projects() {
         "Custom-built WhatsApp automation bot that dynamically integrates into client websites for instant lead capture.",
       tech: ["Node.js", "Twilio API", "WebSockets", "Express.js"],
       category: "Chat Automation",
-      image: "💬"
+      image: "💬",
     },
     {
       title: "Skiing Analysis via Computer Vision",
@@ -55,7 +55,7 @@ export default function Projects() {
         "A CV-based project analyzing skiing posture and movement using pose estimation and motion detection models.",
       tech: ["Python", "OpenCV", "MediaPipe", "NumPy"],
       category: "Computer Vision",
-      image: "⛷️"
+      image: "⛷️",
     },
     {
       title: "Legislative AI Assistant with RAG",
@@ -63,8 +63,8 @@ export default function Projects() {
         "An AI-powered assistant that uses Retrieval-Augmented Generation to answer legal and policy-related queries based on legislative documents.",
       tech: ["Python", "LangChain", "Pinecone", "OpenAI API", "FastAPI"],
       category: "Legal AI / RAG",
-      image: "📜"
-    }
+      image: "📜",
+    },
   ];
 
   return (
@@ -77,8 +77,8 @@ export default function Projects() {
           highlight="Projects"
           subtitle={
             <>
-              A curated selection of our most impactful work — blending AI, automation, and modern
-              UI to solve{" "}
+              A curated selection of our most impactful work — blending AI,
+              automation, and modern UI to solve{" "}
               <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
                 real problems
               </span>
@@ -106,7 +106,9 @@ export default function Projects() {
                 <span className="inline-block mb-4 bg-blue-600/20 text-blue-300 px-3 py-1 rounded-full text-sm font-medium">
                   {project.category}
                 </span>
-                <h3 className="text-2xl font-bold text-white mb-3 leading-snug">{project.title}</h3>
+                <h3 className="text-2xl font-bold text-white mb-3 leading-snug">
+                  {project.title}
+                </h3>
                 <p className="text-gray-300 text-base leading-relaxed mb-6">
                   {project.description}
                 </p>
@@ -126,10 +128,12 @@ export default function Projects() {
         </div>
 
         <div className="text-center mt-24">
-          <h2 className="text-4xl font-bold text-white mb-6">Have a bold idea?</h2>
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Have a bold idea?
+          </h2>
           <p className="text-xl text-gray-300 mb-10 max-w-xl mx-auto leading-relaxed">
-            Whether it’s building from scratch or enhancing your tech stack, we’re here to bring
-            your vision to life.
+            Whether it’s building from scratch or enhancing your tech stack,
+            we’re here to bring your vision to life.
           </p>
           <PrimaryCTAButton href="/contact" label="Start Your Project" />
         </div>

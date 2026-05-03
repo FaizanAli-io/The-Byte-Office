@@ -6,7 +6,7 @@ import {
   Cell,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from "recharts";
 
 const COLORS = [
@@ -16,7 +16,7 @@ const COLORS = [
   "#4ade80",
   "#60a5fa",
   "#a78bfa",
-  "#ec4899"
+  "#ec4899",
 ];
 
 export function IndividualFundsPie({ snapshot }: any) {
@@ -27,7 +27,7 @@ export function IndividualFundsPie({ snapshot }: any) {
     mf[bankKey].forEach((f: any) => {
       allFunds.push({
         name: `${bankKey}: ${f.fund}`,
-        value: f.value
+        value: f.value,
       });
     });
   });

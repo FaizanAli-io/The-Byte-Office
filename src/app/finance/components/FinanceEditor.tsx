@@ -4,7 +4,7 @@ import { useFinanceHandlers } from "./useFinanceHandlers";
 import {
   MutualFundsSection,
   RemoteBanksSection,
-  LocalBanksSection
+  LocalBanksSection,
 } from "./HoldingTypes";
 import { useState } from "react";
 
@@ -23,7 +23,7 @@ export default function FinanceEditor() {
     deleteFundFromBank,
     deleteRemoteBank,
     deleteLocalBank,
-    handleSave
+    handleSave,
   } = useFinanceHandlers();
 
   const [snapshotLoading, setSnapshotLoading] = useState(false);
@@ -32,24 +32,36 @@ export default function FinanceEditor() {
   const calculateGrandTotal = () => {
     if (!data) return 0;
 
-    // Mutual funds total
-    const mutualFundsTotal = data.mutualFunds.reduce((total, mf) => {
+    const mutualFunds = Array.isArray(data.mutualFunds) ? data.mutualFunds : [];
+    const remoteBanks = Array.isArray(data.remoteBanks) ? data.remoteBanks : [];
+    const localBanks = Array.isArray(data.localBanks) ? data.localBanks : [];
+
+    const mutualFundsTotal = mutualFunds.reduce((total, mf) => {
+      if (!mf || typeof mf !== "object") return total;
       const bankKey = Object.keys(mf)[0];
-      const funds = mf[bankKey];
-      return total + funds.reduce((sum, f) => sum + f.value, 0);
+      const funds = Array.isArray((mf as any)[bankKey])
+        ? (mf as any)[bankKey]
+        : [];
+      return (
+        total +
+        funds.reduce(
+          (sum: number, f: any) =>
+            sum + (typeof f?.value === "number" ? f.value : 0),
+          0,
+        )
+      );
     }, 0);
 
-    // Remote banks total
-    const remoteBanksTotal = data.remoteBanks.reduce(
-      (sum, bank) => sum + bank.amountUsd * bank.exchangeRate,
-      0
-    );
+    const remoteBanksTotal = remoteBanks.reduce((sum, bank: any) => {
+      const usd = typeof bank?.amountUsd === "number" ? bank.amountUsd : 0;
+      const rate =
+        typeof bank?.exchangeRate === "number" ? bank.exchangeRate : 0;
+      return sum + usd * rate;
+    }, 0);
 
-    // Local banks total
-    const localBanksTotal = data.localBanks.reduce(
-      (sum, bank) => sum + bank.amountPkr,
-      0
-    );
+    const localBanksTotal = localBanks.reduce((sum, bank: any) => {
+      return sum + (typeof bank?.amountPkr === "number" ? bank.amountPkr : 0);
+    }, 0);
 
     return mutualFundsTotal + remoteBanksTotal + localBanksTotal;
   };
@@ -64,7 +76,7 @@ export default function FinanceEditor() {
       const response = await fetch("/api/snapshots", {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data, grandTotal }),
-        method: "POST"
+        method: "POST",
       });
 
       if (response.ok) {

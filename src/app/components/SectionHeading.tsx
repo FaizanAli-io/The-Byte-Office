@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 export default function SectionHeading({
   title,
   highlight,
-  subtitle
+  subtitle,
 }: {
   title: string;
   highlight: string;

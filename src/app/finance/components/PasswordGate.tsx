@@ -9,18 +9,35 @@ export default function PasswordGate({ onAuth }: PasswordGateProps) {
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
 
+  const getStorage = () => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const storage = window.localStorage;
+    if (
+      storage &&
+      typeof storage.getItem === "function" &&
+      typeof storage.setItem === "function"
+    ) {
+      return storage;
+    }
+
+    return null;
+  };
+
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const authed = localStorage.getItem("financeAuthed");
-      if (authed === "true") {
-        onAuth();
-      }
+    const storage = getStorage();
+    const authed = storage?.getItem("financeAuthed");
+
+    if (authed === "true") {
+      onAuth();
     }
   }, [onAuth]);
 
   const handleSubmit = () => {
     if (input === process.env.NEXT_PUBLIC_FINANCE_PASSWORD) {
-      localStorage.setItem("financeAuthed", "true");
+      getStorage()?.setItem("financeAuthed", "true");
       onAuth();
     } else {
       setError("Invalid password");
@@ -44,7 +61,10 @@ export default function PasswordGate({ onAuth }: PasswordGateProps) {
         className="border rounded px-3 py-2"
         onChange={(e) => setInput(e.target.value)}
       />
-      <button className="bg-blue-600 text-white px-4 py-2 rounded" onClick={handleSubmit}>
+      <button
+        className="bg-blue-600 text-white px-4 py-2 rounded"
+        onClick={handleSubmit}
+      >
         Login
       </button>
       {error && <p className="text-red-500">{error}</p>}

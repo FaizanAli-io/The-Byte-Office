@@ -10,8 +10,8 @@ export default function Footer() {
               The Byte Office
             </h3>
             <p className="text-gray-400 mb-6 max-w-md leading-relaxed">
-              Transforming businesses with cutting-edge AI, automation, and full-stack development
-              solutions.
+              Transforming businesses with cutting-edge AI, automation, and
+              full-stack development solutions.
             </p>
             <div className="flex space-x-5">
               {["twitter", "linkedin", "github"].map((platform, idx) => (
@@ -32,28 +32,33 @@ export default function Footer() {
           <div>
             <h4 className="text-xl font-bold mb-4 text-white/90">Services</h4>
             <ul className="space-y-3">
-              {["AI Development", "Full-Stack Dev", "Automation", "Consulting"].map(
-                (service, idx) => (
-                  <li key={idx}>
-                    <Link
-                      href="/services"
-                      className="text-white/50 hover:text-purple-400 transition duration-200"
-                    >
-                      {service}
-                    </Link>
-                  </li>
-                )
-              )}
+              {[
+                "AI Development",
+                "Full-Stack Dev",
+                "Automation",
+                "Consulting",
+              ].map((service, idx) => (
+                <li key={idx}>
+                  <Link
+                    href="/services"
+                    className="text-white/50 hover:text-purple-400 transition duration-200"
+                  >
+                    {service}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           <div>
-            <h4 className="text-xl font-bold mb-4 text-white/90">Quick Links</h4>
+            <h4 className="text-xl font-bold mb-4 text-white/90">
+              Quick Links
+            </h4>
             <ul className="space-y-3">
               {[
                 { name: "About Us", href: "/about" },
                 { name: "Contact", href: "/contact" },
-                { name: "Portfolio", href: "/projects" }
+                { name: "Portfolio", href: "/projects" },
               ].map((link, idx) => (
                 <li key={idx}>
                   <Link
