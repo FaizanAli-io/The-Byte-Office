@@ -1,4 +1,4 @@
-import BackgroundEffect from "../components/BackgroundEffect";
+﻿import BackgroundEffect from "../components/BackgroundEffect";
 import ContactForm from "./ContactForm";
 import { company, processSteps, siteUrl } from "../data/site";
 import { createMetadata, jsonLd } from "../lib/seo";
@@ -112,10 +112,8 @@ export default function ContactPage() {
                       {index + 1}
                     </span>
                     <div>
-                      <h3 className="font-bold text-slate-950">
-                        {step.title}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                      <h3 className="font-bold text-slate-100">{step.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-400">
                         {step.text}
                       </p>
                     </div>

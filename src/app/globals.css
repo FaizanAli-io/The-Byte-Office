@@ -1,28 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f4ef;
-  --foreground: #111827;
-  --ink: #0f172a;
-  --ink-soft: #1e293b;
-  --paper: #fffdf8;
-  --surface: #ffffff;
-  --surface-muted: #ece8df;
+  --background: #080c13;
+  --foreground: #e5e7eb;
+  --ink: #f8fafc;
+  --ink-soft: #e2e8f0;
+  --paper: #0b111b;
+  --surface: #111827;
+  --surface-muted: #0d1522;
   --muted: #64748b;
-  --muted-strong: #475569;
-  --border: rgba(15, 23, 42, 0.12);
-  --border-strong: rgba(15, 23, 42, 0.2);
-  --primary: #1d4ed8;
-  --primary-dark: #1e40af;
-  --accent: #0f766e;
-  --gold: #c0842b;
-  --focus: #2563eb;
+  --muted-strong: #94a3b8;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --primary: #67e8f9;
+  --primary-dark: #a5f3fc;
+  --accent: #5eead4;
+  --gold: #fbbf24;
+  --focus: #22d3ee;
   --radius-sm: 0.5rem;
   --radius-md: 0.875rem;
   --radius-lg: 1.25rem;
-  --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --shadow-md: 0 18px 50px rgba(15, 23, 42, 0.12);
-  --shadow-lg: 0 30px 90px rgba(15, 23, 42, 0.18);
+  --shadow-sm: 0 10px 30px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 20px 60px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 32px 100px rgba(0, 0, 0, 0.42);
 }
 
 @theme inline {
@@ -45,8 +45,17 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 10% -10%, rgba(29, 78, 216, 0.14), transparent 30rem),
-    linear-gradient(180deg, #fffdf8 0%, #f6f4ef 34rem, #f8fafc 100%);
+    radial-gradient(
+      circle at 10% -10%,
+      rgba(34, 211, 238, 0.1),
+      transparent 34rem
+    ),
+    radial-gradient(
+      circle at 90% 20%,
+      rgba(99, 102, 241, 0.08),
+      transparent 34rem
+    ),
+    linear-gradient(180deg, #080c13 0%, #0a1019 34rem, #080c13 100%);
   color: var(--foreground);
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
 }
@@ -64,12 +73,12 @@ textarea {
 }
 
 ::selection {
-  background: rgba(29, 78, 216, 0.18);
+  background: rgba(34, 211, 238, 0.24);
   color: var(--ink);
 }
 
 :focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.7);
+  outline: 3px solid rgba(34, 211, 238, 0.7);
   outline-offset: 3px;
 }
 
@@ -98,7 +107,7 @@ textarea {
   width: fit-content;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.045);
   color: var(--primary-dark);
   font-size: 0.78rem;
   font-weight: 700;
@@ -157,7 +166,7 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.74)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
     var(--surface);
   box-shadow: var(--shadow-sm);
 }
@@ -166,7 +175,7 @@ textarea {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(145deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98)),
+    linear-gradient(145deg, rgba(17, 24, 39, 0.96), rgba(8, 12, 19, 0.98)),
     var(--ink);
   color: white;
   box-shadow: var(--shadow-lg);
@@ -175,7 +184,7 @@ textarea {
 .muted-panel {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: rgba(236, 232, 223, 0.58);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .chip {
@@ -183,7 +192,7 @@ textarea {
   align-items: center;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.045);
   color: var(--ink-soft);
   font-size: 0.82rem;
   font-weight: 650;
@@ -214,25 +223,25 @@ textarea {
 }
 
 .button-primary {
-  background: var(--ink);
-  color: #ffffff;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.2);
+  background: #a5f3fc;
+  color: #071018;
+  box-shadow: 0 16px 40px rgba(34, 211, 238, 0.14);
 }
 
 .button-primary:hover {
-  background: #020617;
-  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.26);
+  background: #cffafe;
+  box-shadow: 0 18px 46px rgba(34, 211, 238, 0.2);
 }
 
 .button-secondary {
   border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.045);
   color: var(--ink);
 }
 
 .button-secondary:hover {
-  border-color: rgba(15, 23, 42, 0.32);
-  background: #ffffff;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.09);
 }
 
 .button-quiet {
@@ -246,8 +255,8 @@ textarea {
 
 .grid-lines {
   background-image:
-    linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.055) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: linear-gradient(to bottom, black 0%, transparent 85%);
 }

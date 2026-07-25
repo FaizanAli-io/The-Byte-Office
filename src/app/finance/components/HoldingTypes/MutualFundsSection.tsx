@@ -33,7 +33,7 @@ export function MutualFundsSection({
 }) {
   return (
     <section className={cardClass}>
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-5 flex items-center justify-between gap-3">
         <h2 className={sectionTitleClass}>Mutual Funds</h2>
         <button onClick={onAddBank} className={addBtnClass}>
           + Add Bank
@@ -47,7 +47,7 @@ export function MutualFundsSection({
         return (
           <div
             key={mfIndex}
-            className="bg-slate-800/30 border border-slate-600/30 p-5 rounded-xl mb-6 backdrop-blur-sm"
+            className="mb-4 rounded-xl border border-white/7 bg-slate-950/45 p-4"
           >
             <div className="flex justify-between items-center mb-4">
               <div className="flex-1 mr-4">
@@ -73,7 +73,7 @@ export function MutualFundsSection({
               {funds.map((fund, fundIndex) => (
                 <div
                   key={fundIndex}
-                  className="grid grid-cols-[1fr_1fr_auto] gap-4 items-end p-4 bg-slate-700/20 rounded-lg border border-slate-600/20"
+                  className="grid gap-3 rounded-lg border border-white/6 bg-white/[0.025] p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
                 >
                   <div>
                     <label className={labelClass}>Fund Name</label>
@@ -121,10 +121,10 @@ export function MutualFundsSection({
               ))}
             </div>
 
-            <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-600/30">
+            <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/6 pt-4">
               <button
                 onClick={() => onAddFund(mfIndex, bankKey)}
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-200 font-semibold text-sm hover:shadow-xl transform hover:-translate-y-0.5"
+                className={addBtnClass}
               >
                 + Add Fund
               </button>
@@ -133,7 +133,7 @@ export function MutualFundsSection({
                 <span className="text-slate-400 text-sm font-medium">
                   Bank Total:{" "}
                 </span>
-                <span className="font-bold text-xl bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                <span className="text-lg font-bold text-cyan-300">
                   {Math.round(
                     funds.reduce((sum, f) => sum + f.value, 0),
                   ).toLocaleString()}
@@ -144,12 +144,12 @@ export function MutualFundsSection({
         );
       })}
 
-      <div className="flex justify-end items-center mt-6 pt-6 border-t border-slate-600/30">
+      <div className="mt-5 flex items-center justify-end border-t border-white/6 pt-5">
         <div className="text-right">
           <span className="text-slate-400 text-sm font-medium">
             Section Total:{" "}
           </span>
-          <span className="font-bold text-2xl bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <span className="text-xl font-bold text-cyan-300">
             {Math.round(
               data.mutualFunds.reduce((total, mf) => {
                 const bankKey = Object.keys(mf)[0];

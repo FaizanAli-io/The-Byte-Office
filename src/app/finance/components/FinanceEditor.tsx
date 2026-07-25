@@ -1,12 +1,14 @@
 "use client";
 
-import { useFinanceHandlers } from "./useFinanceHandlers";
+import { portfolioTotals } from "@/lib/finance";
+import { useState } from "react";
 import {
+  LocalBanksSection,
   MutualFundsSection,
   RemoteBanksSection,
-  LocalBanksSection,
 } from "./HoldingTypes";
-import { useState } from "react";
+import { FinancePageShell, StatCard, financeStyles } from "./FinanceUI";
+import { useFinanceHandlers } from "./useFinanceHandlers";
 
 export default function FinanceEditor() {
   const {
@@ -25,154 +27,116 @@ export default function FinanceEditor() {
     deleteLocalBank,
     handleSave,
   } = useFinanceHandlers();
-
   const [snapshotLoading, setSnapshotLoading] = useState(false);
 
-  // Calculate grand total
-  const calculateGrandTotal = () => {
-    if (!data) return 0;
-
-    const mutualFunds = Array.isArray(data.mutualFunds) ? data.mutualFunds : [];
-    const remoteBanks = Array.isArray(data.remoteBanks) ? data.remoteBanks : [];
-    const localBanks = Array.isArray(data.localBanks) ? data.localBanks : [];
-
-    const mutualFundsTotal = mutualFunds.reduce((total, mf) => {
-      if (!mf || typeof mf !== "object") return total;
-      const bankKey = Object.keys(mf)[0];
-      const funds = Array.isArray((mf as any)[bankKey])
-        ? (mf as any)[bankKey]
-        : [];
-      return (
-        total +
-        funds.reduce(
-          (sum: number, f: any) =>
-            sum + (typeof f?.value === "number" ? f.value : 0),
-          0,
-        )
-      );
-    }, 0);
-
-    const remoteBanksTotal = remoteBanks.reduce((sum, bank: any) => {
-      const usd = typeof bank?.amountUsd === "number" ? bank.amountUsd : 0;
-      const rate =
-        typeof bank?.exchangeRate === "number" ? bank.exchangeRate : 0;
-      return sum + usd * rate;
-    }, 0);
-
-    const localBanksTotal = localBanks.reduce((sum, bank: any) => {
-      return sum + (typeof bank?.amountPkr === "number" ? bank.amountPkr : 0);
-    }, 0);
-
-    return mutualFundsTotal + remoteBanksTotal + localBanksTotal;
-  };
-
-  const handleSnapshot = async () => {
+  async function handleSnapshot() {
     if (!data) return;
-
     setSnapshotLoading(true);
     try {
-      const grandTotal = calculateGrandTotal();
-
       const response = await fetch("/api/snapshots", {
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data, grandTotal }),
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data,
+          grandTotal: portfolioTotals(data).grandTotal,
+        }),
       });
-
-      if (response.ok) {
-        alert("Snapshot saved successfully!");
-      } else {
-        throw new Error("Failed to save snapshot");
-      }
+      if (!response.ok) throw new Error("Failed to save snapshot");
+      window.alert("Snapshot saved.");
     } catch (error) {
       console.error("Error saving snapshot:", error);
-      alert("Failed to save snapshot");
+      window.alert("Failed to save snapshot.");
     } finally {
       setSnapshotLoading(false);
     }
-  };
+  }
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-lg">Loading…</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-slate-500">Loading portfolio…</p>
       </div>
     );
+  }
 
-  if (!data)
+  if (!data) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-lg">No finance data found.</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-slate-500">No finance data found.</p>
       </div>
     );
+  }
+
+  const totals = portfolioTotals(data);
 
   return (
-    <div className="pt-24 px-6 space-y-8">
-      <h1 className="text-3xl font-bold mb-4">Finance Editor</h1>
-
-      <MutualFundsSection
-        data={data}
-        onAddFund={addFundToBank}
-        onAddBank={addMutualFundBank}
-        onChange={handleChangeMutualFund}
-        onDeleteFund={deleteFundFromBank}
-        onDeleteBank={deleteMutualFundBank}
-      />
-
-      <RemoteBanksSection
-        data={data}
-        onAdd={addRemoteBank}
-        onChange={handleChange}
-        onDelete={deleteRemoteBank}
-      />
-
-      <LocalBanksSection
-        data={data}
-        onAdd={addLocalBank}
-        onChange={handleChange}
-        onDelete={deleteLocalBank}
-      />
-
-      {/* Grand Total Section */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-700/50 backdrop-blur-sm">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400 bg-clip-text text-transparent tracking-wide mb-4">
-            Portfolio Grand Total
-          </h2>
-          <div className="text-6xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent mb-2">
-            {Math.round(calculateGrandTotal()).toLocaleString()}
-          </div>
-          <div className="text-slate-400 text-lg font-medium">PKR</div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-between items-center gap-4 mb-4">
-        <div className="flex gap-4">
+    <FinancePageShell
+      title="Portfolio editor"
+      description="Keep the latest value of each account and fund. Use snapshots for history and the ledger for monthly reconciliation."
+      actions={
+        <>
           <button
+            type="button"
             onClick={handleSnapshot}
             disabled={snapshotLoading}
-            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-6 py-3 rounded-xl shadow-lg transition-all duration-200 font-semibold hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={financeStyles.secondary}
           >
-            {snapshotLoading ? "Saving Snapshot..." : "📸 Take Snapshot"}
+            {snapshotLoading ? "Saving snapshot…" : "Take snapshot"}
           </button>
-
-          <a
-            href="/finance/snapshots"
-            className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 text-white px-6 py-3 rounded-xl shadow-lg transition-all duration-200 font-semibold hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className={financeStyles.primary}
           >
-            📊 View Snapshots
-          </a>
-        </div>
-
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-6 py-3 rounded-xl shadow-lg transition-all duration-200 font-semibold hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {saving ? "Saving Changes..." : "💾 Save Changes"}
-        </button>
+            {saving ? "Saving…" : "Save portfolio"}
+          </button>
+        </>
+      }
+    >
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Local banks"
+          value={`${Math.round(totals.local).toLocaleString()} PKR`}
+        />
+        <StatCard
+          label="Remote banks"
+          value={`${Math.round(totals.remote).toLocaleString()} PKR`}
+        />
+        <StatCard
+          label="Mutual funds"
+          value={`${Math.round(totals.mutual).toLocaleString()} PKR`}
+          tone="amber"
+        />
+        <StatCard
+          label="Portfolio total"
+          value={`${Math.round(totals.grandTotal).toLocaleString()} PKR`}
+          tone="emerald"
+        />
       </div>
-    </div>
+
+      <div className="space-y-6">
+        <LocalBanksSection
+          data={data}
+          onAdd={addLocalBank}
+          onChange={handleChange}
+          onDelete={deleteLocalBank}
+        />
+        <RemoteBanksSection
+          data={data}
+          onAdd={addRemoteBank}
+          onChange={handleChange}
+          onDelete={deleteRemoteBank}
+        />
+        <MutualFundsSection
+          data={data}
+          onAddFund={addFundToBank}
+          onAddBank={addMutualFundBank}
+          onChange={handleChangeMutualFund}
+          onDeleteFund={deleteFundFromBank}
+          onDeleteBank={deleteMutualFundBank}
+        />
+      </div>
+    </FinancePageShell>
   );
 }

@@ -55,7 +55,11 @@ export default function ContactForm() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+    if (
+      !formData.name.trim() ||
+      !formData.email.trim() ||
+      !formData.message.trim()
+    ) {
       setStatus("error");
       return;
     }
@@ -95,10 +99,7 @@ export default function ContactForm() {
           autoComplete="organization"
         />
         <div>
-          <label
-            htmlFor="service"
-            className="text-sm font-bold text-slate-800"
-          >
+          <label htmlFor="service" className="text-sm font-bold text-slate-300">
             Service interested in
           </label>
           <select
@@ -106,11 +107,15 @@ export default function ContactForm() {
             name="service"
             value={formData.service}
             onChange={updateField}
-            className="mt-2 min-h-12 w-full rounded-md border border-slate-900/15 bg-white px-3 text-slate-950 shadow-sm focus:border-blue-700"
+            className="mt-2 min-h-12 w-full rounded-md border border-white/10 bg-slate-950/70 px-3 text-slate-100 shadow-sm focus:border-cyan-400"
           >
             <option value="">Select a service</option>
-            <option value="Full-stack development">Full-stack development</option>
-            <option value="AI and LLM applications">AI and LLM applications</option>
+            <option value="Full-stack development">
+              Full-stack development
+            </option>
+            <option value="AI and LLM applications">
+              AI and LLM applications
+            </option>
             <option value="Automation solutions">Automation solutions</option>
             <option value="Backend and cloud systems">
               Backend and cloud systems
@@ -121,7 +126,7 @@ export default function ContactForm() {
       </div>
 
       <div>
-        <label htmlFor="message" className="text-sm font-bold text-slate-800">
+        <label htmlFor="message" className="text-sm font-bold text-slate-300">
           Project details
         </label>
         <textarea
@@ -132,13 +137,13 @@ export default function ContactForm() {
           value={formData.message}
           onChange={updateField}
           placeholder="Tell us what you want to build, automate, improve, or connect."
-          className="mt-2 w-full resize-y rounded-md border border-slate-900/15 bg-white px-3 py-3 text-slate-950 shadow-sm focus:border-blue-700"
+          className="mt-2 w-full resize-y rounded-md border border-white/10 bg-slate-950/70 px-3 py-3 text-slate-100 shadow-sm focus:border-cyan-400"
         />
       </div>
 
       {status === "success" ? (
         <p
-          className="rounded-md border border-emerald-700/20 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
+          className="rounded-md border border-emerald-400/20 bg-emerald-400/8 px-4 py-3 text-sm font-semibold text-emerald-200"
           role="status"
         >
           Thanks. Your message is ready and the next step is to email The Byte
@@ -148,7 +153,7 @@ export default function ContactForm() {
 
       {status === "error" ? (
         <p
-          className="rounded-md border border-red-700/20 bg-red-50 px-4 py-3 text-sm font-semibold text-red-900"
+          className="rounded-md border border-rose-400/20 bg-rose-400/8 px-4 py-3 text-sm font-semibold text-rose-200"
           role="alert"
         >
           Please add your name, email, and project details before submitting.
@@ -191,7 +196,7 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={name} className="text-sm font-bold text-slate-800">
+      <label htmlFor={name} className="text-sm font-bold text-slate-300">
         {label}
       </label>
       <input
@@ -202,7 +207,7 @@ function Field({
         onChange={onChange}
         required={required}
         autoComplete={autoComplete}
-        className="mt-2 min-h-12 w-full rounded-md border border-slate-900/15 bg-white px-3 text-slate-950 shadow-sm focus:border-blue-700"
+        className="mt-2 min-h-12 w-full rounded-md border border-white/10 bg-slate-950/70 px-3 text-slate-100 shadow-sm focus:border-cyan-400"
       />
     </div>
   );

@@ -1,152 +1,136 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FinanceSnapshot } from "@/types/finance";
 import {
-  TextSummary,
-  PortfolioPie,
-  MutualFundsPie,
-  IndividualFundsPie,
-} from "./components";
+  bankFundAllocations,
+  individualFundAllocations,
+  portfolioAllocations,
+} from "@/lib/finance";
+import type { FinanceSnapshot } from "@/types/finance";
+import { useEffect, useState } from "react";
+import { FinancePageShell, financeStyles } from "../components/FinanceUI";
+import { AllocationChart, TextSummary } from "./components";
 
 export default function SnapshotsPage() {
   const [snapshots, setSnapshots] = useState<FinanceSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedSnapshots, setExpandedSnapshots] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchSnapshots();
+    fetch("/api/snapshots")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load snapshots");
+        setSnapshots(await response.json());
+      })
+      .catch((error) => console.error("Error fetching snapshots:", error))
+      .finally(() => setLoading(false));
   }, []);
 
-  const fetchSnapshots = async () => {
-    try {
-      const response = await fetch("/api/snapshots");
-      if (response.ok) {
-        const data = await response.json();
-        setSnapshots(data);
-      }
-    } catch (error) {
-      console.error("Error fetching snapshots:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleExpand = (id: string) => {
-    setExpandedSnapshots((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
-  const formatDate = (date: string | Date) =>
-    new Date(date).toLocaleString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+  async function deleteSnapshot(id: string) {
+    if (!window.confirm("Delete this snapshot?")) return;
+    const response = await fetch("/api/snapshots", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
     });
-
-  if (loading) {
-    return (
-      <div className="pt-24 px-6 flex justify-center items-center h-64">
-        <p className="text-lg text-slate-400">Loading snapshots...</p>
-      </div>
-    );
+    if (!response.ok) {
+      window.alert("Failed to delete snapshot.");
+      return;
+    }
+    setSnapshots((items) => items.filter((snapshot) => snapshot._id !== id));
+    setExpanded((items) => items.filter((item) => item !== id));
   }
 
   return (
-    <div className="pt-24 px-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          Portfolio Snapshots
-        </h1>
-        <a
-          href="/finance"
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-4 py-2 rounded-xl shadow-lg transition-all duration-200 font-semibold text-sm hover:shadow-xl transform hover:-translate-y-0.5"
+    <FinancePageShell
+      title="Portfolio snapshots"
+      description="A point-in-time history of total holdings and allocation across cash accounts and mutual funds."
+    >
+      {loading ? (
+        <div
+          className={`${financeStyles.card} p-12 text-center text-slate-500`}
         >
-          Back to Editor
-        </a>
-      </div>
-
-      {snapshots.length === 0 ? (
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-700/50 text-center">
-          <p className="text-slate-400 text-lg">
-            No snapshots found. Take your first snapshot in the Finance Editor!
+          Loading snapshots…
+        </div>
+      ) : snapshots.length === 0 ? (
+        <div className={`${financeStyles.card} p-12 text-center`}>
+          <p className="font-bold text-white">No snapshots yet</p>
+          <p className="mt-2 text-sm text-slate-500">
+            Take the first one from the portfolio editor.
           </p>
         </div>
       ) : (
-        <div className="grid gap-6">
+        <div className="space-y-4">
           {snapshots.map((snapshot) => {
-            const id = snapshot._id!;
-            const isExpanded = expandedSnapshots.includes(id);
-
+            const id = String(snapshot._id);
+            const isExpanded = expanded.includes(id);
             return (
-              <div
+              <article
                 key={id}
-                className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 rounded-2xl shadow-2xl border border-slate-700/50 hover:bg-slate-800/40 transition-all duration-200"
+                className={`${financeStyles.card} overflow-hidden`}
               >
-                <div className="flex justify-between items-start">
-                  <div className="pr-4 flex-1" onClick={() => toggleExpand(id)}>
-                    <h3 className="text-xl font-semibold text-slate-200 mb-2">
-                      {formatDate(snapshot.timestamp)}
-                    </h3>
-                    <div className="flex items-center gap-4">
-                      <span className="text-slate-400 text-sm">
-                        Grand Total:
-                      </span>
-                      <span className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
-                        {Math.round(snapshot.grandTotal).toLocaleString()} PKR
-                      </span>
-                    </div>
-                  </div>
-
+                <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                   <button
-                    title="Delete snapshot"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (!snapshot._id) return;
-                      if (!window.confirm("Delete this snapshot?")) return;
-                      try {
-                        const res = await fetch("/api/snapshots", {
-                          method: "DELETE",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ id: snapshot._id }),
-                        });
-                        if (res.ok) {
-                          setSnapshots((prev) =>
-                            prev.filter((s) => s._id !== snapshot._id),
-                          );
-                          setExpandedSnapshots((prev) =>
-                            prev.filter((x) => x !== snapshot._id),
-                          );
-                        } else alert("Failed to delete snapshot");
-                      } catch {
-                        alert("Error deleting snapshot");
-                      }
-                    }}
-                    className="text-sm text-red-400 hover:text-red-300 bg-red-900/10 hover:bg-red-900/20 px-3 py-1 rounded"
+                    type="button"
+                    className="flex-1 text-left"
+                    aria-expanded={isExpanded}
+                    onClick={() =>
+                      setExpanded((items) =>
+                        isExpanded
+                          ? items.filter((item) => item !== id)
+                          : [...items, id],
+                      )
+                    }
                   >
-                    🗑️ Delete
+                    <p className="text-sm font-semibold text-slate-400">
+                      {new Date(snapshot.timestamp).toLocaleString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                    <p className="mt-2 text-2xl font-bold text-cyan-300">
+                      {Math.round(snapshot.grandTotal).toLocaleString()} PKR
+                    </p>
                   </button>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-slate-600">
+                      {isExpanded ? "Hide details" : "View details"}
+                    </span>
+                    <button
+                      type="button"
+                      className={financeStyles.danger}
+                      onClick={() => deleteSnapshot(id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-
-                {isExpanded && (
-                  <div className="mt-6 pt-6 border-t border-slate-600/30 space-y-6">
+                {isExpanded ? (
+                  <div className="space-y-4 border-t border-white/7 p-5 sm:p-6">
                     <TextSummary snapshot={snapshot} />
-
-                    <div className="grid md:grid-cols-3 gap-6">
-                      <PortfolioPie snapshot={snapshot} />
-                      <MutualFundsPie snapshot={snapshot} />
-                      <IndividualFundsPie snapshot={snapshot} />
+                    <div className="grid gap-4 xl:grid-cols-3">
+                      <AllocationChart
+                        title="Portfolio allocation"
+                        data={portfolioAllocations(snapshot.data)}
+                      />
+                      <AllocationChart
+                        title="Funds by institution"
+                        data={bankFundAllocations(snapshot.data)}
+                      />
+                      <AllocationChart
+                        title="Individual funds"
+                        data={individualFundAllocations(snapshot.data)}
+                      />
                     </div>
                   </div>
-                )}
-              </div>
+                ) : null}
+              </article>
             );
           })}
         </div>
       )}
-    </div>
+    </FinancePageShell>
   );
 }

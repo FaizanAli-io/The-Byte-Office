@@ -1,7 +1,13 @@
-import BackgroundEffect from "../components/BackgroundEffect";
+﻿import BackgroundEffect from "../components/BackgroundEffect";
 import SectionHeading from "../components/SectionHeading";
 import { PrimaryCTAButton, SecondaryCTAButton } from "../components/CTAButtons";
-import { company, processSteps, services, siteUrl, techGroups } from "../data/site";
+import {
+  company,
+  processSteps,
+  services,
+  siteUrl,
+  techGroups,
+} from "../data/site";
 import { createMetadata, jsonLd } from "../lib/seo";
 
 export const metadata = createMetadata({
@@ -68,13 +74,13 @@ export default function ServicesPage() {
               </div>
               <div className="grid gap-5 md:grid-cols-2">
                 <div className="muted-panel p-5">
-                  <h3 className="text-base font-extrabold text-slate-950">
+                  <h3 className="text-base font-extrabold text-slate-100">
                     Business value
                   </h3>
                   <p className="body-copy mt-3 text-sm">{service.outcome}</p>
                 </div>
                 <div className="muted-panel p-5">
-                  <h3 className="text-base font-extrabold text-slate-950">
+                  <h3 className="text-base font-extrabold text-slate-100">
                     Capabilities
                   </h3>
                   <div className="mt-4 flex flex-wrap gap-2">

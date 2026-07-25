@@ -1,4 +1,4 @@
-import BackgroundEffect from "../components/BackgroundEffect";
+﻿import BackgroundEffect from "../components/BackgroundEffect";
 import { PrimaryCTAButton, SecondaryCTAButton } from "../components/CTAButtons";
 import { company, projects, siteUrl } from "../data/site";
 import { createMetadata, jsonLd } from "../lib/seo";
@@ -85,33 +85,33 @@ export default function ProjectsPage() {
                   <div className="p-6 sm:p-8">
                     <dl className="grid gap-6 md:grid-cols-3">
                       <div>
-                        <dt className="text-sm font-extrabold text-slate-950">
+                        <dt className="text-sm font-extrabold text-slate-100">
                           Problem
                         </dt>
-                        <dd className="mt-2 text-sm leading-6 text-slate-600">
+                        <dd className="mt-2 text-sm leading-6 text-slate-400">
                           {project.problem}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-extrabold text-slate-950">
+                        <dt className="text-sm font-extrabold text-slate-100">
                           Solution
                         </dt>
-                        <dd className="mt-2 text-sm leading-6 text-slate-600">
+                        <dd className="mt-2 text-sm leading-6 text-slate-400">
                           {project.solution}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-extrabold text-slate-950">
+                        <dt className="text-sm font-extrabold text-slate-100">
                           Impact
                         </dt>
-                        <dd className="mt-2 text-sm leading-6 text-slate-600">
+                        <dd className="mt-2 text-sm leading-6 text-slate-400">
                           {project.impact}
                         </dd>
                       </div>
                     </dl>
 
-                    <div className="mt-8 border-t border-slate-900/10 pt-6">
-                      <p className="text-sm font-extrabold text-slate-950">
+                    <div className="mt-8 border-t border-white/10 pt-6">
+                      <p className="text-sm font-extrabold text-slate-100">
                         Technologies
                       </p>
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -168,12 +168,12 @@ export default function ProjectsPage() {
             <PrimaryCTAButton
               href="/contact"
               label="Start a Project"
-              className="bg-white text-slate-950 hover:bg-slate-100"
+              className="bg-slate-900 text-slate-100 hover:bg-slate-800"
             />
             <SecondaryCTAButton
               href="/services"
               label="Explore Services"
-              className="border-white/25 bg-white/10 text-white hover:bg-white hover:text-slate-950"
+              className="border-white/25 bg-white/10 text-white hover:bg-white/10 hover:text-slate-100"
             />
           </div>
         </div>

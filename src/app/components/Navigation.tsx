@@ -14,7 +14,7 @@ function Logo() {
       >
         BO
       </span>
-      <span className="font-extrabold tracking-tight text-slate-950">
+      <span className="font-extrabold tracking-tight text-slate-100">
         {company.name}
       </span>
     </span>
@@ -48,8 +48,8 @@ export default function Navigation() {
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-200 ${
         isScrolled
-          ? "border-b border-slate-900/10 bg-[#fffdf8]/88 shadow-sm backdrop-blur-xl"
-          : "bg-transparent"
+          ? "border-b border-white/8 bg-[#080c13]/88 shadow-lg shadow-black/10 backdrop-blur-xl"
+          : "bg-[#080c13]/45 backdrop-blur-sm"
       }`}
     >
       <nav className="container-page flex h-20 items-center justify-between">
@@ -71,7 +71,7 @@ export default function Navigation() {
                 className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                   isActive
                     ? "bg-slate-950 text-white"
-                    : "text-slate-700 hover:bg-white hover:text-slate-950"
+                    : "text-slate-400 hover:bg-white/[0.06] hover:text-white"
                 }`}
               >
                 {item.name}
@@ -81,14 +81,17 @@ export default function Navigation() {
         </div>
 
         <div className="hidden md:block">
-          <Link href="/contact" className="button-base button-primary px-5 py-3">
+          <Link
+            href="/contact"
+            className="button-base button-primary px-5 py-3"
+          >
             Start a Project
           </Link>
         </div>
 
         <button
           type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-900/15 bg-white/80 text-slate-950 md:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-100 md:hidden"
           aria-label={isOpen ? "Close menu" : "Open menu"}
           aria-expanded={isOpen}
           onClick={() => setIsOpen((value) => !value)}
@@ -114,13 +117,13 @@ export default function Navigation() {
       </nav>
 
       {isOpen ? (
-        <div className="border-t border-slate-900/10 bg-[#fffdf8]/96 px-4 pb-6 pt-2 shadow-xl backdrop-blur-xl md:hidden">
+        <div className="border-t border-white/8 bg-[#080c13]/96 px-4 pb-6 pt-2 shadow-xl backdrop-blur-xl md:hidden">
           <div className="container-page flex flex-col gap-2">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-md px-3 py-3 text-base font-semibold text-slate-800 hover:bg-white"
+                className="rounded-md px-3 py-3 text-base font-semibold text-slate-300 hover:bg-white/[0.06] hover:text-white"
               >
                 {item.name}
               </Link>

@@ -1,15 +1,15 @@
 export const styleClasses = {
   cardClass:
-    "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 rounded-2xl shadow-2xl border border-slate-700/50 mb-6 backdrop-blur-sm",
-  sectionTitleClass:
-    "text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent tracking-wide mb-6",
-  labelClass: "block text-sm font-semibold text-slate-300 mb-2",
+    "rounded-2xl border border-white/8 bg-slate-900/70 p-5 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-xl sm:p-6",
+  sectionTitleClass: "text-lg font-bold text-white",
+  labelClass:
+    "mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500",
   inputClass:
-    "w-full rounded-xl bg-slate-800/60 border border-slate-600/50 px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 hover:bg-slate-800/80",
+    "min-h-11 w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-cyan-400/55 focus:ring-2 focus:ring-cyan-400/10",
   addBtnClass:
-    "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-5 py-2.5 rounded-xl shadow-lg transition-all duration-200 font-semibold text-sm hover:shadow-xl transform hover:-translate-y-0.5",
+    "inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-bold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]",
   deleteBtnClass:
-    "bg-red-400 hover:bg-red-500 text-white rounded-lg px-2 py-1 font-bold text-sm shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5",
+    "inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-400/15 bg-rose-400/8 text-lg font-bold text-rose-300 transition hover:bg-rose-400/15",
 };
 
 export function numberOrZero(value: string) {

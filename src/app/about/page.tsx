@@ -1,4 +1,4 @@
-import BackgroundEffect from "../components/BackgroundEffect";
+﻿import BackgroundEffect from "../components/BackgroundEffect";
 import SectionHeading from "../components/SectionHeading";
 import { PrimaryCTAButton, SecondaryCTAButton } from "../components/CTAButtons";
 import { company, processSteps, services, whyChooseUs } from "../data/site";

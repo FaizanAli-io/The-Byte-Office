@@ -8,7 +8,7 @@ declare global {
 
 let clientPromise: Promise<MongoClient> | undefined;
 
-export function getMongoClient() {
+export function getMongoClient(): Promise<MongoClient> {
   if (!uri) {
     throw new Error("Please add your MONGODB_URI to .env.local");
   }

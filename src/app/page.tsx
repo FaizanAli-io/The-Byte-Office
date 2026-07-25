@@ -1,4 +1,4 @@
-import BackgroundEffect from "./components/BackgroundEffect";
+﻿import BackgroundEffect from "./components/BackgroundEffect";
 import SectionHeading from "./components/SectionHeading";
 import {
   PrimaryCTAButton,
@@ -65,7 +65,7 @@ function HeroVisual() {
           ))}
         </div>
 
-        <div className="mt-5 rounded-md bg-white p-4 text-slate-950">
+        <div className="mt-5 rounded-md bg-slate-900 p-4 text-slate-100">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase text-slate-500">
@@ -85,15 +85,24 @@ function HeroVisual() {
   );
 }
 
-function ServiceCard({ service, index }: { service: (typeof services)[number]; index: number }) {
+function ServiceCard({
+  service,
+  index,
+}: {
+  service: (typeof services)[number];
+  index: number;
+}) {
   return (
-    <article className="surface-card reveal p-6" style={{ animationDelay: `${index * 80}ms` }}>
+    <article
+      className="surface-card reveal p-6"
+      style={{ animationDelay: `${index * 80}ms` }}
+    >
       <span className="mb-6 flex h-11 w-11 items-center justify-center rounded-md bg-slate-950 text-sm font-black text-white">
         {String(index + 1).padStart(2, "0")}
       </span>
       <h3 className="heading-md">{service.title}</h3>
       <p className="body-copy mt-3">{service.summary}</p>
-      <p className="mt-5 border-l-2 border-blue-700 pl-4 text-sm font-semibold leading-6 text-slate-800">
+      <p className="mt-5 border-l-2 border-blue-700 pl-4 text-sm font-semibold leading-6 text-slate-300">
         {service.outcome}
       </p>
       <div className="mt-6 flex flex-wrap gap-2">
@@ -116,7 +125,7 @@ function ProjectCard({
 }) {
   const content = (
     <article
-      className={`group h-full overflow-hidden rounded-lg border border-slate-900/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md ${
+      className={`group h-full overflow-hidden rounded-lg border border-white/10 bg-slate-900 shadow-sm transition hover:-translate-y-1 hover:shadow-md ${
         featured ? "lg:grid lg:grid-cols-[0.9fr_1.1fr]" : ""
       }`}
     >
@@ -141,20 +150,20 @@ function ProjectCard({
         </p>
         <dl className="mt-5 space-y-4">
           <div>
-            <dt className="text-sm font-bold text-slate-950">Problem</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-600">
+            <dt className="text-sm font-bold text-slate-100">Problem</dt>
+            <dd className="mt-1 text-sm leading-6 text-slate-400">
               {project.problem}
             </dd>
           </div>
           <div>
-            <dt className="text-sm font-bold text-slate-950">Solution</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-600">
+            <dt className="text-sm font-bold text-slate-100">Solution</dt>
+            <dd className="mt-1 text-sm leading-6 text-slate-400">
               {project.solution}
             </dd>
           </div>
           <div>
-            <dt className="text-sm font-bold text-slate-950">Impact</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-600">
+            <dt className="text-sm font-bold text-slate-100">Impact</dt>
+            <dd className="mt-1 text-sm leading-6 text-slate-400">
               {project.impact}
             </dd>
           </div>
@@ -241,15 +250,24 @@ export default function Home() {
       <section className="container-page section-tight">
         <div className="grid gap-4 md:grid-cols-3">
           {[
-            ["Production-minded", "Built around reliability, maintenance, and clear handoff."],
-            ["AI-capable", "Experience with agents, RAG, LLM apps, and automation."],
-            ["Full-stack delivery", "Frontend, backend, data, integrations, and deployment."],
+            [
+              "Production-minded",
+              "Built around reliability, maintenance, and clear handoff.",
+            ],
+            [
+              "AI-capable",
+              "Experience with agents, RAG, LLM apps, and automation.",
+            ],
+            [
+              "Full-stack delivery",
+              "Frontend, backend, data, integrations, and deployment.",
+            ],
           ].map(([title, text]) => (
             <div key={title} className="muted-panel p-5">
-              <h2 className="text-base font-extrabold text-slate-950">
+              <h2 className="text-base font-extrabold text-slate-100">
                 {title}
               </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{text}</p>
             </div>
           ))}
         </div>
@@ -285,7 +303,7 @@ export default function Home() {
             <SecondaryCTAButton
               href="/projects"
               label="See all projects"
-              className="border-white/25 bg-white/10 text-white hover:bg-white hover:text-slate-950"
+              className="border-white/25 bg-white/10 text-white hover:bg-white/10 hover:text-slate-100"
             />
           </div>
           <div className="mt-12 grid gap-5">
@@ -352,8 +370,8 @@ export default function Home() {
               Modern stack, grouped by purpose.
             </h2>
             <p className="mt-5 text-slate-300">
-              The stack is chosen for the product, not for decoration. These
-              are technologies already reflected in the existing work.
+              The stack is chosen for the product, not for decoration. These are
+              technologies already reflected in the existing work.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -388,21 +406,24 @@ export default function Home() {
           />
           <div className="surface-card p-6 sm:p-8">
             <p className="body-copy">
-              The company works across custom business software, SaaS
-              platforms, backend systems, APIs, AI and LLM applications, RAG
-              systems, data pipelines, automations, and polished web
-              experiences. The approach is straightforward: understand the
-              business problem, design the technical path, build with care, and
-              leave clients with software that is easier to operate and improve.
+              The company works across custom business software, SaaS platforms,
+              backend systems, APIs, AI and LLM applications, RAG systems, data
+              pipelines, automations, and polished web experiences. The approach
+              is straightforward: understand the business problem, design the
+              technical path, build with care, and leave clients with software
+              that is easier to operate and improve.
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {["Reliable delivery", "Modern engineering", "Business automation", "AI-enabled workflows"].map(
-                (item) => (
-                  <div key={item} className="rounded-md bg-slate-50 p-4">
-                    <p className="font-bold text-slate-950">{item}</p>
-                  </div>
-                ),
-              )}
+              {[
+                "Reliable delivery",
+                "Modern engineering",
+                "Business automation",
+                "AI-enabled workflows",
+              ].map((item) => (
+                <div key={item} className="rounded-md bg-slate-50 p-4">
+                  <p className="font-bold text-slate-100">{item}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -412,7 +433,7 @@ export default function Home() {
         <div className="grid gap-4 md:grid-cols-3">
           {faqs.map((faq) => (
             <article key={faq.question} className="surface-card p-6">
-              <h2 className="text-lg font-extrabold text-slate-950">
+              <h2 className="text-lg font-extrabold text-slate-100">
                 {faq.question}
               </h2>
               <p className="body-copy mt-3 text-sm">{faq.answer}</p>
@@ -438,12 +459,12 @@ export default function Home() {
             <PrimaryCTAButton
               href="/contact"
               label="Book a Discovery Call"
-              className="bg-white text-slate-950 hover:bg-slate-100"
+              className="bg-slate-900 text-slate-100 hover:bg-slate-800"
             />
             <SecondaryCTAButton
               href={`mailto:${company.email}`}
               label="Email The Byte Office"
-              className="border-white/25 bg-white/10 text-white hover:bg-white hover:text-slate-950"
+              className="border-white/25 bg-white/10 text-white hover:bg-white/10 hover:text-slate-100"
             />
           </div>
         </div>

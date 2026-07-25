@@ -29,18 +29,18 @@ export function LocalBanksSection({
 }) {
   return (
     <section className={cardClass}>
-      <div className="flex justify-between items-center mb-3">
+      <div className="mb-5 flex items-center justify-between gap-3">
         <h2 className={sectionTitleClass}>Local Banks</h2>
         <button onClick={onAdd} className={addBtnClass}>
           + Add Local Bank
         </button>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-3">
         {data.localBanks.map((bank, i) => (
           <div
             key={i}
-            className="grid grid-cols-[1fr_1fr_auto] gap-6 items-end p-5 bg-slate-800/30 rounded-xl border border-slate-600/30 backdrop-blur-sm hover:bg-slate-800/40 transition-all duration-200"
+            className="grid gap-3 rounded-xl border border-white/7 bg-slate-950/45 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
           >
             <div>
               <label className={labelClass}>Bank</label>
@@ -80,12 +80,12 @@ export function LocalBanksSection({
         ))}
       </div>
 
-      <div className="flex justify-end items-center mt-6 pt-6 border-t border-slate-600/30">
+      <div className="mt-5 flex items-center justify-end border-t border-white/6 pt-5">
         <div className="text-right">
           <span className="text-slate-400 text-sm font-medium">
             Section Total:{" "}
           </span>
-          <span className="font-bold text-2xl bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <span className="text-xl font-bold text-cyan-300">
             {Math.round(
               data.localBanks.reduce((sum, b) => sum + b.amountPkr, 0),
             ).toLocaleString()}

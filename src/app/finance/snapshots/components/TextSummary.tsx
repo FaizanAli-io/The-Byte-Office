@@ -1,130 +1,86 @@
 "use client";
 
-export function TextSummary({ snapshot }: any) {
-  const localBanks = snapshot.data.localBanks || [];
-  const remoteBanks = snapshot.data.remoteBanks || [];
-  const mutualFunds = snapshot.data.mutualFunds || [];
+import { portfolioTotals } from "@/lib/finance";
+import type { FinanceSnapshot } from "@/types/finance";
 
-  console.log("Snapshot data in TextSummary:", snapshot.data);
-
-  const localTotal = localBanks.reduce(
-    (sum: number, b: any) => sum + b.amountPkr,
-    0,
-  );
-  const remoteTotal = remoteBanks.reduce(
-    (sum: number, b: any) => sum + b.amountUsd * b.exchangeRate,
-    0,
-  );
-  const mutualTotal = mutualFunds.reduce((total: number, mf: any) => {
-    const bankKey = Object.keys(mf)[0];
-    const funds = mf[bankKey];
-    return total + funds.reduce((s: number, f: any) => s + f.value, 0);
-  }, 0);
+export function TextSummary({ snapshot }: { snapshot: FinanceSnapshot }) {
+  const totals = portfolioTotals(snapshot.data);
 
   return (
-    <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-600/30 text-sm text-slate-300">
-      <h4 className="text-lg font-semibold text-slate-200 mb-4">
-        Portfolio Summary
+    <div className="rounded-xl border border-white/7 bg-slate-950/45 p-4">
+      <h4 className="mb-4 text-sm font-bold text-slate-200">
+        Portfolio summary
       </h4>
-
-      {/* Grid layout for each section */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Local Banks */}
-        <div>
-          <h5 className="font-semibold text-emerald-400 mb-2 flex items-center gap-1">
-            🏦 Local Banks
-          </h5>
-          <ul className="space-y-1">
-            {localBanks.map((b: any) => (
-              <li key={b.name} className="flex justify-between">
-                <span>{b.name}</span>
-                <span className="font-medium">
-                  {b.amountPkr.toLocaleString()} PKR
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-slate-700/40 mt-2 pt-2 flex justify-between text-slate-400">
-            <span>Total:</span>
-            <span className="text-slate-100 font-semibold">
-              {localTotal.toLocaleString()} PKR
-            </span>
-          </div>
-        </div>
-
-        {/* Remote Banks */}
-        <div>
-          <h5 className="font-semibold text-blue-400 mb-2 flex items-center gap-1">
-            🌍 Remote Banks
-          </h5>
-          <ul className="space-y-1">
-            {remoteBanks.map((b: any) => (
-              <li key={b.name} className="flex justify-between">
-                <span>{b.name}</span>
-                <span className="font-medium">
-                  {(b.amountUsd * b.exchangeRate).toLocaleString()} PKR
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-slate-700/40 mt-2 pt-2 flex justify-between text-slate-400">
-            <span>Total:</span>
-            <span className="text-slate-100 font-semibold">
-              {remoteTotal.toLocaleString()} PKR
-            </span>
-          </div>
-        </div>
-
-        {/* Mutual Funds */}
-        <div>
-          <h5 className="font-semibold text-purple-400 mb-2 flex items-center gap-1">
-            📊 Mutual Funds
-          </h5>
-          <div className="space-y-2">
-            {mutualFunds.map((mf: any) => {
-              const bankKey = Object.keys(mf)[0];
-              const funds = mf[bankKey];
-              const total = funds.reduce(
-                (sum: number, f: any) => sum + f.value,
+      <div className="grid gap-5 md:grid-cols-3">
+        <SummaryGroup
+          title="Local banks"
+          tone="text-emerald-300"
+          total={totals.local}
+          items={snapshot.data.localBanks.map((bank) => ({
+            label: bank.name,
+            value: bank.amountPkr,
+          }))}
+        />
+        <SummaryGroup
+          title="Remote banks"
+          tone="text-cyan-300"
+          total={totals.remote}
+          items={snapshot.data.remoteBanks.map((bank) => ({
+            label: bank.name,
+            value: bank.amountUsd * bank.exchangeRate,
+          }))}
+        />
+        <SummaryGroup
+          title="Mutual funds"
+          tone="text-amber-300"
+          total={totals.mutual}
+          items={snapshot.data.mutualFunds.map((group) => {
+            const bank = Object.keys(group)[0];
+            return {
+              label: bank,
+              value: (group[bank] ?? []).reduce(
+                (sum, fund) => sum + fund.value,
                 0,
-              );
-
-              return (
-                <div key={bankKey}>
-                  <div className="flex justify-between text-slate-400">
-                    <span>{bankKey}</span>
-                    <span className="font-medium text-slate-200">
-                      {total.toLocaleString()} PKR
-                    </span>
-                  </div>
-                  <ul className="ml-3 mt-1 space-y-0.5 text-xs text-slate-400">
-                    {funds.map((f: any, i: number) => (
-                      <li key={i} className="flex justify-between">
-                        <span>{f.fund}</span>
-                        <span className="text-slate-300">
-                          {f.value.toLocaleString()}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-          <div className="border-t border-slate-700/40 mt-2 pt-2 flex justify-between text-slate-400">
-            <span>Total:</span>
-            <span className="text-slate-100 font-semibold">
-              {mutualTotal.toLocaleString()} PKR
-            </span>
-          </div>
-        </div>
+              ),
+            };
+          })}
+        />
       </div>
+    </div>
+  );
+}
 
-      {/* Grand Total */}
-      <div className="mt-6 pt-3 border-t border-slate-700/40 flex justify-between text-slate-400">
-        <span>💰 Total Portfolio Value:</span>
-        <span className="text-slate-100 font-bold text-base">
-          {Math.round(snapshot.grandTotal).toLocaleString()} PKR
+function SummaryGroup({
+  title,
+  total,
+  tone,
+  items,
+}: {
+  title: string;
+  total: number;
+  tone: string;
+  items: { label: string; value: number }[];
+}) {
+  return (
+    <div>
+      <h5 className={`text-sm font-bold ${tone}`}>{title}</h5>
+      <ul className="mt-3 space-y-2 text-xs text-slate-500">
+        {items.map((item, index) => (
+          <li
+            key={`${item.label}-${index}`}
+            className="flex justify-between gap-4"
+          >
+            <span className="truncate">{item.label || "Unnamed"}</span>
+            <span className="shrink-0 text-slate-300">
+              {Math.round(item.value).toLocaleString()}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 flex justify-between border-t border-white/6 pt-3 text-xs">
+        <span className="text-slate-600">Total</span>
+        <span className="font-bold text-slate-200">
+          {Math.round(total).toLocaleString()} PKR
         </span>
       </div>
     </div>
