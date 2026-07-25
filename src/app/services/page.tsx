@@ -1,216 +1,171 @@
-"use client";
-
-import Link from "next/link";
-import { useState } from "react";
-import SectionHeading from "../components/SectionHeading";
-import { PrimaryCTAButton } from "../components/CTAButtons";
 import BackgroundEffect from "../components/BackgroundEffect";
+import SectionHeading from "../components/SectionHeading";
+import { PrimaryCTAButton, SecondaryCTAButton } from "../components/CTAButtons";
+import { company, processSteps, services, siteUrl, techGroups } from "../data/site";
+import { createMetadata, jsonLd } from "../lib/seo";
 
-interface Service {
-  title: string;
-  description: string;
-  features: string[];
-  icon: string;
-  gradient: string;
-  color: string;
-}
+export const metadata = createMetadata({
+  title: "Custom Software, AI, Automation, and SaaS Development Services",
+  description:
+    "Explore The Byte Office services: custom software development, full-stack web applications, SaaS platforms, AI agents, RAG systems, backend APIs, cloud systems, and automation solutions.",
+  path: "/services",
+});
 
-export default function Services() {
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-
-  const services: Service[] = [
-    {
-      title: "AI & Machine Learning",
-      description: "Custom AI solutions tailored to your business needs",
-      features: [
-        "Natural Language Processing",
-        "Computer Vision",
-        "Predictive Analytics",
-        "Recommendation Systems",
-        "Chatbots & Virtual Assistants",
-      ],
-      icon: "🧠",
-      gradient: "from-blue-500 to-cyan-500",
-      color: "blue",
-    },
-    {
-      title: "Automation Solutions",
-      description: "Streamline operations and boost productivity",
-      features: [
-        "Workflow Automation",
-        "Data Processing",
-        "API Integration",
-        "Task Scheduling",
-        "Business Process Optimization",
-      ],
-      icon: "🔄",
-      gradient: "from-purple-500 to-pink-500",
-      color: "purple",
-    },
-    {
-      title: "Full-Stack Development",
-      description: "Complete web applications from concept to deployment",
-      features: [
-        "React/Next.js Applications",
-        "Node.js Backend Development",
-        "Database Design & Management",
-        "Cloud Infrastructure",
-        "Mobile-Responsive Design",
-      ],
-      icon: "🚀",
-      gradient: "from-emerald-500 to-teal-500",
-      color: "emerald",
-    },
-    {
-      title: "Cloud & DevOps",
-      description: "Scalable infrastructure and deployment solutions",
-      features: [
-        "AWS/Azure/GCP Setup",
-        "CI/CD Pipelines",
-        "Container Orchestration",
-        "Performance Optimization",
-        "Security Implementation",
-      ],
-      icon: "☁️",
-      gradient: "from-indigo-500 to-purple-500",
-      color: "indigo",
-    },
-  ];
+export default function ServicesPage() {
+  const serviceSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: services.map((service, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Service",
+        name: service.title,
+        description: service.summary,
+        provider: {
+          "@type": "Organization",
+          name: company.name,
+          url: siteUrl,
+        },
+      },
+    })),
+  };
 
   return (
-    <div className="relative bg-black min-h-screen overflow-hidden">
+    <div className="page-shell">
+      {jsonLd(serviceSchema)}
       <BackgroundEffect />
+      <section className="container-page pt-32">
+        <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
+          <div>
+            <p className="eyebrow">Services</p>
+            <h1 className="display mt-6 text-balance">
+              Software services for launch, scale, and smarter operations.
+            </h1>
+          </div>
+          <p className="lead">
+            {company.name} helps teams build full-stack products, automate
+            workflows, connect business systems, and turn AI into practical
+            software. Every service is focused on business outcomes, not a wall
+            of buzzwords.
+          </p>
+        </div>
+      </section>
 
-      {/* Content */}
-      <div className="relative z-10">
-        <SectionHeading
-          title="Our"
-          highlight="Services"
-          subtitle={
-            <>
-              Comprehensive technology solutions designed to accelerate your
-              business growth and
-              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-semibold">
-                {" "}
-                digital transformation
-              </span>
-            </>
-          }
-        />
-
-        {/* Services Grid */}
-        <section className="pb-32 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {services.map((service, index) => (
-                <div
-                  key={index}
-                  className="group relative bg-white/5 backdrop-blur-md rounded-3xl p-8 border border-white/10 transition-all duration-500 hover:bg-white/10 hover:border-white/20 hover:scale-[1.02] hover:shadow-2xl"
-                  onMouseEnter={() => setHoveredCard(index)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                  style={{
-                    animation: "fadeInUp 0.6s ease forwards",
-                    animationDelay: `${index * 0.1}s`,
-                    opacity: 0,
-                  }}
-                >
-                  {/* Gradient Background */}
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${service.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500 rounded-3xl`}
-                  ></div>
-
-                  {/* Hover Effect Border */}
-                  <div
-                    className={`absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r ${service.gradient} p-[1px]`}
-                  >
-                    <div className="w-full h-full bg-black/90 rounded-3xl"></div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="relative z-10">
-                    {/* Header */}
-                    <div className="flex items-center mb-6">
-                      <div className="text-5xl mr-4 group-hover:scale-110 transition-transform duration-300">
-                        {service.icon}
-                      </div>
-                      <h2 className="text-3xl font-bold text-white group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-200 group-hover:bg-clip-text transition-all duration-300">
-                        {service.title}
-                      </h2>
-                    </div>
-
-                    {/* Description */}
-                    <p className="text-gray-300 text-lg mb-8 group-hover:text-gray-200 transition-colors duration-300 leading-relaxed">
-                      {service.description}
-                    </p>
-
-                    {/* Features List */}
-                    <div className="space-y-4">
-                      {service.features.map((feature, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center text-gray-300 group-hover:text-gray-200 transition-all duration-300"
-                          style={{
-                            transitionDelay: `${idx * 50}ms`,
-                          }}
-                        >
-                          <div
-                            className={`w-2 h-2 rounded-full bg-gradient-to-r ${service.gradient} mr-4 group-hover:scale-125 transition-transform duration-300`}
-                          ></div>
-                          <span className="group-hover:translate-x-1 transition-transform duration-300">
-                            {feature}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Service-specific CTA */}
-                    <div className="mt-8 pt-6 border-t border-white/10">
-                      <Link
-                        href="/contact"
-                        className={`inline-flex items-center text-sm font-semibold bg-gradient-to-r ${service.gradient} bg-clip-text text-transparent hover:scale-105 transition-transform duration-300`}
-                      >
-                        Learn More About {service.title}
-                        <svg
-                          className="ml-2 w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17 8l4 4m0 0l-4 4m4-4H3"
-                          />
-                        </svg>
-                      </Link>
-                    </div>
+      <section className="container-page section">
+        <div className="grid gap-6">
+          {services.map((service, index) => (
+            <article
+              key={service.title}
+              className="surface-card grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.75fr_1.25fr]"
+            >
+              <div>
+                <span className="flex h-12 w-12 items-center justify-center rounded-md bg-slate-950 text-sm font-black text-white">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <h2 className="heading-lg mt-6">{service.title}</h2>
+                <p className="body-copy mt-4">{service.summary}</p>
+              </div>
+              <div className="grid gap-5 md:grid-cols-2">
+                <div className="muted-panel p-5">
+                  <h3 className="text-base font-extrabold text-slate-950">
+                    Business value
+                  </h3>
+                  <p className="body-copy mt-3 text-sm">{service.outcome}</p>
+                </div>
+                <div className="muted-panel p-5">
+                  <h3 className="text-base font-extrabold text-slate-950">
+                    Capabilities
+                  </h3>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {service.capabilities.map((capability) => (
+                      <span key={capability} className="chip">
+                        {capability}
+                      </span>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
-        {/* Call to Action Section */}
-        <section className="py-32 relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/20 via-purple-900/20 to-pink-900/20"></div>
-          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-5xl md:text-6xl font-bold text-white mb-8">
-              Ready to Transform Your{" "}
-              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                Business
-              </span>
-              ?
-            </h2>
-            <p className="text-xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Let's discuss how our comprehensive technology solutions can
-              accelerate your growth and drive innovation in your industry.
+      <section className="section bg-slate-950 text-white">
+        <div className="container-page grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="eyebrow border-white/10 bg-white/10 text-blue-100">
+              Delivery model
             </p>
-            <PrimaryCTAButton href="/contact" label="Discuss your Project" />
+            <h2 className="mt-5 text-4xl font-extrabold leading-tight text-white md:text-6xl">
+              Structured enough to be predictable. Flexible enough for real
+              projects.
+            </h2>
+            <p className="mt-5 text-slate-300">
+              The work moves from clarity to architecture to implementation,
+              with testing and launch readiness built into the process.
+            </p>
           </div>
-        </section>
-      </div>
+          <div className="grid gap-4">
+            {processSteps.map((step, index) => (
+              <div
+                key={step.title}
+                className="rounded-md border border-white/10 bg-white/[0.04] p-5"
+              >
+                <p className="text-sm font-bold text-blue-200">
+                  Step {index + 1}
+                </p>
+                <h3 className="mt-2 text-xl font-extrabold text-white">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  {step.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="container-page section">
+        <SectionHeading
+          eyebrow="Technology stack"
+          title="Tools selected for dependable software delivery."
+          subtitle="The stack stays focused on modern frameworks, reliable backend systems, AI infrastructure, databases, and integrations already reflected in the project work."
+        />
+        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {techGroups.map((group) => (
+            <article key={group.title} className="surface-card p-6">
+              <h2 className="heading-md">{group.title}</h2>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {group.items.map((item) => (
+                  <span key={item} className="chip">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="container-page section-tight">
+        <div className="surface-card grid gap-6 p-8 sm:p-10 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <h2 className="heading-lg">
+              Need a product, AI workflow, or automation scoped?
+            </h2>
+            <p className="body-copy mt-3">
+              Share the business goal and current constraints. The next step is
+              a practical technical conversation.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <PrimaryCTAButton href="/contact" label="Start a Project" />
+            <SecondaryCTAButton href="/projects" label="View Work" />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,0 +1,28 @@
+# The Byte Office
+
+The Byte Office is a software development and AI solutions company.
+
+Website: https://thebyteoffice.com
+Contact: thebyteoffice@gmail.com
+
+Core services:
+- Custom software development
+- Full-stack web application development
+- SaaS platform development
+- Backend systems and API development
+- AI agents and LLM applications
+- Retrieval-augmented generation (RAG) systems
+- Automation solutions
+- Cloud-ready business software
+- Data pipelines and integrations
+
+Portfolio highlights:
+- Cyberlooper.ai: secure chat platform for AI agents with LangGraph orchestration.
+- Retail Sales Digital Dashboard: internal analytics and geospatial operations dashboard.
+- Regenerative Aesthetics Web App: conversion-focused clinic website with booking and lead capture.
+- Sales Automation Pipeline: Pipedrive-connected lead intake and follow-up automation.
+- WhatsApp Bot for Multi-Site Deployment: reusable website chat automation for lead capture.
+- Skiing Analysis via Computer Vision: pose estimation and movement analysis.
+- Legislative AI Assistant with RAG: document-grounded legal and policy assistant.
+
+More detail: /llms-full.txt and /llms.md

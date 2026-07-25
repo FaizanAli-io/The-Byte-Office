@@ -81,25 +81,6 @@ export default function SnapshotsPage() {
             const id = snapshot._id!;
             const isExpanded = expandedSnapshots.includes(id);
 
-            const mutualFundsTotal = snapshot.data.mutualFunds.reduce(
-              (total, mf) => {
-                const bankKey = Object.keys(mf)[0];
-                const funds = mf[bankKey];
-                return total + funds.reduce((sum, f) => sum + f.value, 0);
-              },
-              0,
-            );
-
-            const remoteBanksTotal = snapshot.data.remoteBanks.reduce(
-              (sum, bank) => sum + bank.amountUsd * bank.exchangeRate,
-              0,
-            );
-
-            const localBanksTotal = snapshot.data.localBanks.reduce(
-              (sum, bank) => sum + bank.amountPkr,
-              0,
-            );
-
             return (
               <div
                 key={id}

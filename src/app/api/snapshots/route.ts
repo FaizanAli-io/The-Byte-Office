@@ -1,11 +1,11 @@
 import { ObjectId } from "mongodb";
-import clientPromise from "@/lib/mongodb";
+import { getMongoClient } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 import { FinanceDoc, FinanceSnapshot } from "@/types/finance";
 
 export async function GET() {
   try {
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("finance");
     const collection = db.collection<FinanceSnapshot>("snapshots");
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     const { data, grandTotal }: { data: FinanceDoc; grandTotal: number } =
       await req.json();
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("finance");
     const collection = db.collection<FinanceSnapshot>("snapshots");
 
@@ -68,7 +68,7 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("finance");
     const collection = db.collection<FinanceSnapshot>("snapshots");
 

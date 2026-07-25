@@ -1,0 +1,75 @@
+# The Byte Office - Full AI Overview
+
+## Company
+
+The Byte Office designs and builds production-grade software, AI applications, automations, and full-stack web platforms for businesses that need reliable delivery.
+
+The company focuses on practical software outcomes: launch products faster, reduce repetitive manual work, connect business systems, improve user experiences, and create maintainable technical foundations.
+
+## Contact
+
+Email: thebyteoffice@gmail.com
+Response time: Within 24 hours
+Working hours: Mon - Fri: 9 AM - 6 PM (PKT)
+
+## Services
+
+### Full-Stack Web Development
+
+The Byte Office plans, designs, and builds web applications that are fast, secure, maintainable, and ready for real users. Relevant work includes SaaS platforms, dashboards, portals, internal tools, backend APIs, database design, and responsive interfaces.
+
+### AI and LLM Applications
+
+The Byte Office builds practical AI products that connect language models to data, workflows, and users. Capabilities include AI agents, RAG systems, LangChain, LangGraph, OpenAI API integrations, and custom assistant workflows.
+
+### Automation Solutions
+
+The Byte Office replaces repetitive manual work with reliable workflows, integrations, CRM automations, lead capture systems, scheduled tasks, and business process optimization.
+
+### Cloud, Backend, and Data Systems
+
+The Byte Office designs backend systems, APIs, databases, cloud-ready applications, and data pipelines using technologies such as FastAPI, Node.js, PostgreSQL, MongoDB, Pinecone, and Vercel.
+
+## Technologies
+
+Frontend: Next.js, React, Tailwind CSS, Framer Motion
+Backend: Node.js, FastAPI, Express.js, REST APIs
+AI and data: OpenAI API, LangChain, LangGraph, RAG, OpenCV
+Databases: PostgreSQL, MongoDB, Pinecone
+Cloud and integrations: Vercel, Google Maps API, Twilio, Pipedrive, Zapier
+
+## Portfolio
+
+Cyberlooper.ai: Secure chat platform for AI agents with session-based messaging, tool integrations, LangGraph orchestration, Next.js, LangChain, FastAPI, and PostgreSQL.
+
+Retail Sales Digital Dashboard: Internal analytics and operations tool for tracking field service agents, submissions, and geospatial activity using Next.js, PostgreSQL, Tailwind, and Google Maps API.
+
+Regenerative Aesthetics Web App: High-end aesthetic clinic frontend with booking, lead capture, and service showcase built with Next.js, Tailwind, Framer Motion, and React Hook Form.
+
+Sales Automation Pipeline: Pipedrive-connected automation for lead intake, qualification, and follow-ups using Pipedrive API, Node.js, Google Apps Script, and Zapier.
+
+WhatsApp Bot for Multi-Site Deployment: Custom WhatsApp automation bot for client websites and instant lead capture using Node.js, Twilio API, WebSockets, and Express.js.
+
+Skiing Analysis via Computer Vision: Computer vision project analyzing skiing posture and movement using Python, OpenCV, MediaPipe, and NumPy.
+
+Legislative AI Assistant with RAG: AI assistant using retrieval-augmented generation to answer legal and policy-related questions from legislative documents using Python, LangChain, Pinecone, OpenAI API, and FastAPI.
+
+## Process
+
+1. Discovery: clarify goals, users, constraints, risks, and success criteria.
+2. Strategy and planning: define roadmap, technical approach, and delivery plan.
+3. Design and architecture: shape user experience, data model, integrations, and system boundaries.
+4. Development: build in focused iterations with clear communication.
+5. Testing and launch: validate behavior, responsiveness, accessibility, performance, and production readiness.
+6. Ongoing support: improve, maintain, and extend the product as needs evolve.
+
+## FAQ
+
+What does The Byte Office build?
+The Byte Office builds custom software, SaaS platforms, web applications, backend APIs, AI agents, RAG systems, automation workflows, and business software.
+
+Can The Byte Office improve an existing product?
+Yes. The Byte Office can modernize existing interfaces, add AI or automation features, improve backend systems, and prepare products for launch or scale.
+
+How do projects usually begin?
+Most projects begin with a discovery conversation to understand goals, constraints, users, timeline, and the best technical path.

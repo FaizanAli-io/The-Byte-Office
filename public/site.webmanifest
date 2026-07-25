@@ -1,0 +1,10 @@
+{
+  "name": "The Byte Office",
+  "short_name": "Byte Office",
+  "description": "Software development and AI solutions company.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffdf8",
+  "theme_color": "#0f172a",
+  "icons": []
+}

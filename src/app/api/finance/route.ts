@@ -1,10 +1,10 @@
-import clientPromise from "@/lib/mongodb";
+import { getMongoClient } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 import { FinanceDoc } from "@/types/finance";
 
 export async function GET() {
   try {
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("finance");
     const collection = db.collection<FinanceDoc>("data");
 
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     const body: Omit<FinanceDoc, "_id"> = await req.json();
     if ("_id" in body) delete body._id;
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("finance");
     const collection = db.collection<FinanceDoc>("data");
 
