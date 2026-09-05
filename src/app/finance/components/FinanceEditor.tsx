@@ -8,6 +8,7 @@ import {
   RemoteBanksSection,
 } from "./HoldingTypes";
 import { FinancePageShell, StatCard, financeStyles } from "./FinanceUI";
+import { FinanceToast, type FinanceToastState } from "./FinanceToast";
 import { useFinanceHandlers } from "./useFinanceHandlers";
 
 export default function FinanceEditor() {
@@ -28,6 +29,7 @@ export default function FinanceEditor() {
     handleSave,
   } = useFinanceHandlers();
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [toast, setToast] = useState<FinanceToastState>(null);
 
   async function handleSnapshot() {
     if (!data) return;
@@ -42,10 +44,10 @@ export default function FinanceEditor() {
         }),
       });
       if (!response.ok) throw new Error("Failed to save snapshot");
-      window.alert("Snapshot saved.");
+      setToast({ message: "Snapshot saved.", tone: "success" });
     } catch (error) {
       console.error("Error saving snapshot:", error);
-      window.alert("Failed to save snapshot.");
+      setToast({ message: "Failed to save snapshot.", tone: "error" });
     } finally {
       setSnapshotLoading(false);
     }
@@ -137,6 +139,7 @@ export default function FinanceEditor() {
           onDeleteBank={deleteMutualFundBank}
         />
       </div>
+      <FinanceToast toast={toast} onDismiss={() => setToast(null)} />
     </FinancePageShell>
   );
 }

@@ -103,7 +103,7 @@ export default function ServicesPage() {
             <p className="eyebrow border-white/10 bg-white/10 text-blue-100">
               Delivery model
             </p>
-            <h2 className="mt-5 text-4xl font-extrabold leading-tight text-white md:text-6xl">
+            <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-5xl">
               Structured enough to be predictable. Flexible enough for real
               projects.
             </h2>

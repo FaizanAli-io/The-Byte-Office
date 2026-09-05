@@ -120,18 +120,18 @@ textarea {
 
 .display {
   color: var(--ink);
-  font-size: clamp(3.25rem, 7vw, 6.8rem);
+  font-size: clamp(2.75rem, 5.5vw, 4.75rem);
   font-weight: 800;
-  letter-spacing: 0;
-  line-height: 0.94;
+  letter-spacing: -0.025em;
+  line-height: 0.98;
 }
 
 .heading-xl {
   color: var(--ink);
-  font-size: clamp(2.25rem, 5vw, 4.5rem);
+  font-size: clamp(2rem, 4vw, 3.4rem);
   font-weight: 800;
-  letter-spacing: 0;
-  line-height: 1;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
 }
 
 .heading-lg {

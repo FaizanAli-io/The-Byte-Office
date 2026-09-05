@@ -1,38 +1,20 @@
-import { getMongoClient } from "@/lib/mongodb";
+import { loadFinanceDoc, saveFinanceDoc } from "@/lib/db/queries";
 import { NextResponse } from "next/server";
 import { FinanceDoc } from "@/types/finance";
 
+const emptyDoc: FinanceDoc = {
+  name: "finance",
+  mutualFunds: [],
+  remoteBanks: [],
+  localBanks: [],
+};
+
 export async function GET() {
   try {
-    const client = await getMongoClient();
-    const db = client.db("finance");
-    const collection = db.collection<FinanceDoc>("data");
-
-    let doc = await collection.findOne({ name: "finance" });
-
-    if (!doc) {
-      const initialDoc: FinanceDoc = {
-        name: "finance",
-        mutualFunds: [],
-        remoteBanks: [],
-        localBanks: [],
-      };
-
-      const result = await collection.insertOne(initialDoc);
-
-      doc = await collection.findOne({ _id: result.insertedId });
-    }
-
-    return NextResponse.json(doc);
+    return NextResponse.json(await loadFinanceDoc());
   } catch (err) {
     console.error("GET /api/finance error:", err);
-    const fallback: FinanceDoc = {
-      name: "finance",
-      mutualFunds: [],
-      remoteBanks: [],
-      localBanks: [],
-    };
-    return NextResponse.json(fallback, { status: 200 });
+    return NextResponse.json(emptyDoc, { status: 200 });
   }
 }
 
@@ -40,17 +22,7 @@ export async function POST(req: Request) {
   try {
     const body: Omit<FinanceDoc, "_id"> = await req.json();
     if ("_id" in body) delete body._id;
-
-    const client = await getMongoClient();
-    const db = client.db("finance");
-    const collection = db.collection<FinanceDoc>("data");
-
-    await collection.updateOne(
-      { name: "finance" },
-      { $set: body },
-      { upsert: true },
-    );
-
+    await saveFinanceDoc(body);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("POST /api/finance error:", err);

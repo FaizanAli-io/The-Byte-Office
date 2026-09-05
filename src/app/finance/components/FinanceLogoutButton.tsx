@@ -1,5 +1,6 @@
 "use client";
 
+import { clearFinanceToken } from "@/lib/finance-session-client";
 import { useState } from "react";
 
 export function FinanceLogoutButton() {
@@ -8,6 +9,7 @@ export function FinanceLogoutButton() {
   async function logout() {
     setSubmitting(true);
     try {
+      clearFinanceToken();
       await fetch("/api/finance-auth/logout", { method: "POST" });
     } finally {
       window.location.replace("/finance/login");

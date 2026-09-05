@@ -4,22 +4,21 @@ import {
 } from "@/lib/finance-auth";
 import { NextRequest, NextResponse } from "next/server";
 
+const publicFinancePaths = new Set(["/finance/login", "/finance/verify"]);
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const isAuthenticated = await verifyFinanceSession(
+    request.cookies.get(FINANCE_SESSION_COOKIE)?.value,
+  );
 
-  if (pathname === "/finance/login") {
-    const isAuthenticated = await verifyFinanceSession(
-      request.cookies.get(FINANCE_SESSION_COOKIE)?.value,
-    );
-    if (isAuthenticated) {
+  if (publicFinancePaths.has(pathname)) {
+    if (isAuthenticated && pathname === "/finance/login") {
       return NextResponse.redirect(new URL("/finance", request.url));
     }
     return NextResponse.next();
   }
 
-  const isAuthenticated = await verifyFinanceSession(
-    request.cookies.get(FINANCE_SESSION_COOKIE)?.value,
-  );
   if (isAuthenticated) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {
@@ -33,6 +32,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/finance",
     "/finance/:path*",
     "/api/finance",
     "/api/snapshots/:path*",

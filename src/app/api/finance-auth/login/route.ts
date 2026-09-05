@@ -1,50 +1,73 @@
-import { timingSafeEqual } from "crypto";
 import {
-  createFinanceSession,
-  FINANCE_SESSION_COOKIE,
-  FINANCE_SESSION_MAX_AGE,
+  appOrigin,
+  createMagicLinkToken,
+  getSessionSecret,
 } from "@/lib/finance-auth";
+import { FINANCE_LOGIN_EMAIL } from "@/lib/finance-constants";
+import { sendFinanceLoginEmail } from "@/lib/finance-email";
 import { NextResponse } from "next/server";
 
-export async function POST(req: Request) {
-  try {
-    const { password } = (await req.json()) as { password?: string };
-    const expected = process.env.FINANCE_PASSWORD;
+const lastSentAt = new Map<string, number>();
 
-    if (!expected) {
-      console.error("FINANCE_PASSWORD is not configured");
+export async function POST(request: Request) {
+  try {
+    if (!getSessionSecret()) {
       return NextResponse.json(
         { error: "Finance authentication is not configured" },
         { status: 503 },
       );
     }
 
-    if (!password || !passwordMatches(password, expected)) {
-      await new Promise((resolve) => setTimeout(resolve, 350));
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "local";
+    const previous = lastSentAt.get(ip) ?? 0;
+    if (Date.now() - previous < 30_000) {
+      return NextResponse.json(
+        { error: "Please wait a moment before requesting another link" },
+        { status: 429 },
+      );
     }
 
-    const session = await createFinanceSession();
-    const response = NextResponse.json({ success: true });
-    response.cookies.set(FINANCE_SESSION_COOKIE, session, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: FINANCE_SESSION_MAX_AGE,
-      path: "/",
+    const body = (await request.json().catch(() => ({}))) as { next?: string };
+    const nextPath =
+      body.next?.startsWith("/finance") && !body.next.startsWith("//")
+        ? body.next
+        : "";
+
+    const token = await createMagicLinkToken();
+    const loginUrl = new URL("/finance/verify", appOrigin(request));
+    loginUrl.searchParams.set("token", token);
+    if (nextPath) loginUrl.searchParams.set("next", nextPath);
+
+    let emailed = false;
+    try {
+      emailed = await sendFinanceLoginEmail(loginUrl.toString());
+    } catch (cause) {
+      console.error("Finance login email failed:", cause);
+    }
+    lastSentAt.set(ip, Date.now());
+
+    if (!emailed && process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Email delivery is not configured" },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      emailed,
+      email: FINANCE_LOGIN_EMAIL,
+      ...(process.env.NODE_ENV === "production"
+        ? {}
+        : { loginLink: loginUrl.toString() }),
     });
-    return response;
   } catch (cause) {
     console.error("POST /api/finance-auth/login error:", cause);
-    return NextResponse.json({ error: "Unable to sign in" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Unable to send login link" },
+      { status: 500 },
+    );
   }
-}
-
-function passwordMatches(value: string, expected: string) {
-  const providedBuffer = Buffer.from(value);
-  const expectedBuffer = Buffer.from(expected);
-  return (
-    providedBuffer.length === expectedBuffer.length &&
-    timingSafeEqual(providedBuffer, expectedBuffer)
-  );
 }

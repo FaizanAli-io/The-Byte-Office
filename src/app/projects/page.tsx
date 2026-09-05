@@ -23,7 +23,6 @@ export default function ProjectsPage() {
       name: project.title,
       genre: project.category,
       description: project.solution,
-      url: project.link,
       creator: {
         "@type": "Organization",
         name: company.name,
@@ -46,7 +45,7 @@ export default function ProjectsPage() {
           <p className="lead mt-7">
             Each project below keeps the factual source material intact while
             presenting the work as a clearer case study: problem, solution,
-            impact, technologies, and links where available.
+            impact, and technologies.
           </p>
         </div>
       </section>
@@ -54,8 +53,11 @@ export default function ProjectsPage() {
       <section className="container-page section">
         <div className="grid gap-6">
           {projects.map((project, index) => {
-            const body = (
-              <article className="surface-card overflow-hidden transition hover:-translate-y-1 hover:shadow-md">
+            return (
+              <article
+                key={project.title}
+                className="surface-card overflow-hidden transition hover:-translate-y-1 hover:shadow-md"
+              >
                 <div className="grid gap-0 lg:grid-cols-[0.42fr_0.58fr]">
                   <div className="flex min-h-72 flex-col justify-between bg-slate-950 p-6 text-white sm:p-8">
                     <div>
@@ -74,11 +76,20 @@ export default function ProjectsPage() {
                         {project.industry}
                       </p>
                     </div>
-                    <div className="mt-8 grid grid-cols-4 gap-2">
-                      <span className="h-14 rounded-md bg-white/10" />
-                      <span className="h-14 rounded-md bg-blue-400/20" />
-                      <span className="h-14 rounded-md bg-teal-400/20" />
-                      <span className="h-14 rounded-md bg-amber-300/20" />
+                    <div className="mt-8">
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                        Core stack
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {project.tech.slice(0, 4).map((tech) => (
+                          <span
+                            key={tech}
+                            className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-200"
+                          >
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -109,45 +120,9 @@ export default function ProjectsPage() {
                         </dd>
                       </div>
                     </dl>
-
-                    <div className="mt-8 border-t border-white/10 pt-6">
-                      <p className="text-sm font-extrabold text-slate-100">
-                        Technologies
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {project.tech.map((tech) => (
-                          <span key={tech} className="chip">
-                            {tech}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {project.link ? (
-                      <p className="mt-6 text-sm font-bold text-blue-800">
-                        Opens live project
-                      </p>
-                    ) : (
-                      <p className="mt-6 text-sm font-semibold text-slate-500">
-                        Project link not publicly listed.
-                      </p>
-                    )}
                   </div>
                 </div>
               </article>
-            );
-
-            return project.link ? (
-              <a
-                key={project.title}
-                href={project.link}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {body}
-              </a>
-            ) : (
-              <div key={project.title}>{body}</div>
             );
           })}
         </div>
@@ -156,7 +131,7 @@ export default function ProjectsPage() {
       <section className="container-page section-tight">
         <div className="dark-panel grid gap-6 p-8 sm:p-10 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
-            <h2 className="text-3xl font-extrabold leading-tight text-white md:text-5xl">
+            <h2 className="text-3xl font-extrabold leading-tight text-white md:text-4xl">
               Have a project that needs this level of ownership?
             </h2>
             <p className="mt-4 max-w-2xl text-slate-300">

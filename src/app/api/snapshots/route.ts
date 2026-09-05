@@ -1,21 +1,14 @@
-import { ObjectId } from "mongodb";
-import { getMongoClient } from "@/lib/mongodb";
+import {
+  createSnapshot,
+  deleteSnapshot,
+  listSnapshots,
+} from "@/lib/db/queries";
 import { NextResponse } from "next/server";
-import { FinanceDoc, FinanceSnapshot } from "@/types/finance";
+import { FinanceDoc } from "@/types/finance";
 
 export async function GET() {
   try {
-    const client = await getMongoClient();
-    const db = client.db("finance");
-    const collection = db.collection<FinanceSnapshot>("snapshots");
-
-    const snapshots = await collection
-      .find({})
-      .sort({ timestamp: -1 })
-      .limit(50)
-      .toArray();
-
-    return NextResponse.json(snapshots);
+    return NextResponse.json(await listSnapshots());
   } catch (err) {
     console.error("GET /api/finance/snapshots error:", err);
     return NextResponse.json(
@@ -30,24 +23,17 @@ export async function POST(req: Request) {
     const { data, grandTotal }: { data: FinanceDoc; grandTotal: number } =
       await req.json();
 
-    const client = await getMongoClient();
-    const db = client.db("finance");
-    const collection = db.collection<FinanceSnapshot>("snapshots");
-
-    const snapshot: FinanceSnapshot = {
-      timestamp: new Date(),
-      data: {
+    const id = await createSnapshot(
+      {
         name: data.name,
         mutualFunds: data.mutualFunds,
         remoteBanks: data.remoteBanks,
         localBanks: data.localBanks,
       },
       grandTotal,
-    };
+    );
 
-    const result = await collection.insertOne(snapshot);
-
-    return NextResponse.json({ success: true, id: result.insertedId });
+    return NextResponse.json({ success: true, id });
   } catch (err) {
     console.error("POST /api/finance/snapshots error:", err);
     return NextResponse.json(
@@ -68,13 +54,8 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const client = await getMongoClient();
-    const db = client.db("finance");
-    const collection = db.collection<FinanceSnapshot>("snapshots");
-
-    const result = await collection.deleteOne({ _id: new ObjectId(id) } as any);
-
-    if (result.deletedCount === 0) {
+    const deleted = await deleteSnapshot(id);
+    if (!deleted) {
       return NextResponse.json(
         { error: "Snapshot not found" },
         { status: 404 },

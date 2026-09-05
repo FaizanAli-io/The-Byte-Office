@@ -46,7 +46,7 @@ export default function AboutPage() {
             <p className="eyebrow border-white/10 bg-white/10 text-blue-100">
               Mission
             </p>
-            <h2 className="mt-5 text-4xl font-extrabold leading-tight text-white">
+            <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white">
               Make advanced software practical, reliable, and useful.
             </h2>
             <p className="mt-5 text-slate-300">
@@ -97,7 +97,7 @@ export default function AboutPage() {
             <p className="eyebrow border-white/10 bg-white/10 text-blue-100">
               Capability map
             </p>
-            <h2 className="mt-5 text-4xl font-extrabold leading-tight text-white md:text-6xl">
+            <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-5xl">
               From product frontends to AI workflows and backend systems.
             </h2>
           </div>

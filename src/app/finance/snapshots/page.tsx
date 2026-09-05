@@ -8,12 +8,18 @@ import {
 import type { FinanceSnapshot } from "@/types/finance";
 import { useEffect, useState } from "react";
 import { FinancePageShell, financeStyles } from "../components/FinanceUI";
+import {
+  FinanceToast,
+  type FinanceToastState,
+} from "../components/FinanceToast";
 import { AllocationChart, TextSummary } from "./components";
 
 export default function SnapshotsPage() {
   const [snapshots, setSnapshots] = useState<FinanceSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [toast, setToast] = useState<FinanceToastState>(null);
 
   useEffect(() => {
     fetch("/api/snapshots")
@@ -26,18 +32,29 @@ export default function SnapshotsPage() {
   }, []);
 
   async function deleteSnapshot(id: string) {
-    if (!window.confirm("Delete this snapshot?")) return;
+    if (pendingDelete !== id) {
+      setPendingDelete(id);
+      setToast({
+        message: "Click “Confirm delete” to remove this snapshot.",
+        tone: "info",
+      });
+      return;
+    }
+
     const response = await fetch("/api/snapshots", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
     if (!response.ok) {
-      window.alert("Failed to delete snapshot.");
+      setPendingDelete(null);
+      setToast({ message: "Failed to delete snapshot.", tone: "error" });
       return;
     }
     setSnapshots((items) => items.filter((snapshot) => snapshot._id !== id));
     setExpanded((items) => items.filter((item) => item !== id));
+    setPendingDelete(null);
+    setToast({ message: "Snapshot deleted.", tone: "success" });
   }
 
   return (
@@ -103,7 +120,7 @@ export default function SnapshotsPage() {
                       className={financeStyles.danger}
                       onClick={() => deleteSnapshot(id)}
                     >
-                      Delete
+                      {pendingDelete === id ? "Confirm delete" : "Delete"}
                     </button>
                   </div>
                 </div>
@@ -131,6 +148,7 @@ export default function SnapshotsPage() {
           })}
         </div>
       )}
+      <FinanceToast toast={toast} onDismiss={() => setToast(null)} />
     </FinancePageShell>
   );
 }

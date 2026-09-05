@@ -1,6 +1,13 @@
 import { randomUUID } from "crypto";
-import { getMongoClient } from "@/lib/mongodb";
 import { accountStats, isMonth, monthBounds } from "@/lib/ledger";
+import {
+  createLedger,
+  loadFinanceDoc,
+  loadLedger,
+  loadPreviousFinalizedLedger,
+  listLedgerSummaries,
+  saveLedger,
+} from "@/lib/db/queries";
 import type { FinanceDoc } from "@/types/finance";
 import type {
   LedgerAccount,
@@ -10,33 +17,16 @@ import type {
 } from "@/types/ledger";
 import { NextResponse } from "next/server";
 
-const databaseName = "finance";
-const collectionName = "ledgers";
-
-async function getCollection() {
-  const client = await getMongoClient();
-  const collection = client
-    .db(databaseName)
-    .collection<MonthlyLedger>(collectionName);
-  await collection.createIndex({ month: 1 }, { unique: true });
-  return collection;
-}
-
 export async function GET(req: Request) {
   try {
     const month = new URL(req.url).searchParams.get("month");
-    const collection = await getCollection();
 
     if (!month) {
-      const ledgers = await collection
-        .find({}, { projection: { month: 1, status: 1, updatedAt: 1 } })
-        .sort({ month: -1 })
-        .toArray();
-      return NextResponse.json(ledgers);
+      return NextResponse.json(await listLedgerSummaries());
     }
 
     if (!isMonth(month)) return error("Invalid month", 400);
-    const ledger = await collection.findOne({ month });
+    const ledger = await loadLedger(month);
     return ledger ? NextResponse.json(ledger) : error("Ledger not found", 404);
   } catch (cause) {
     console.error("GET /api/ledger error:", cause);
@@ -52,41 +42,19 @@ export async function POST(req: Request) {
     };
     if (!month || !isMonth(month)) return error("Invalid month", 400);
 
-    const collection = await getCollection();
-    const existing = await collection.findOne({ month });
+    const existing = await loadLedger(month);
     if (existing) return NextResponse.json(existing);
 
     let accounts: LedgerAccount[] = [];
     if (importFinance) {
-      const client = await getMongoClient();
-      const finance = await client
-        .db(databaseName)
-        .collection<FinanceDoc>("data")
-        .findOne({ name: "finance" });
-      accounts = finance ? accountsFromFinance(finance) : [];
+      accounts = accountsFromFinance(await loadFinanceDoc());
     } else {
-      const previous = await collection
-        .find({ month: { $lt: month }, status: "finalized" })
-        .sort({ month: -1 })
-        .limit(1)
-        .next();
+      const previous = await loadPreviousFinalizedLedger(month);
       if (previous) accounts = carryAccounts(previous);
     }
 
-    const now = new Date();
-    const ledger: MonthlyLedger = {
-      month,
-      status: "draft",
-      accounts,
-      entries: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    const result = await collection.insertOne(ledger);
-    return NextResponse.json(
-      { ...ledger, _id: result.insertedId },
-      { status: 201 },
-    );
+    const ledger = await createLedger({ month, accounts });
+    return NextResponse.json(ledger, { status: 201 });
   } catch (cause) {
     console.error("POST /api/ledger error:", cause);
     return error("Failed to create ledger", 500);
@@ -99,30 +67,13 @@ export async function PUT(req: Request) {
     const validationError = validateLedger(body);
     if (validationError) return error(validationError, 400);
 
-    const collection = await getCollection();
-    const existing = await collection.findOne({ month: body.month });
+    const existing = await loadLedger(body.month);
     if (!existing) return error("Ledger not found", 404);
     if (existing.status === "finalized" && body.status === "finalized") {
       return error("Reopen this month before editing it", 409);
     }
 
-    const now = new Date();
-    const finalizedAt =
-      body.status === "finalized" ? (existing.finalizedAt ?? now) : undefined;
-    const update = {
-      status: body.status,
-      accounts: body.accounts,
-      entries: body.entries,
-      updatedAt: now,
-      ...(finalizedAt ? { finalizedAt } : {}),
-    };
-    await collection.updateOne(
-      { month: body.month },
-      body.status === "draft"
-        ? { $set: update, $unset: { finalizedAt: "" } }
-        : { $set: update },
-    );
-    return NextResponse.json({ ...existing, ...update });
+    return NextResponse.json(await saveLedger(existing, body));
   } catch (cause) {
     console.error("PUT /api/ledger error:", cause);
     return error("Failed to save ledger", 500);

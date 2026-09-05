@@ -50,10 +50,13 @@ export function AllocationChart({
             <Tooltip
               formatter={(value) => `${Number(value).toLocaleString()} PKR`}
               contentStyle={{
-                background: "#0f172a",
-                border: "1px solid rgba(255,255,255,.1)",
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
                 borderRadius: 10,
+                boxShadow: "0 12px 32px rgba(15, 23, 42, 0.18)",
               }}
+              itemStyle={{ color: "#0f172a", fontWeight: 700 }}
+              labelStyle={{ color: "#475569", fontWeight: 700 }}
             />
             <Legend
               wrapperStyle={{ color: "#94a3b8", fontSize: 12 }}

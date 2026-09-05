@@ -1,7 +1,5 @@
-import { ObjectId } from "mongodb";
-
 export interface FinanceDoc {
-  _id?: ObjectId;
+  _id?: string;
   name: string;
   mutualFunds: {
     [bank: string]: {

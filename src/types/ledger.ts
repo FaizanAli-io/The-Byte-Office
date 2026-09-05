@@ -1,5 +1,3 @@
-import type { ObjectId } from "mongodb";
-
 export type LedgerCurrency = "PKR" | "USD";
 export type LedgerStatus = "draft" | "finalized";
 export type LedgerAccountType = "bank" | "fund";
@@ -35,7 +33,7 @@ export interface LedgerEntry {
 }
 
 export interface MonthlyLedger {
-  _id?: ObjectId | string;
+  _id?: string;
   month: string;
   status: LedgerStatus;
   accounts: LedgerAccount[];

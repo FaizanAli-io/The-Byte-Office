@@ -138,10 +138,20 @@ function ProjectCard({
             {project.title}
           </h3>
         </div>
-        <div className="mt-8 grid grid-cols-3 gap-2">
-          <span className="h-16 rounded-md bg-white/10" />
-          <span className="h-16 rounded-md bg-blue-400/20" />
-          <span className="h-16 rounded-md bg-teal-400/20" />
+        <div className="mt-8">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+            Core stack
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {project.tech.slice(0, 3).map((tech) => (
+              <span
+                key={tech}
+                className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-200"
+              >
+                {tech}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
       <div className="p-6">
@@ -178,14 +188,6 @@ function ProjectCard({
       </div>
     </article>
   );
-
-  if (project.link) {
-    return (
-      <a href={project.link} target="_blank" rel="noopener noreferrer">
-        {content}
-      </a>
-    );
-  }
 
   return content;
 }
@@ -296,7 +298,7 @@ export default function Home() {
               <p className="eyebrow border-white/10 bg-white/10 text-blue-100">
                 Featured work
               </p>
-              <h2 className="mt-5 text-balance text-4xl font-extrabold leading-tight text-white md:text-6xl">
+              <h2 className="mt-5 text-balance text-3xl font-extrabold leading-tight text-white md:text-5xl">
                 Case-study style work across AI, automation, and web platforms.
               </h2>
             </div>
@@ -366,7 +368,7 @@ export default function Home() {
             <p className="eyebrow border-white/10 bg-white/10 text-blue-100">
               Technology
             </p>
-            <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-5xl">
+            <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-4xl">
               Modern stack, grouped by purpose.
             </h2>
             <p className="mt-5 text-slate-300">
@@ -420,7 +422,10 @@ export default function Home() {
                 "Business automation",
                 "AI-enabled workflows",
               ].map((item) => (
-                <div key={item} className="rounded-md bg-slate-50 p-4">
+                <div
+                  key={item}
+                  className="rounded-md border border-white/10 bg-white/[0.05] p-4"
+                >
                   <p className="font-bold text-slate-100">{item}</p>
                 </div>
               ))}
@@ -447,7 +452,7 @@ export default function Home() {
           <p className="eyebrow mx-auto border-white/10 bg-white/10 text-blue-100">
             Start the conversation
           </p>
-          <h2 className="mx-auto mt-6 max-w-3xl text-balance text-4xl font-extrabold leading-tight text-white md:text-6xl">
+          <h2 className="mx-auto mt-6 max-w-3xl text-balance text-3xl font-extrabold leading-tight text-white md:text-5xl">
             Have a product, AI workflow, or automation that needs to be built
             properly?
           </h2>

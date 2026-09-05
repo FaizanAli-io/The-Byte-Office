@@ -4,17 +4,22 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { company, navItems } from "../data/site";
+import {
+  FINANCE_AUTH_EVENT,
+  readFinanceToken,
+} from "@/lib/finance-session-client";
+
+function visibleNavItems(showFinance: boolean) {
+  const financeItem = { name: "Finance", href: "/finance" };
+  const withoutContact = navItems.filter((item) => item.href !== "/contact");
+  const contact = navItems.filter((item) => item.href === "/contact");
+  return showFinance ? [...withoutContact, financeItem, ...contact] : navItems;
+}
 
 function Logo() {
   return (
-    <span className="flex items-center gap-3">
-      <span
-        aria-hidden="true"
-        className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-950 text-sm font-black text-white shadow-sm"
-      >
-        BO
-      </span>
-      <span className="font-extrabold tracking-tight text-slate-100">
+    <span className="flex items-center">
+      <span className="text-lg font-extrabold tracking-tight text-slate-100">
         {company.name}
       </span>
     </span>
@@ -25,6 +30,18 @@ export default function Navigation() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [showFinance, setShowFinance] = useState(false);
+
+  useEffect(() => {
+    const syncAuth = () => setShowFinance(Boolean(readFinanceToken()));
+    syncAuth();
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener(FINANCE_AUTH_EVENT, syncAuth);
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener(FINANCE_AUTH_EVENT, syncAuth);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 8);
@@ -58,7 +75,7 @@ export default function Navigation() {
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
-          {navItems.map((item) => {
+          {visibleNavItems(showFinance).map((item) => {
             const isActive =
               item.href === "/#process"
                 ? false
@@ -119,7 +136,7 @@ export default function Navigation() {
       {isOpen ? (
         <div className="border-t border-white/8 bg-[#080c13]/96 px-4 pb-6 pt-2 shadow-xl backdrop-blur-xl md:hidden">
           <div className="container-page flex flex-col gap-2">
-            {navItems.map((item) => (
+            {visibleNavItems(showFinance).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
