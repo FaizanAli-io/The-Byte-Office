@@ -28,6 +28,7 @@ function Logo() {
 
 export default function Navigation() {
   const pathname = usePathname();
+  const isFinance = pathname.startsWith("/finance");
   const [isScrolled, setIsScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [showFinance, setShowFinance] = useState(false);
@@ -63,13 +64,18 @@ export default function Navigation() {
 
   return (
     <header
+      data-public-navigation
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-200 ${
         isScrolled
           ? "border-b border-white/8 bg-[#080c13]/88 shadow-lg shadow-black/10 backdrop-blur-xl"
           : "bg-[#080c13]/45 backdrop-blur-sm"
       }`}
     >
-      <nav className="container-page flex h-20 items-center justify-between">
+      <nav
+        className={`container-page flex items-center justify-between ${
+          isFinance ? "h-16 sm:h-20" : "h-20"
+        }`}
+      >
         <Link href="/" aria-label={`${company.name} home`}>
           <Logo />
         </Link>
@@ -108,7 +114,9 @@ export default function Navigation() {
 
         <button
           type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-100 md:hidden"
+          className={`h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-100 ${
+            isFinance ? "hidden" : "inline-flex md:hidden"
+          }`}
           aria-label={isOpen ? "Close menu" : "Open menu"}
           aria-expanded={isOpen}
           onClick={() => setIsOpen((value) => !value)}
@@ -133,7 +141,7 @@ export default function Navigation() {
         </button>
       </nav>
 
-      {isOpen ? (
+      {isOpen && !isFinance ? (
         <div className="border-t border-white/8 bg-[#080c13]/96 px-4 pb-6 pt-2 shadow-xl backdrop-blur-xl md:hidden">
           <div className="container-page flex flex-col gap-2">
             {visibleNavItems(showFinance).map((item) => (

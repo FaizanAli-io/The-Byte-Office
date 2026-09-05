@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
-import { accountStats, isMonth, monthBounds } from "@/lib/ledger";
+import { accountStats, isMonth } from "@/lib/ledger";
+import { validateLedger } from "@/lib/finance-validation";
 import {
   createLedger,
   loadFinanceDoc,
@@ -11,7 +12,6 @@ import {
 import type { FinanceDoc } from "@/types/finance";
 import type {
   LedgerAccount,
-  LedgerEntry,
   MonthlyLedger,
   MonthlyLedgerPayload,
 } from "@/types/ledger";
@@ -122,118 +122,6 @@ function carryAccounts(ledger: MonthlyLedger): LedgerAccount[] {
         : undefined,
     actualClosingBalance: undefined,
   }));
-}
-
-function validateLedger(body: MonthlyLedgerPayload) {
-  if (!body || !isMonth(body.month)) return "Invalid month";
-  if (!["draft", "finalized"].includes(body.status)) return "Invalid status";
-  if (!Array.isArray(body.accounts) || !Array.isArray(body.entries)) {
-    return "Accounts and entries are required";
-  }
-  const ids = new Set(body.accounts.map((account) => account.id));
-  if (ids.size !== body.accounts.length) return "Account IDs must be unique";
-  for (const account of body.accounts) {
-    if (!account.id || !account.name.trim())
-      return "Every account needs a name";
-    if (!["bank", "fund"].includes(account.type)) return "Invalid account type";
-    if (!["PKR", "USD"].includes(account.currency)) return "Invalid currency";
-    if (
-      !validNumber(account.openingBalance) ||
-      !validNumber(account.exchangeRate) ||
-      (account.currency === "USD" && account.exchangeRate === 0)
-    ) {
-      return "Account balances and exchange rates must be valid";
-    }
-    if (
-      account.type === "fund" &&
-      account.openingCostBasis !== undefined &&
-      !validNumber(account.openingCostBasis)
-    ) {
-      return "Fund cost basis must be valid";
-    }
-    if (
-      account.actualClosingBalance !== undefined &&
-      !validNumber(account.actualClosingBalance)
-    ) {
-      return "Actual closing balances must be valid";
-    }
-  }
-  if (
-    body.status === "finalized" &&
-    body.accounts.some((account) => account.actualClosingBalance === undefined)
-  ) {
-    return "Enter an actual closing balance for every account before finalizing";
-  }
-  const bounds = monthBounds(body.month);
-  const entryIds = new Set(body.entries.map((entry) => entry.id));
-  if (entryIds.size !== body.entries.length) return "Entry IDs must be unique";
-  for (const entry of body.entries as LedgerEntry[]) {
-    if (
-      ![
-        "income",
-        "expense",
-        "transfer",
-        "fund_contribution",
-        "fund_withdrawal",
-      ].includes(entry.type)
-    ) {
-      return "Invalid entry type";
-    }
-    if (
-      !entry.id ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) ||
-      entry.date < bounds.min ||
-      entry.date > bounds.max
-    ) {
-      return "Every entry must have a valid date in this month";
-    }
-    if (
-      !ids.has(entry.accountId) ||
-      !validNumber(entry.amount) ||
-      entry.amount <= 0
-    ) {
-      return "Every entry needs a valid account and positive amount";
-    }
-    if (
-      entry.type === "transfer" &&
-      (!entry.destinationAccountId ||
-        !ids.has(entry.destinationAccountId) ||
-        entry.destinationAccountId === entry.accountId)
-    ) {
-      return "Transfers need two different valid accounts";
-    }
-    if (entry.type === "transfer" && entry.destinationAccountId) {
-      const source = body.accounts.find(
-        (account) => account.id === entry.accountId,
-      );
-      const destination = body.accounts.find(
-        (account) => account.id === entry.destinationAccountId,
-      );
-      if (
-        source?.currency !== destination?.currency &&
-        entry.destinationAmount === undefined
-      ) {
-        return "Cross-currency transfers need a destination amount";
-      }
-    }
-    if (
-      entry.destinationAmount !== undefined &&
-      (!validNumber(entry.destinationAmount) || entry.destinationAmount === 0)
-    ) {
-      return "Destination amount must be positive";
-    }
-    if (
-      entry.exchangeRate !== undefined &&
-      (!validNumber(entry.exchangeRate) || entry.exchangeRate === 0)
-    ) {
-      return "Entry exchange rate must be positive";
-    }
-  }
-  return null;
-}
-
-function validNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
 function error(message: string, status: number) {

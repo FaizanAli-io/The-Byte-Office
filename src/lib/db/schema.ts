@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   index,
@@ -38,6 +39,10 @@ export const ledgerEntryTypeEnum = pgEnum("ledger_entry_type", [
   "fund_contribution",
   "fund_withdrawal",
 ]);
+export const financeAgentActionStatusEnum = pgEnum(
+  "finance_agent_action_status",
+  ["pending", "executing", "completed", "cancelled", "failed"],
+);
 
 export const localBanks = pgTable("local_banks", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -179,8 +184,11 @@ export const ledgerEntries = pgTable(
       () => ledgerAccounts.id,
       { onDelete: "restrict" },
     ),
-    amount: numeric("amount", { precision: 18, scale: 2, mode: "number" })
-      .notNull(),
+    amount: numeric("amount", {
+      precision: 18,
+      scale: 2,
+      mode: "number",
+    }).notNull(),
     destinationAmount: numeric("destination_amount", {
       precision: 18,
       scale: 2,
@@ -228,6 +236,76 @@ export const financeSnapshots = pgTable(
     data: jsonb("data").$type<SnapshotHoldings>().notNull(),
   },
   (table) => [index("finance_snapshots_timestamp_idx").on(table.timestamp)],
+);
+
+export const financeAgentActions = pgTable(
+  "finance_agent_actions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    actionType: text("action_type").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    preview: jsonb("preview")
+      .$type<{ title: string; before?: unknown; after?: unknown }>()
+      .notNull(),
+    sourceFingerprint: text("source_fingerprint"),
+    status: financeAgentActionStatusEnum("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    executedAt: timestamp("executed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    error: text("error"),
+  },
+  (table) => [
+    index("finance_agent_actions_status_expiry_idx").on(
+      table.status,
+      table.expiresAt,
+    ),
+  ],
+);
+
+export const financeAgentMessages = pgTable(
+  "finance_agent_messages",
+  {
+    id: uuid("id").primaryKey(),
+    role: text("role").notNull(),
+    content: text("content").notNull(),
+    actions: jsonb("actions").$type<unknown[]>().notNull().default([]),
+    isError: boolean("is_error").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("finance_agent_messages_created_idx").on(table.createdAt)],
+);
+
+export const financeAgentToolLogs = pgTable(
+  "finance_agent_tool_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    requestId: uuid("request_id").notNull(),
+    model: text("model").notNull(),
+    toolCallId: text("tool_call_id").notNull(),
+    toolName: text("tool_name").notNull(),
+    arguments: jsonb("arguments").$type<unknown>().notNull(),
+    result: jsonb("result").$type<unknown>(),
+    error: text("error"),
+    durationMs: integer("duration_ms"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("finance_agent_tool_logs_created_idx").on(table.createdAt),
+    index("finance_agent_tool_logs_request_idx").on(table.requestId),
+    index("finance_agent_tool_logs_tool_idx").on(table.toolName),
+  ],
 );
 
 export const ledgersRelations = relations(ledgers, ({ many }) => ({

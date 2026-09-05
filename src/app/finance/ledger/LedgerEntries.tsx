@@ -302,7 +302,92 @@ export function LedgerEntries({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto">
+      <div className="space-y-3 md:hidden">
+        {visibleEntries.map((entry, index) => {
+          const account = accounts.find((item) => item.id === entry.accountId);
+          const destination = accounts.find(
+            (item) => item.id === entry.destinationAccountId,
+          );
+          const running =
+            filter === "all"
+              ? undefined
+              : runningBalance(
+                  filter,
+                  visibleEntries.slice(0, index + 1),
+                  accounts,
+                );
+          return (
+            <article key={entry.id} className={`${financeStyles.inset} p-4`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs text-slate-500">
+                    {new Date(`${entry.date}T00:00:00`).toLocaleDateString(
+                      "en-US",
+                      { month: "short", day: "numeric", year: "numeric" },
+                    )}
+                  </p>
+                  <p className="mt-2 font-bold text-slate-100">
+                    {account?.name ?? "Unknown account"}
+                  </p>
+                  {destination ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      to {destination.name}
+                    </p>
+                  ) : null}
+                </div>
+                <p className="shrink-0 text-right font-bold text-cyan-300">
+                  {formatMoney(entry.amount, account?.currency ?? "PKR")}
+                </p>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-white/[0.05] px-2.5 py-1 font-semibold text-slate-300">
+                  {ENTRY_LABELS[entry.type]}
+                </span>
+                {entry.category ? (
+                  <span className="text-slate-400">{entry.category}</span>
+                ) : null}
+              </div>
+              {entry.note ? (
+                <p className="mt-3 break-words text-xs leading-5 text-slate-500">
+                  {entry.note}
+                </p>
+              ) : null}
+              {running !== undefined ? (
+                <div className="mt-3 flex justify-between border-t border-white/6 pt-3 text-xs">
+                  <span className="text-slate-500">Running balance</span>
+                  <span className="font-bold text-cyan-300">
+                    {formatMoney(
+                      running,
+                      accounts.find((item) => item.id === filter)?.currency ??
+                        "PKR",
+                    )}
+                  </span>
+                </div>
+              ) : null}
+              {!readOnly ? (
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className={financeStyles.secondary}
+                    onClick={() => editEntry(entry)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className={financeStyles.danger}
+                    onClick={() => onRemove(entry.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-[0.12em] text-slate-600">
@@ -412,12 +497,12 @@ export function LedgerEntries({
             })}
           </tbody>
         </table>
-        {visibleEntries.length === 0 ? (
-          <p className="py-10 text-center text-sm text-slate-600">
-            No transactions for this view.
-          </p>
-        ) : null}
       </div>
+      {visibleEntries.length === 0 ? (
+        <p className="py-10 text-center text-sm text-slate-600">
+          No transactions for this view.
+        </p>
+      ) : null}
     </FinanceCard>
   );
 }

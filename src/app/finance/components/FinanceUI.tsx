@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { FinanceLogoutButton } from "./FinanceLogoutButton";
 
@@ -21,6 +24,8 @@ const links = [
   { href: "/finance", label: "Portfolio" },
   { href: "/finance/snapshots", label: "Snapshots" },
   { href: "/finance/ledger", label: "Monthly ledger" },
+  { href: "/finance/agent", label: "Assistant" },
+  { href: "/finance/agent/logs", label: "Assistant logs" },
 ];
 
 export function FinancePageShell({
@@ -34,8 +39,10 @@ export function FinancePageShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const pathname = usePathname();
+
   return (
-    <div className="mx-auto w-full max-w-[1480px] px-4 pb-20 pt-28 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[1480px] px-4 pb-16 pt-24 sm:px-6 sm:pb-20 sm:pt-28 lg:px-8">
       <div className="mb-8 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">
@@ -48,21 +55,38 @@ export function FinancePageShell({
             {description}
           </p>
         </div>
-        {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
+        {actions ? (
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap [&>*]:w-full sm:[&>*]:w-auto">
+            {actions}
+          </div>
+        ) : null}
       </div>
       <nav
         aria-label="Finance navigation"
         className="mb-8 flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl border border-white/8 bg-slate-950/55 p-1"
       >
-        {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
-          >
-            {link.label}
-          </Link>
-        ))}
+        {links.map((link) => {
+          const active =
+            link.href === "/finance"
+              ? pathname === link.href
+              : link.href === "/finance/agent"
+                ? pathname === link.href
+                : pathname.startsWith(link.href);
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={active ? "page" : undefined}
+              className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                active
+                  ? "bg-cyan-300/12 text-cyan-200"
+                  : "text-slate-400 hover:bg-white/[0.06] hover:text-white"
+              }`}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
         <FinanceLogoutButton />
       </nav>
       {children}

@@ -35,6 +35,7 @@ export const config = {
     "/finance",
     "/finance/:path*",
     "/api/finance",
+    "/api/finance-agent/:path*",
     "/api/snapshots/:path*",
     "/api/ledger/:path*",
   ],

@@ -77,6 +77,34 @@ textarea {
   color: var(--ink);
 }
 
+/* Subtle scrollbars: transparent track, themed thumb, no visible rail */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 232, 249, 0.28) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(103, 232, 249, 0.22);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(103, 232, 249, 0.38);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 :focus-visible {
   outline: 3px solid rgba(34, 211, 238, 0.7);
   outline-offset: 3px;
@@ -292,6 +320,10 @@ textarea {
 }
 
 @media (max-width: 640px) {
+  body:has(.finance-workspace) [data-public-footer] {
+    display: none;
+  }
+
   .container-page {
     width: min(100% - 1.25rem, 1180px);
   }

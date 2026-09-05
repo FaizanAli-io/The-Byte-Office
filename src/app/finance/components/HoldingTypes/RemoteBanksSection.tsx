@@ -29,7 +29,7 @@ export function RemoteBanksSection({
 }) {
   return (
     <section className={cardClass}>
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className={sectionTitleClass}>Remote Banks</h2>
         <button onClick={onAdd} className={addBtnClass}>
           + Add Remote Bank

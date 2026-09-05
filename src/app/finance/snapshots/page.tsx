@@ -111,7 +111,7 @@ export default function SnapshotsPage() {
                       {Math.round(snapshot.grandTotal).toLocaleString()} PKR
                     </p>
                   </button>
-                  <div className="flex items-center gap-3">
+                  <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">
                     <span className="text-xs font-semibold text-slate-600">
                       {isExpanded ? "Hide details" : "View details"}
                     </span>

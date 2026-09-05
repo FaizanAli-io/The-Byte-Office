@@ -3,6 +3,7 @@ import {
   deleteSnapshot,
   listSnapshots,
 } from "@/lib/db/queries";
+import { validateSnapshotInput } from "@/lib/finance-validation";
 import { NextResponse } from "next/server";
 import { FinanceDoc } from "@/types/finance";
 
@@ -20,8 +21,15 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { data, grandTotal }: { data: FinanceDoc; grandTotal: number } =
-      await req.json();
+    const body: unknown = await req.json();
+    const validationError = validateSnapshotInput(body);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+    const { data, grandTotal } = body as {
+      data: FinanceDoc;
+      grandTotal: number;
+    };
 
     const id = await createSnapshot(
       {

@@ -8,6 +8,27 @@
       "when": 1788606721410,
       "tag": "0000_init_finance_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788617683945,
+      "tag": "0001_purple_kronos",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788620190728,
+      "tag": "0002_handy_jasper_sitwell",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788624620698,
+      "tag": "0003_huge_captain_marvel",
+      "breakpoints": true
     }
   ]
 }

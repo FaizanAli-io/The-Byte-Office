@@ -129,7 +129,7 @@ export default function LedgerPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3">
+          <div className="flex flex-col gap-1 rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-400">
               Status:{" "}
               <span

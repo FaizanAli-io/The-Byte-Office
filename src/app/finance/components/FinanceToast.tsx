@@ -30,7 +30,7 @@ export function FinanceToast({
 
   return (
     <div
-      className={`fixed bottom-5 right-5 z-[100] flex max-w-sm items-start gap-4 rounded-xl border px-4 py-3 shadow-2xl ${toneStyles[toast.tone]}`}
+      className={`fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-[100] flex items-start justify-between gap-4 rounded-xl border px-4 py-3 shadow-2xl sm:left-auto sm:right-5 sm:max-w-sm ${toneStyles[toast.tone]}`}
       role={toast.tone === "error" ? "alert" : "status"}
       aria-live="polite"
     >

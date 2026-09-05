@@ -1,26 +1,28 @@
 import { loadFinanceDoc, saveFinanceDoc } from "@/lib/db/queries";
+import { validateFinanceDoc } from "@/lib/finance-validation";
 import { NextResponse } from "next/server";
-import { FinanceDoc } from "@/types/finance";
-
-const emptyDoc: FinanceDoc = {
-  name: "finance",
-  mutualFunds: [],
-  remoteBanks: [],
-  localBanks: [],
-};
 
 export async function GET() {
   try {
     return NextResponse.json(await loadFinanceDoc());
   } catch (err) {
     console.error("GET /api/finance error:", err);
-    return NextResponse.json(emptyDoc, { status: 200 });
+    return NextResponse.json(
+      { error: "Failed to load finance data" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const body: Omit<FinanceDoc, "_id"> = await req.json();
+    const body: unknown = await req.json();
+    if (!validateFinanceDoc(body)) {
+      return NextResponse.json(
+        { error: "Invalid finance data" },
+        { status: 400 },
+      );
+    }
     if ("_id" in body) delete body._id;
     await saveFinanceDoc(body);
     return NextResponse.json({ success: true });

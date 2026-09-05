@@ -33,7 +33,7 @@ export function MutualFundsSection({
 }) {
   return (
     <section className={cardClass}>
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className={sectionTitleClass}>Mutual Funds</h2>
         <button onClick={onAddBank} className={addBtnClass}>
           + Add Bank
@@ -49,8 +49,8 @@ export function MutualFundsSection({
             key={mfIndex}
             className="mb-4 rounded-xl border border-white/7 bg-slate-950/45 p-4"
           >
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex-1 mr-4">
+            <div className="mb-4 flex items-end gap-3">
+              <div className="min-w-0 flex-1">
                 <label className={labelClass}>Bank Name</label>
                 <input
                   className={inputClass}
@@ -121,7 +121,7 @@ export function MutualFundsSection({
               ))}
             </div>
 
-            <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/6 pt-4">
+            <div className="mt-5 flex flex-col gap-3 border-t border-white/6 pt-4 sm:flex-row sm:items-center sm:justify-between">
               <button
                 onClick={() => onAddFund(mfIndex, bankKey)}
                 className={addBtnClass}

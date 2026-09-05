@@ -3,7 +3,10 @@ import { company, navItems, services } from "../data/site";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-slate-900/10 bg-slate-950 text-white">
+    <footer
+      data-public-footer
+      className="border-t border-slate-900/10 bg-slate-950 text-white"
+    >
       <div className="container-page py-14">
         <div className="grid gap-10 lg:grid-cols-[1.3fr_0.7fr_0.7fr_0.8fr]">
           <div>
