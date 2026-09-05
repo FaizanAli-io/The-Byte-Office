@@ -16,8 +16,8 @@ OPENROUTER_API_KEY=your_server_side_key
 OPENROUTER_MODEL=z-ai/glm-5.2:free
 ```
 
-`OPENROUTER_MODEL` is optional. Availability and rate-limit failures fall back
-to OpenRouter's capability-filtered `openrouter/free` router.
+`OPENROUTER_MODEL` is optional. When unset, the app tries a small set of free
+tool-capable models before returning a clear rate-limit error.
 
 Review the pending migrations in `drizzle/`, then apply them with:
 

@@ -1,42 +1,74 @@
-# The-Byte-Office
+# The Byte Office
 
-The portfolio website repository for The Byte Office
+Portfolio website and private finance workspace for [The Byte Office](https://github.com/FaizanAli-io/The-Byte-Office).
 
-# Next.JS ReadMe File
+Built with Next.js 15, React, Tailwind CSS, and Neon Postgres.
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Features
 
-## Getting Started
+- Public marketing site: services, work, about, contact
+- Protected finance workspace at `/finance`
+  - Portfolio editor for banks and mutual funds
+  - Portfolio snapshots with allocation charts
+  - Monthly ledger with accounts, transactions, and reconciliation
+  - AI finance assistant with tool calling, confirmation cards, and in-chat ledger forms
+  - Assistant tool-call logs for debugging
 
-First, run the development server:
+## Getting started
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Copy `example.env` to `.env` and fill in the values:
+
+```dotenv
+DATABASE_URL=
+DATABASE_URL_UNPOOLED=
+FINANCE_SESSION_SECRET=
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=
+SMTP_USER=
+SMTP_PASS=
+```
+
+3. Apply database migrations:
+
+```bash
+npm run db:migrate
+```
+
+4. Start the dev server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Finance assistant
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The assistant lives at `/finance/agent` and uses OpenRouter for model access. Reads run immediately; writes create confirmation cards or in-chat ledger forms that must be submitted before data changes.
 
-## Learn More
+Setup and troubleshooting details are in [`docs/finance-agent.md`](docs/finance-agent.md).
 
-To learn more about Next.js, take a look at the following resources:
+Notes:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `OPENROUTER_MODEL` is optional. When unset, the app defaults to `z-ai/glm-5.2:free`.
+- Free OpenRouter models share one daily quota per account.
+- Never expose `OPENROUTER_API_KEY` through a `NEXT_PUBLIC_` variable.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+```bash
+npm run dev          # Start development server
+npm run build        # Production build
+npm run start        # Start production server
+npm run db:migrate   # Apply Drizzle migrations
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy on Vercel or any Node.js host that supports Next.js 15. Set the same environment variables used locally, run migrations against the production database, and protect the finance routes with the configured session secret.

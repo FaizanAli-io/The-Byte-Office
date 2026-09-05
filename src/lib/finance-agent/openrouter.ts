@@ -200,6 +200,7 @@ async function requestModel(
         message?: {
           content?: string | null;
           tool_calls?: Array<{
+            index?: number;
             id?: string;
             type?: "function";
             function?: { name?: string; arguments?: unknown };
