@@ -1,31 +1,10 @@
-"use client";
+'use client';
 
-import {
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
-const colors = [
-  "#67e8f9",
-  "#818cf8",
-  "#34d399",
-  "#fbbf24",
-  "#fb7185",
-  "#c084fc",
-  "#2dd4bf",
-];
+const colors = ['#67e8f9', '#818cf8', '#34d399', '#fbbf24', '#fb7185', '#c084fc', '#2dd4bf'];
 
-export function AllocationChart({
-  title,
-  data,
-}: {
-  title: string;
-  data: { name: string; value: number }[];
-}) {
+export function AllocationChart({ title, data }: { title: string; data: { name: string; value: number }[] }) {
   const visible = data.filter((item) => item.value > 0);
 
   return (
@@ -51,18 +30,15 @@ export function AllocationChart({
               <Tooltip
                 formatter={(value) => `${Number(value).toLocaleString()} PKR`}
                 contentStyle={{
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
                   borderRadius: 10,
-                  boxShadow: "0 12px 32px rgba(15, 23, 42, 0.18)",
+                  boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18)',
                 }}
-                itemStyle={{ color: "#0f172a", fontWeight: 700 }}
-                labelStyle={{ color: "#475569", fontWeight: 700 }}
+                itemStyle={{ color: '#0f172a', fontWeight: 700 }}
+                labelStyle={{ color: '#475569', fontWeight: 700 }}
               />
-              <Legend
-                wrapperStyle={{ color: "#94a3b8", fontSize: 12 }}
-                iconType="circle"
-              />
+              <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} iconType="circle" />
             </PieChart>
           </ResponsiveContainer>
         </div>

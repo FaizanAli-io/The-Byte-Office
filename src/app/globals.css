@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   --background: #080c13;
@@ -45,16 +45,8 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(
-      circle at 10% -10%,
-      rgba(34, 211, 238, 0.1),
-      transparent 34rem
-    ),
-    radial-gradient(
-      circle at 90% 20%,
-      rgba(99, 102, 241, 0.08),
-      transparent 34rem
-    ),
+    radial-gradient(circle at 10% -10%, rgba(34, 211, 238, 0.1), transparent 34rem),
+    radial-gradient(circle at 90% 20%, rgba(99, 102, 241, 0.08), transparent 34rem),
     linear-gradient(180deg, #080c13 0%, #0a1019 34rem, #080c13 100%);
   color: var(--foreground);
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
@@ -193,18 +185,14 @@ textarea {
 .surface-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
-    var(--surface);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent), var(--surface);
   box-shadow: var(--shadow-sm);
 }
 
 .dark-panel {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(145deg, rgba(17, 24, 39, 0.96), rgba(8, 12, 19, 0.98)),
-    var(--ink);
+  background: linear-gradient(145deg, rgba(17, 24, 39, 0.96), rgba(8, 12, 19, 0.98)), var(--ink);
   color: white;
   box-shadow: var(--shadow-lg);
 }

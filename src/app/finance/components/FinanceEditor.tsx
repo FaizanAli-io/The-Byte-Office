@@ -1,15 +1,11 @@
-"use client";
+'use client';
 
-import { portfolioTotals } from "@/lib/finance";
-import { useState } from "react";
-import {
-  LocalBanksSection,
-  MutualFundsSection,
-  RemoteBanksSection,
-} from "./HoldingTypes";
-import { FinancePageShell, StatCard, financeStyles } from "./FinanceUI";
-import { FinanceToast, type FinanceToastState } from "./FinanceToast";
-import { useFinanceHandlers } from "./useFinanceHandlers";
+import { portfolioTotals } from '@/lib/finance';
+import { useState } from 'react';
+import { LocalBanksSection, MutualFundsSection, RemoteBanksSection } from './HoldingTypes';
+import { FinancePageShell, StatCard, financeStyles } from './FinanceUI';
+import { FinanceToast, type FinanceToastState } from './FinanceToast';
+import { useFinanceHandlers } from './useFinanceHandlers';
 
 export default function FinanceEditor() {
   const {
@@ -35,19 +31,19 @@ export default function FinanceEditor() {
     if (!data) return;
     setSnapshotLoading(true);
     try {
-      const response = await fetch("/api/snapshots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/snapshots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           data,
           grandTotal: portfolioTotals(data).grandTotal,
         }),
       });
-      if (!response.ok) throw new Error("Failed to save snapshot");
-      setToast({ message: "Snapshot saved.", tone: "success" });
+      if (!response.ok) throw new Error('Failed to save snapshot');
+      setToast({ message: 'Snapshot saved.', tone: 'success' });
     } catch (error) {
-      console.error("Error saving snapshot:", error);
-      setToast({ message: "Failed to save snapshot.", tone: "error" });
+      console.error('Error saving snapshot:', error);
+      setToast({ message: 'Failed to save snapshot.', tone: 'error' });
     } finally {
       setSnapshotLoading(false);
     }
@@ -77,39 +73,19 @@ export default function FinanceEditor() {
       description="Keep the latest value of each account and fund. Use snapshots for history and the ledger for monthly reconciliation."
       actions={
         <>
-          <button
-            type="button"
-            onClick={handleSnapshot}
-            disabled={snapshotLoading}
-            className={financeStyles.secondary}
-          >
-            {snapshotLoading ? "Saving snapshot…" : "Take snapshot"}
+          <button type="button" onClick={handleSnapshot} disabled={snapshotLoading} className={financeStyles.secondary}>
+            {snapshotLoading ? 'Saving snapshot…' : 'Take snapshot'}
           </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className={financeStyles.primary}
-          >
-            {saving ? "Saving…" : "Save portfolio"}
+          <button type="button" onClick={handleSave} disabled={saving} className={financeStyles.primary}>
+            {saving ? 'Saving…' : 'Save portfolio'}
           </button>
         </>
       }
     >
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Local banks"
-          value={`${Math.round(totals.local).toLocaleString()} PKR`}
-        />
-        <StatCard
-          label="Remote banks"
-          value={`${Math.round(totals.remote).toLocaleString()} PKR`}
-        />
-        <StatCard
-          label="Mutual funds"
-          value={`${Math.round(totals.mutual).toLocaleString()} PKR`}
-          tone="amber"
-        />
+        <StatCard label="Local banks" value={`${Math.round(totals.local).toLocaleString()} PKR`} />
+        <StatCard label="Remote banks" value={`${Math.round(totals.remote).toLocaleString()} PKR`} />
+        <StatCard label="Mutual funds" value={`${Math.round(totals.mutual).toLocaleString()} PKR`} tone="amber" />
         <StatCard
           label="Portfolio total"
           value={`${Math.round(totals.grandTotal).toLocaleString()} PKR`}
@@ -118,18 +94,8 @@ export default function FinanceEditor() {
       </div>
 
       <div className="space-y-6">
-        <LocalBanksSection
-          data={data}
-          onAdd={addLocalBank}
-          onChange={handleChange}
-          onDelete={deleteLocalBank}
-        />
-        <RemoteBanksSection
-          data={data}
-          onAdd={addRemoteBank}
-          onChange={handleChange}
-          onDelete={deleteRemoteBank}
-        />
+        <LocalBanksSection data={data} onAdd={addLocalBank} onChange={handleChange} onDelete={deleteLocalBank} />
+        <RemoteBanksSection data={data} onAdd={addRemoteBank} onChange={handleChange} onDelete={deleteRemoteBank} />
         <MutualFundsSection
           data={data}
           onAddFund={addFundToBank}

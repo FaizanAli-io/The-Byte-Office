@@ -1,13 +1,8 @@
-import { randomUUID } from "crypto";
-import { and, asc, desc, eq, lt } from "drizzle-orm";
-import type { FinanceDoc, FinanceSnapshot } from "@/types/finance";
-import type {
-  LedgerAccount,
-  LedgerEntry,
-  MonthlyLedger,
-  MonthlyLedgerPayload,
-} from "@/types/ledger";
-import { getDb, getSql } from "./index";
+import { randomUUID } from 'crypto';
+import { and, asc, desc, eq, lt } from 'drizzle-orm';
+import type { FinanceDoc, FinanceSnapshot } from '@/types/finance';
+import type { LedgerAccount, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
+import { getDb, getSql } from './index';
 import {
   financeSnapshots,
   ledgerAccounts,
@@ -17,13 +12,13 @@ import {
   mutualFunds,
   remoteBanks,
   type SnapshotHoldings,
-} from "./schema";
+} from './schema';
 
 const MUTUAL_FUND_GROUP_STRIDE = 1000;
 
-export function flattenMutualFunds(groups: FinanceDoc["mutualFunds"]) {
+export function flattenMutualFunds(groups: FinanceDoc['mutualFunds']) {
   return groups.flatMap((group, groupIndex) => {
-    const bankName = Object.keys(group)[0] ?? "";
+    const bankName = Object.keys(group)[0] ?? '';
     return (group[bankName] ?? []).map((fund, fundIndex) => ({
       bankName,
       fundName: fund.fund,
@@ -34,12 +29,9 @@ export function flattenMutualFunds(groups: FinanceDoc["mutualFunds"]) {
 }
 
 export function groupMutualFunds(
-  rows: { bankName: string; fundName: string; value: number; sortOrder: number }[],
-): FinanceDoc["mutualFunds"] {
-  const groups = new Map<
-    number,
-    { bankName: string; funds: { fund: string; value: number }[] }
-  >();
+  rows: { bankName: string; fundName: string; value: number; sortOrder: number }[]
+): FinanceDoc['mutualFunds'] {
+  const groups = new Map<number, { bankName: string; funds: { fund: string; value: number }[] }>();
 
   for (const row of [...rows].sort((a, b) => a.sortOrder - b.sortOrder)) {
     const groupIndex = Math.floor(row.sortOrder / MUTUAL_FUND_GROUP_STRIDE);
@@ -48,9 +40,7 @@ export function groupMutualFunds(
     groups.set(groupIndex, group);
   }
 
-  return [...groups.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([, group]) => ({ [group.bankName]: group.funds }));
+  return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([, group]) => ({ [group.bankName]: group.funds }));
 }
 
 export async function loadFinanceDoc(): Promise<FinanceDoc> {
@@ -62,7 +52,7 @@ export async function loadFinanceDoc(): Promise<FinanceDoc> {
   ]);
 
   return {
-    name: "finance",
+    name: 'finance',
     localBanks: local.map((bank) => ({
       name: bank.name,
       amountPkr: bank.amountPkr,
@@ -76,27 +66,23 @@ export async function loadFinanceDoc(): Promise<FinanceDoc> {
   };
 }
 
-export async function saveFinanceDoc(doc: Omit<FinanceDoc, "_id">) {
+export async function saveFinanceDoc(doc: Omit<FinanceDoc, '_id'>) {
   const sql = getSql();
-  const statements = [
-    sql`DELETE FROM local_banks`,
-    sql`DELETE FROM remote_banks`,
-    sql`DELETE FROM mutual_funds`,
-  ];
+  const statements = [sql`DELETE FROM local_banks`, sql`DELETE FROM remote_banks`, sql`DELETE FROM mutual_funds`];
 
   doc.localBanks.forEach((bank, index) => {
     statements.push(
-      sql`INSERT INTO local_banks (name, amount_pkr, sort_order) VALUES (${bank.name}, ${bank.amountPkr}, ${index})`,
+      sql`INSERT INTO local_banks (name, amount_pkr, sort_order) VALUES (${bank.name}, ${bank.amountPkr}, ${index})`
     );
   });
   doc.remoteBanks.forEach((bank, index) => {
     statements.push(
-      sql`INSERT INTO remote_banks (name, amount_usd, exchange_rate, sort_order) VALUES (${bank.name}, ${bank.amountUsd}, ${bank.exchangeRate}, ${index})`,
+      sql`INSERT INTO remote_banks (name, amount_usd, exchange_rate, sort_order) VALUES (${bank.name}, ${bank.amountUsd}, ${bank.exchangeRate}, ${index})`
     );
   });
   flattenMutualFunds(doc.mutualFunds).forEach((fund) => {
     statements.push(
-      sql`INSERT INTO mutual_funds (bank_name, fund_name, value, sort_order) VALUES (${fund.bankName}, ${fund.fundName}, ${fund.value}, ${fund.sortOrder})`,
+      sql`INSERT INTO mutual_funds (bank_name, fund_name, value, sort_order) VALUES (${fund.bankName}, ${fund.fundName}, ${fund.value}, ${fund.sortOrder})`
     );
   });
 
@@ -131,11 +117,7 @@ function toEntry(row: typeof ledgerEntries.$inferSelect): LedgerEntry {
   };
 }
 
-function toLedger(
-  row: typeof ledgers.$inferSelect,
-  accounts: LedgerAccount[],
-  entries: LedgerEntry[],
-): MonthlyLedger {
+function toLedger(row: typeof ledgers.$inferSelect, accounts: LedgerAccount[], entries: LedgerEntry[]): MonthlyLedger {
   return {
     _id: row.id,
     month: row.month,
@@ -161,11 +143,7 @@ export async function listLedgerSummaries() {
 
 export async function loadLedger(month: string): Promise<MonthlyLedger | null> {
   const db = getDb();
-  const [ledger] = await db
-    .select()
-    .from(ledgers)
-    .where(eq(ledgers.month, month))
-    .limit(1);
+  const [ledger] = await db.select().from(ledgers).where(eq(ledgers.month, month)).limit(1);
   if (!ledger) return null;
 
   const [accounts, entries] = await Promise.all([
@@ -174,11 +152,7 @@ export async function loadLedger(month: string): Promise<MonthlyLedger | null> {
       .from(ledgerAccounts)
       .where(eq(ledgerAccounts.ledgerId, ledger.id))
       .orderBy(asc(ledgerAccounts.sortOrder)),
-    db
-      .select()
-      .from(ledgerEntries)
-      .where(eq(ledgerEntries.ledgerId, ledger.id))
-      .orderBy(asc(ledgerEntries.sortOrder)),
+    db.select().from(ledgerEntries).where(eq(ledgerEntries.ledgerId, ledger.id)).orderBy(asc(ledgerEntries.sortOrder)),
   ]);
 
   return toLedger(ledger, accounts.map(toAccount), entries.map(toEntry));
@@ -189,17 +163,14 @@ export async function loadPreviousFinalizedLedger(month: string) {
   const [ledger] = await db
     .select()
     .from(ledgers)
-    .where(and(eq(ledgers.status, "finalized"), lt(ledgers.month, month)))
+    .where(and(eq(ledgers.status, 'finalized'), lt(ledgers.month, month)))
     .orderBy(desc(ledgers.month))
     .limit(1);
   if (!ledger) return null;
   return loadLedger(ledger.month);
 }
 
-export async function createLedger(input: {
-  month: string;
-  accounts: LedgerAccount[];
-}): Promise<MonthlyLedger> {
+export async function createLedger(input: { month: string; accounts: LedgerAccount[] }): Promise<MonthlyLedger> {
   const id = randomUUID();
   const now = new Date();
   const sql = getSql();
@@ -209,27 +180,20 @@ export async function createLedger(input: {
 
   input.accounts.forEach((account, index) => {
     statements.push(
-      sql`INSERT INTO ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${id}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${null}, ${account.exchangeRate}, ${index})`,
+      sql`INSERT INTO ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${id}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${null}, ${account.exchangeRate}, ${index})`
     );
   });
 
   await sql.transaction(statements);
   const created = await loadLedger(input.month);
-  if (!created) throw new Error("Failed to create ledger");
+  if (!created) throw new Error('Failed to create ledger');
   return created;
 }
 
-export async function saveLedger(
-  existing: MonthlyLedger,
-  body: MonthlyLedgerPayload,
-): Promise<MonthlyLedger> {
+export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPayload): Promise<MonthlyLedger> {
   const now = new Date();
   const finalizedAt =
-    body.status === "finalized"
-      ? existing.finalizedAt
-        ? new Date(existing.finalizedAt)
-        : now
-      : null;
+    body.status === 'finalized' ? (existing.finalizedAt ? new Date(existing.finalizedAt) : now) : null;
   const sql = getSql();
   const ledgerId = String(existing._id);
   const statements = [
@@ -240,27 +204,23 @@ export async function saveLedger(
 
   body.accounts.forEach((account, index) => {
     statements.push(
-      sql`INSERT INTO ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${ledgerId}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${account.actualClosingBalance ?? null}, ${account.exchangeRate}, ${index})`,
+      sql`INSERT INTO ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${ledgerId}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${account.actualClosingBalance ?? null}, ${account.exchangeRate}, ${index})`
     );
   });
   body.entries.forEach((entry, index) => {
     statements.push(
-      sql`INSERT INTO ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category, note, sort_order) VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount ?? null}, ${entry.exchangeRate ?? null}, ${entry.category ?? null}, ${entry.note ?? null}, ${index})`,
+      sql`INSERT INTO ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category, note, sort_order) VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount ?? null}, ${entry.exchangeRate ?? null}, ${entry.category ?? null}, ${entry.note ?? null}, ${index})`
     );
   });
 
   await sql.transaction(statements);
   const saved = await loadLedger(body.month);
-  if (!saved) throw new Error("Failed to save ledger");
+  if (!saved) throw new Error('Failed to save ledger');
   return saved;
 }
 
 export async function listSnapshots(): Promise<FinanceSnapshot[]> {
-  const rows = await getDb()
-    .select()
-    .from(financeSnapshots)
-    .orderBy(desc(financeSnapshots.timestamp))
-    .limit(50);
+  const rows = await getDb().select().from(financeSnapshots).orderBy(desc(financeSnapshots.timestamp)).limit(50);
 
   return rows.map((row) => ({
     _id: row.id,
@@ -270,10 +230,7 @@ export async function listSnapshots(): Promise<FinanceSnapshot[]> {
   }));
 }
 
-export async function createSnapshot(
-  data: SnapshotHoldings,
-  grandTotal: number,
-) {
+export async function createSnapshot(data: SnapshotHoldings, grandTotal: number) {
   const [row] = await getDb()
     .insert(financeSnapshots)
     .values({ data, grandTotal })

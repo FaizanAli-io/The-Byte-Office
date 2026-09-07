@@ -1,26 +1,13 @@
-﻿import BackgroundEffect from "./components/BackgroundEffect";
-import SectionHeading from "./components/SectionHeading";
-import {
-  PrimaryCTAButton,
-  QuietCTAButton,
-  SecondaryCTAButton,
-} from "./components/CTAButtons";
-import {
-  company,
-  faqs,
-  processSteps,
-  projects,
-  services,
-  siteUrl,
-  techGroups,
-  whyChooseUs,
-} from "./data/site";
-import { createMetadata, jsonLd } from "./lib/seo";
+﻿import BackgroundEffect from './components/BackgroundEffect';
+import SectionHeading from './components/SectionHeading';
+import { PrimaryCTAButton, QuietCTAButton, SecondaryCTAButton } from './components/CTAButtons';
+import { company, faqs, processSteps, projects, services, siteUrl, techGroups, whyChooseUs } from './data/site';
+import { createMetadata, jsonLd } from './lib/seo';
 
 export const metadata = createMetadata({
-  title: "Software Development and AI Solutions Company",
+  title: 'Software Development and AI Solutions Company',
   description:
-    "The Byte Office builds custom software, SaaS platforms, AI agents, RAG systems, automation workflows, backend APIs, and full-stack web applications.",
+    'The Byte Office builds custom software, SaaS platforms, AI agents, RAG systems, automation workflows, backend APIs, and full-stack web applications.',
 });
 
 function HeroVisual() {
@@ -30,12 +17,8 @@ function HeroVisual() {
       <div className="relative">
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div>
-            <p className="text-xs font-bold uppercase text-slate-400">
-              Delivery workspace
-            </p>
-            <p className="mt-1 text-lg font-bold text-white">
-              AI product sprint
-            </p>
+            <p className="text-xs font-bold uppercase text-slate-400">Delivery workspace</p>
+            <p className="mt-1 text-lg font-bold text-white">AI product sprint</p>
           </div>
           <span className="rounded-full bg-emerald-400/12 px-3 py-1 text-xs font-bold text-emerald-200">
             In progress
@@ -44,22 +27,17 @@ function HeroVisual() {
 
         <div className="mt-5 grid gap-3">
           {[
-            ["Discovery", "Business workflows mapped", "100%"],
-            ["Architecture", "RAG pipeline and API plan", "Ready"],
-            ["Build", "Interface, backend, automations", "Active"],
+            ['Discovery', 'Business workflows mapped', '100%'],
+            ['Architecture', 'RAG pipeline and API plan', 'Ready'],
+            ['Build', 'Interface, backend, automations', 'Active'],
           ].map(([title, text, status]) => (
-            <div
-              key={title}
-              className="rounded-md border border-white/10 bg-white/[0.04] p-4"
-            >
+            <div key={title} className="rounded-md border border-white/10 bg-white/[0.04] p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-sm font-bold text-white">{title}</h2>
                   <p className="mt-1 text-sm text-slate-300">{text}</p>
                 </div>
-                <span className="text-xs font-semibold text-blue-200">
-                  {status}
-                </span>
+                <span className="text-xs font-semibold text-blue-200">{status}</span>
               </div>
             </div>
           ))}
@@ -68,12 +46,8 @@ function HeroVisual() {
         <div className="mt-5 rounded-md bg-slate-900 p-4 text-slate-100">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase text-slate-500">
-                Outcome focus
-              </p>
-              <p className="mt-1 text-base font-extrabold">
-                Software that ships cleanly and keeps working.
-              </p>
+              <p className="text-xs font-bold uppercase text-slate-500">Outcome focus</p>
+              <p className="mt-1 text-base font-extrabold">Software that ships cleanly and keeps working.</p>
             </div>
             <div className="hidden h-14 w-14 items-center justify-center rounded-md bg-slate-950 text-sm font-black text-white sm:flex">
               BO
@@ -85,20 +59,11 @@ function HeroVisual() {
   );
 }
 
-function ServiceCard({
-  service,
-  index,
-}: {
-  service: (typeof services)[number];
-  index: number;
-}) {
+function ServiceCard({ service, index }: { service: (typeof services)[number]; index: number }) {
   return (
-    <article
-      className="surface-card reveal p-6"
-      style={{ animationDelay: `${index * 80}ms` }}
-    >
+    <article className="surface-card reveal p-6" style={{ animationDelay: `${index * 80}ms` }}>
       <span className="mb-6 flex h-11 w-11 items-center justify-center rounded-md bg-slate-950 text-sm font-black text-white">
-        {String(index + 1).padStart(2, "0")}
+        {String(index + 1).padStart(2, '0')}
       </span>
       <h3 className="heading-md">{service.title}</h3>
       <p className="body-copy mt-3">{service.summary}</p>
@@ -116,17 +81,11 @@ function ServiceCard({
   );
 }
 
-function ProjectCard({
-  project,
-  featured = false,
-}: {
-  project: (typeof projects)[number];
-  featured?: boolean;
-}) {
+function ProjectCard({ project, featured = false }: { project: (typeof projects)[number]; featured?: boolean }) {
   const content = (
     <article
       className={`group h-full overflow-hidden rounded-lg border border-white/10 bg-slate-900 shadow-sm transition hover:-translate-y-1 hover:shadow-md ${
-        featured ? "lg:grid lg:grid-cols-[0.9fr_1.1fr]" : ""
+        featured ? 'lg:grid lg:grid-cols-[0.9fr_1.1fr]' : ''
       }`}
     >
       <div className="flex min-h-56 flex-col justify-between bg-slate-950 p-6 text-white">
@@ -134,14 +93,10 @@ function ProjectCard({
           <span className="rounded-full border border-white/15 px-3 py-1 text-xs font-bold uppercase text-slate-300">
             {project.category}
           </span>
-          <h3 className="mt-6 text-2xl font-extrabold leading-tight">
-            {project.title}
-          </h3>
+          <h3 className="mt-6 text-2xl font-extrabold leading-tight">{project.title}</h3>
         </div>
         <div className="mt-8">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-            Core stack
-          </p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Core stack</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {project.tech.slice(0, 3).map((tech) => (
               <span
@@ -155,27 +110,19 @@ function ProjectCard({
         </div>
       </div>
       <div className="p-6">
-        <p className="text-sm font-bold uppercase text-blue-800">
-          {project.industry}
-        </p>
+        <p className="text-sm font-bold uppercase text-blue-800">{project.industry}</p>
         <dl className="mt-5 space-y-4">
           <div>
             <dt className="text-sm font-bold text-slate-100">Problem</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-400">
-              {project.problem}
-            </dd>
+            <dd className="mt-1 text-sm leading-6 text-slate-400">{project.problem}</dd>
           </div>
           <div>
             <dt className="text-sm font-bold text-slate-100">Solution</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-400">
-              {project.solution}
-            </dd>
+            <dd className="mt-1 text-sm leading-6 text-slate-400">{project.solution}</dd>
           </div>
           <div>
             <dt className="text-sm font-bold text-slate-100">Impact</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-400">
-              {project.impact}
-            </dd>
+            <dd className="mt-1 text-sm leading-6 text-slate-400">{project.impact}</dd>
           </div>
         </dl>
         <div className="mt-6 flex flex-wrap gap-2">
@@ -195,30 +142,30 @@ function ProjectCard({
 export default function Home() {
   const featuredProjects = projects.slice(0, 3);
   const schema = {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    name: "The Byte Office",
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'The Byte Office',
     url: siteUrl,
     description: company.summary,
     mainEntity: services.map((service) => ({
-      "@type": "Service",
+      '@type': 'Service',
       name: service.title,
       description: service.summary,
       provider: {
-        "@type": "Organization",
+        '@type': 'Organization',
         name: company.name,
       },
     })),
   };
 
   const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
     mainEntity: faqs.map((faq) => ({
-      "@type": "Question",
+      '@type': 'Question',
       name: faq.question,
       acceptedAnswer: {
-        "@type": "Answer",
+        '@type': 'Answer',
         text: faq.answer,
       },
     })),
@@ -237,9 +184,8 @@ export default function Home() {
             Build reliable software for the work your business actually runs on.
           </h1>
           <p className="lead mt-7 max-w-2xl">
-            {company.name} helps businesses launch full-stack products, AI
-            agents, RAG systems, automations, APIs, and cloud-ready software
-            with the discipline of a production engineering team.
+            {company.name} helps businesses launch full-stack products, AI agents, RAG systems, automations, APIs, and
+            cloud-ready software with the discipline of a production engineering team.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <PrimaryCTAButton href="/contact" label="Start a Project" />
@@ -252,23 +198,12 @@ export default function Home() {
       <section className="container-page section-tight">
         <div className="grid gap-4 md:grid-cols-3">
           {[
-            [
-              "Production-minded",
-              "Built around reliability, maintenance, and clear handoff.",
-            ],
-            [
-              "AI-capable",
-              "Experience with agents, RAG, LLM apps, and automation.",
-            ],
-            [
-              "Full-stack delivery",
-              "Frontend, backend, data, integrations, and deployment.",
-            ],
+            ['Production-minded', 'Built around reliability, maintenance, and clear handoff.'],
+            ['AI-capable', 'Experience with agents, RAG, LLM apps, and automation.'],
+            ['Full-stack delivery', 'Frontend, backend, data, integrations, and deployment.'],
           ].map(([title, text]) => (
             <div key={title} className="muted-panel p-5">
-              <h2 className="text-base font-extrabold text-slate-100">
-                {title}
-              </h2>
+              <h2 className="text-base font-extrabold text-slate-100">{title}</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">{text}</p>
             </div>
           ))}
@@ -295,9 +230,7 @@ export default function Home() {
         <div className="container-page">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="eyebrow border-white/10 bg-white/10 text-blue-100">
-                Featured work
-              </p>
+              <p className="eyebrow border-white/10 bg-white/10 text-blue-100">Featured work</p>
               <h2 className="mt-5 text-balance text-3xl font-extrabold leading-tight text-white md:text-5xl">
                 Case-study style work across AI, automation, and web platforms.
               </h2>
@@ -345,12 +278,9 @@ export default function Home() {
           />
           <div className="grid gap-4">
             {processSteps.map((step, index) => (
-              <article
-                key={step.title}
-                className="surface-card grid gap-4 p-5 sm:grid-cols-[4rem_1fr]"
-              >
+              <article key={step.title} className="surface-card grid gap-4 p-5 sm:grid-cols-[4rem_1fr]">
                 <span className="flex h-12 w-12 items-center justify-center rounded-md bg-slate-950 text-sm font-black text-white">
-                  {String(index + 1).padStart(2, "0")}
+                  {String(index + 1).padStart(2, '0')}
                 </span>
                 <div>
                   <h3 className="heading-md text-xl">{step.title}</h3>
@@ -365,23 +295,18 @@ export default function Home() {
       <section className="container-page section-tight">
         <div className="dark-panel grid gap-10 p-6 sm:p-8 lg:grid-cols-[0.75fr_1.25fr]">
           <div>
-            <p className="eyebrow border-white/10 bg-white/10 text-blue-100">
-              Technology
-            </p>
+            <p className="eyebrow border-white/10 bg-white/10 text-blue-100">Technology</p>
             <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-4xl">
               Modern stack, grouped by purpose.
             </h2>
             <p className="mt-5 text-slate-300">
-              The stack is chosen for the product, not for decoration. These are
-              technologies already reflected in the existing work.
+              The stack is chosen for the product, not for decoration. These are technologies already reflected in the
+              existing work.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {techGroups.map((group) => (
-              <div
-                key={group.title}
-                className="rounded-md border border-white/10 bg-white/[0.04] p-5"
-              >
+              <div key={group.title} className="rounded-md border border-white/10 bg-white/[0.04] p-5">
                 <h3 className="font-extrabold text-white">{group.title}</h3>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {group.items.map((item) => (
@@ -408,27 +333,19 @@ export default function Home() {
           />
           <div className="surface-card p-6 sm:p-8">
             <p className="body-copy">
-              The company works across custom business software, SaaS platforms,
-              backend systems, APIs, AI and LLM applications, RAG systems, data
-              pipelines, automations, and polished web experiences. The approach
-              is straightforward: understand the business problem, design the
-              technical path, build with care, and leave clients with software
-              that is easier to operate and improve.
+              The company works across custom business software, SaaS platforms, backend systems, APIs, AI and LLM
+              applications, RAG systems, data pipelines, automations, and polished web experiences. The approach is
+              straightforward: understand the business problem, design the technical path, build with care, and leave
+              clients with software that is easier to operate and improve.
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {[
-                "Reliable delivery",
-                "Modern engineering",
-                "Business automation",
-                "AI-enabled workflows",
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="rounded-md border border-white/10 bg-white/[0.05] p-4"
-                >
-                  <p className="font-bold text-slate-100">{item}</p>
-                </div>
-              ))}
+              {['Reliable delivery', 'Modern engineering', 'Business automation', 'AI-enabled workflows'].map(
+                (item) => (
+                  <div key={item} className="rounded-md border border-white/10 bg-white/[0.05] p-4">
+                    <p className="font-bold text-slate-100">{item}</p>
+                  </div>
+                )
+              )}
             </div>
           </div>
         </div>
@@ -438,9 +355,7 @@ export default function Home() {
         <div className="grid gap-4 md:grid-cols-3">
           {faqs.map((faq) => (
             <article key={faq.question} className="surface-card p-6">
-              <h2 className="text-lg font-extrabold text-slate-100">
-                {faq.question}
-              </h2>
+              <h2 className="text-lg font-extrabold text-slate-100">{faq.question}</h2>
               <p className="body-copy mt-3 text-sm">{faq.answer}</p>
             </article>
           ))}
@@ -449,16 +364,13 @@ export default function Home() {
 
       <section className="container-page section">
         <div className="dark-panel overflow-hidden p-8 text-center sm:p-12">
-          <p className="eyebrow mx-auto border-white/10 bg-white/10 text-blue-100">
-            Start the conversation
-          </p>
+          <p className="eyebrow mx-auto border-white/10 bg-white/10 text-blue-100">Start the conversation</p>
           <h2 className="mx-auto mt-6 max-w-3xl text-balance text-3xl font-extrabold leading-tight text-white md:text-5xl">
-            Have a product, AI workflow, or automation that needs to be built
-            properly?
+            Have a product, AI workflow, or automation that needs to be built properly?
           </h2>
           <p className="mx-auto mt-5 max-w-2xl text-slate-300">
-            Share the goal, constraints, and timeline. You will get a practical
-            next step instead of a generic sales pitch.
+            Share the goal, constraints, and timeline. You will get a practical next step instead of a generic sales
+            pitch.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <PrimaryCTAButton

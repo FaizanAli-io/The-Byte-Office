@@ -1,15 +1,8 @@
-import { SectionMap } from "../helpers";
-import { FinanceDoc } from "@/types/finance";
-import { styleClasses, numberOrZero } from "./shared";
+import { SectionMap } from '../helpers';
+import { FinanceDoc } from '@/types/finance';
+import { styleClasses, numberOrZero } from './shared';
 
-const {
-  cardClass,
-  sectionTitleClass,
-  labelClass,
-  inputClass,
-  addBtnClass,
-  deleteBtnClass,
-} = styleClasses;
+const { cardClass, sectionTitleClass, labelClass, inputClass, addBtnClass, deleteBtnClass } = styleClasses;
 
 export function RemoteBanksSection({
   data,
@@ -22,7 +15,7 @@ export function RemoteBanksSection({
     section: K,
     index: number,
     field: F,
-    value: SectionMap[K][F],
+    value: SectionMap[K][F]
   ) => void;
   onAdd: () => void;
   onDelete: (index: number) => void;
@@ -48,9 +41,7 @@ export function RemoteBanksSection({
                 className={inputClass}
                 value={bank.name}
                 placeholder="Bank name"
-                onChange={(e) =>
-                  onChange("remoteBanks", i, "name", e.target.value)
-                }
+                onChange={(e) => onChange('remoteBanks', i, 'name', e.target.value)}
               />
             </div>
 
@@ -62,14 +53,7 @@ export function RemoteBanksSection({
                 min={0}
                 value={bank.amountUsd}
                 placeholder="0"
-                onChange={(e) =>
-                  onChange(
-                    "remoteBanks",
-                    i,
-                    "amountUsd",
-                    numberOrZero(e.target.value),
-                  )
-                }
+                onChange={(e) => onChange('remoteBanks', i, 'amountUsd', numberOrZero(e.target.value))}
               />
             </div>
 
@@ -81,14 +65,7 @@ export function RemoteBanksSection({
                 min={0}
                 value={bank.exchangeRate}
                 placeholder="0"
-                onChange={(e) =>
-                  onChange(
-                    "remoteBanks",
-                    i,
-                    "exchangeRate",
-                    numberOrZero(e.target.value),
-                  )
-                }
+                onChange={(e) => onChange('remoteBanks', i, 'exchangeRate', numberOrZero(e.target.value))}
               />
             </div>
 
@@ -101,16 +78,9 @@ export function RemoteBanksSection({
 
       <div className="mt-5 flex items-center justify-end border-t border-white/6 pt-5">
         <div className="text-right">
-          <span className="text-slate-400 text-sm font-medium">
-            Section Total:{" "}
-          </span>
+          <span className="text-slate-400 text-sm font-medium">Section Total: </span>
           <span className="text-xl font-bold text-cyan-300">
-            {Math.round(
-              data.remoteBanks.reduce(
-                (sum, b) => sum + b.amountUsd * b.exchangeRate,
-                0,
-              ),
-            ).toLocaleString()}
+            {Math.round(data.remoteBanks.reduce((sum, b) => sum + b.amountUsd * b.exchangeRate, 0)).toLocaleString()}
           </span>
           <span className="text-slate-400 text-sm ml-1">PKR</span>
         </div>

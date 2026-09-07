@@ -1,14 +1,7 @@
-import { FinanceDoc } from "@/types/finance";
-import { styleClasses, numberOrZero } from "./shared";
+import { FinanceDoc } from '@/types/finance';
+import { styleClasses, numberOrZero } from './shared';
 
-const {
-  cardClass,
-  sectionTitleClass,
-  labelClass,
-  inputClass,
-  addBtnClass,
-  deleteBtnClass,
-} = styleClasses;
+const { cardClass, sectionTitleClass, labelClass, inputClass, addBtnClass, deleteBtnClass } = styleClasses;
 
 export function MutualFundsSection({
   data,
@@ -23,8 +16,8 @@ export function MutualFundsSection({
     mfIndex: number,
     bankKey: string,
     fundIndex: number | null,
-    field: "fund" | "value" | "bankName",
-    value: string | number,
+    field: 'fund' | 'value' | 'bankName',
+    value: string | number
   ) => void;
   onAddBank: () => void;
   onAddFund: (mfIndex: number, bankKey: string) => void;
@@ -45,10 +38,7 @@ export function MutualFundsSection({
         const funds = mf[bankKey];
 
         return (
-          <div
-            key={mfIndex}
-            className="mb-4 rounded-xl border border-white/7 bg-slate-950/45 p-4"
-          >
+          <div key={mfIndex} className="mb-4 rounded-xl border border-white/7 bg-slate-950/45 p-4">
             <div className="mb-4 flex items-end gap-3">
               <div className="min-w-0 flex-1">
                 <label className={labelClass}>Bank Name</label>
@@ -56,15 +46,10 @@ export function MutualFundsSection({
                   className={inputClass}
                   value={bankKey}
                   placeholder="Enter bank name"
-                  onChange={(e) =>
-                    onChange(mfIndex, bankKey, null, "bankName", e.target.value)
-                  }
+                  onChange={(e) => onChange(mfIndex, bankKey, null, 'bankName', e.target.value)}
                 />
               </div>
-              <button
-                onClick={() => onDeleteBank(mfIndex)}
-                className={deleteBtnClass}
-              >
+              <button onClick={() => onDeleteBank(mfIndex)} className={deleteBtnClass}>
                 −
               </button>
             </div>
@@ -81,15 +66,7 @@ export function MutualFundsSection({
                       className={inputClass}
                       value={fund.fund}
                       placeholder="Fund name"
-                      onChange={(e) =>
-                        onChange(
-                          mfIndex,
-                          bankKey,
-                          fundIndex,
-                          "fund",
-                          e.target.value,
-                        )
-                      }
+                      onChange={(e) => onChange(mfIndex, bankKey, fundIndex, 'fund', e.target.value)}
                     />
                   </div>
                   <div>
@@ -100,21 +77,10 @@ export function MutualFundsSection({
                       min={0}
                       value={fund.value}
                       placeholder="0"
-                      onChange={(e) =>
-                        onChange(
-                          mfIndex,
-                          bankKey,
-                          fundIndex,
-                          "value",
-                          numberOrZero(e.target.value),
-                        )
-                      }
+                      onChange={(e) => onChange(mfIndex, bankKey, fundIndex, 'value', numberOrZero(e.target.value))}
                     />
                   </div>
-                  <button
-                    onClick={() => onDeleteFund(mfIndex, bankKey, fundIndex)}
-                    className={deleteBtnClass}
-                  >
+                  <button onClick={() => onDeleteFund(mfIndex, bankKey, fundIndex)} className={deleteBtnClass}>
                     −
                   </button>
                 </div>
@@ -122,21 +88,14 @@ export function MutualFundsSection({
             </div>
 
             <div className="mt-5 flex flex-col gap-3 border-t border-white/6 pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                onClick={() => onAddFund(mfIndex, bankKey)}
-                className={addBtnClass}
-              >
+              <button onClick={() => onAddFund(mfIndex, bankKey)} className={addBtnClass}>
                 + Add Fund
               </button>
 
               <div className="text-right">
-                <span className="text-slate-400 text-sm font-medium">
-                  Bank Total:{" "}
-                </span>
+                <span className="text-slate-400 text-sm font-medium">Bank Total: </span>
                 <span className="text-lg font-bold text-cyan-300">
-                  {Math.round(
-                    funds.reduce((sum, f) => sum + f.value, 0),
-                  ).toLocaleString()}
+                  {Math.round(funds.reduce((sum, f) => sum + f.value, 0)).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -146,16 +105,14 @@ export function MutualFundsSection({
 
       <div className="mt-5 flex items-center justify-end border-t border-white/6 pt-5">
         <div className="text-right">
-          <span className="text-slate-400 text-sm font-medium">
-            Section Total:{" "}
-          </span>
+          <span className="text-slate-400 text-sm font-medium">Section Total: </span>
           <span className="text-xl font-bold text-cyan-300">
             {Math.round(
               data.mutualFunds.reduce((total, mf) => {
                 const bankKey = Object.keys(mf)[0];
                 const funds = mf[bankKey];
                 return total + funds.reduce((sum, f) => sum + f.value, 0);
-              }, 0),
+              }, 0)
             ).toLocaleString()}
           </span>
         </div>

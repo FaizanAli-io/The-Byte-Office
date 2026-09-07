@@ -1,34 +1,29 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { company, navItems } from "../data/site";
-import {
-  FINANCE_AUTH_EVENT,
-  readFinanceToken,
-} from "@/lib/finance-session-client";
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { company, navItems } from '../data/site';
+import { FINANCE_AUTH_EVENT, readFinanceToken } from '@/lib/finance-session-client';
 
 function visibleNavItems(showFinance: boolean) {
-  const financeItem = { name: "Finance", href: "/finance" };
-  const withoutContact = navItems.filter((item) => item.href !== "/contact");
-  const contact = navItems.filter((item) => item.href === "/contact");
+  const financeItem = { name: 'Finance', href: '/finance' };
+  const withoutContact = navItems.filter((item) => item.href !== '/contact');
+  const contact = navItems.filter((item) => item.href === '/contact');
   return showFinance ? [...withoutContact, financeItem, ...contact] : navItems;
 }
 
 function Logo() {
   return (
     <span className="flex items-center">
-      <span className="text-lg font-extrabold tracking-tight text-slate-100">
-        {company.name}
-      </span>
+      <span className="text-lg font-extrabold tracking-tight text-slate-100">{company.name}</span>
     </span>
   );
 }
 
 export default function Navigation() {
   const pathname = usePathname();
-  const isFinance = pathname.startsWith("/finance");
+  const isFinance = pathname.startsWith('/finance');
   const [isScrolled, setIsScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [showFinance, setShowFinance] = useState(false);
@@ -36,10 +31,10 @@ export default function Navigation() {
   useEffect(() => {
     const syncAuth = () => setShowFinance(Boolean(readFinanceToken()));
     syncAuth();
-    window.addEventListener("storage", syncAuth);
+    window.addEventListener('storage', syncAuth);
     window.addEventListener(FINANCE_AUTH_EVENT, syncAuth);
     return () => {
-      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener('storage', syncAuth);
       window.removeEventListener(FINANCE_AUTH_EVENT, syncAuth);
     };
   }, [pathname]);
@@ -47,8 +42,8 @@ export default function Navigation() {
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 8);
     onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   useEffect(() => {
@@ -56,9 +51,9 @@ export default function Navigation() {
   }, [pathname]);
 
   useEffect(() => {
-    document.body.style.overflow = isOpen ? "hidden" : "";
+    document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = '';
     };
   }, [isOpen]);
 
@@ -67,15 +62,11 @@ export default function Navigation() {
       data-public-navigation
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-200 ${
         isScrolled
-          ? "border-b border-white/8 bg-[#080c13]/88 shadow-lg shadow-black/10 backdrop-blur-xl"
-          : "bg-[#080c13]/45 backdrop-blur-sm"
+          ? 'border-b border-white/8 bg-[#080c13]/88 shadow-lg shadow-black/10 backdrop-blur-xl'
+          : 'bg-[#080c13]/45 backdrop-blur-sm'
       }`}
     >
-      <nav
-        className={`container-page flex items-center justify-between ${
-          isFinance ? "h-16 sm:h-20" : "h-20"
-        }`}
-      >
+      <nav className={`container-page flex items-center justify-between ${isFinance ? 'h-16 sm:h-20' : 'h-20'}`}>
         <Link href="/" aria-label={`${company.name} home`}>
           <Logo />
         </Link>
@@ -83,18 +74,15 @@ export default function Navigation() {
         <div className="hidden items-center gap-1 md:flex">
           {visibleNavItems(showFinance).map((item) => {
             const isActive =
-              item.href === "/#process"
+              item.href === '/#process'
                 ? false
-                : pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
+                : pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                  isActive
-                    ? "bg-slate-950 text-white"
-                    : "text-slate-400 hover:bg-white/[0.06] hover:text-white"
+                  isActive ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white'
                 }`}
               >
                 {item.name}
@@ -104,10 +92,7 @@ export default function Navigation() {
         </div>
 
         <div className="hidden md:block">
-          <Link
-            href="/contact"
-            className="button-base button-primary px-5 py-3"
-          >
+          <Link href="/contact" className="button-base button-primary px-5 py-3">
             Start a Project
           </Link>
         </div>
@@ -115,26 +100,26 @@ export default function Navigation() {
         <button
           type="button"
           className={`h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-100 ${
-            isFinance ? "hidden" : "inline-flex md:hidden"
+            isFinance ? 'hidden' : 'inline-flex md:hidden'
           }`}
-          aria-label={isOpen ? "Close menu" : "Open menu"}
+          aria-label={isOpen ? 'Close menu' : 'Open menu'}
           aria-expanded={isOpen}
           onClick={() => setIsOpen((value) => !value)}
         >
           <span aria-hidden="true" className="relative h-4 w-5">
             <span
               className={`absolute left-0 top-0 h-0.5 w-5 bg-current transition-transform ${
-                isOpen ? "translate-y-[7px] rotate-45" : ""
+                isOpen ? 'translate-y-[7px] rotate-45' : ''
               }`}
             />
             <span
               className={`absolute left-0 top-[7px] h-0.5 w-5 bg-current transition-opacity ${
-                isOpen ? "opacity-0" : ""
+                isOpen ? 'opacity-0' : ''
               }`}
             />
             <span
               className={`absolute left-0 top-[14px] h-0.5 w-5 bg-current transition-transform ${
-                isOpen ? "-translate-y-[7px] -rotate-45" : ""
+                isOpen ? '-translate-y-[7px] -rotate-45' : ''
               }`}
             />
           </span>

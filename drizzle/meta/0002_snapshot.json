@@ -370,12 +370,8 @@
           "name": "ledger_accounts_ledger_id_ledgers_id_fk",
           "tableFrom": "ledger_accounts",
           "tableTo": "ledgers",
-          "columnsFrom": [
-            "ledger_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ledger_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -502,12 +498,8 @@
           "name": "ledger_entries_ledger_id_ledgers_id_fk",
           "tableFrom": "ledger_entries",
           "tableTo": "ledgers",
-          "columnsFrom": [
-            "ledger_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ledger_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -515,12 +507,8 @@
           "name": "ledger_entries_account_id_ledger_accounts_id_fk",
           "tableFrom": "ledger_entries",
           "tableTo": "ledger_accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["account_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -528,12 +516,8 @@
           "name": "ledger_entries_destination_account_id_ledger_accounts_id_fk",
           "tableFrom": "ledger_entries",
           "tableTo": "ledger_accounts",
-          "columnsFrom": [
-            "destination_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["destination_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -804,48 +788,27 @@
     "public.finance_agent_action_status": {
       "name": "finance_agent_action_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "executing",
-        "completed",
-        "cancelled",
-        "failed"
-      ]
+      "values": ["pending", "executing", "completed", "cancelled", "failed"]
     },
     "public.ledger_account_type": {
       "name": "ledger_account_type",
       "schema": "public",
-      "values": [
-        "bank",
-        "fund"
-      ]
+      "values": ["bank", "fund"]
     },
     "public.ledger_currency": {
       "name": "ledger_currency",
       "schema": "public",
-      "values": [
-        "PKR",
-        "USD"
-      ]
+      "values": ["PKR", "USD"]
     },
     "public.ledger_entry_type": {
       "name": "ledger_entry_type",
       "schema": "public",
-      "values": [
-        "income",
-        "expense",
-        "transfer",
-        "fund_contribution",
-        "fund_withdrawal"
-      ]
+      "values": ["income", "expense", "transfer", "fund_contribution", "fund_withdrawal"]
     },
     "public.ledger_status": {
       "name": "ledger_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "finalized"
-      ]
+      "values": ["draft", "finalized"]
     }
   },
   "schemas": {},

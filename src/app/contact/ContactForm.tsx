@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
-import { company } from "../data/site";
+import { useMemo, useState } from 'react';
+import { company } from '../data/site';
 
 type FormData = {
   name: string;
@@ -12,31 +12,29 @@ type FormData = {
 };
 
 const initialForm: FormData = {
-  name: "",
-  email: "",
-  companyName: "",
-  service: "",
-  message: "",
+  name: '',
+  email: '',
+  companyName: '',
+  service: '',
+  message: '',
 };
 
 export default function ContactForm() {
   const [formData, setFormData] = useState<FormData>(initialForm);
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const mailtoHref = useMemo(() => {
-    const subject = encodeURIComponent(
-      `Project inquiry from ${formData.name || "website visitor"}`,
-    );
+    const subject = encodeURIComponent(`Project inquiry from ${formData.name || 'website visitor'}`);
     const body = encodeURIComponent(
       [
         `Name: ${formData.name}`,
         `Email: ${formData.email}`,
-        `Company: ${formData.companyName || "Not provided"}`,
-        `Service: ${formData.service || "Not selected"}`,
-        "",
-        "Project details:",
+        `Company: ${formData.companyName || 'Not provided'}`,
+        `Service: ${formData.service || 'Not selected'}`,
+        '',
+        'Project details:',
         formData.message,
-      ].join("\n"),
+      ].join('\n')
     );
     return `mailto:${company.email}?subject=${subject}&body=${body}`;
   }, [formData]);
@@ -45,26 +43,22 @@ export default function ContactForm() {
     event:
       | React.ChangeEvent<HTMLInputElement>
       | React.ChangeEvent<HTMLTextAreaElement>
-      | React.ChangeEvent<HTMLSelectElement>,
+      | React.ChangeEvent<HTMLSelectElement>
   ) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
-    if (status !== "idle") setStatus("idle");
+    if (status !== 'idle') setStatus('idle');
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (
-      !formData.name.trim() ||
-      !formData.email.trim() ||
-      !formData.message.trim()
-    ) {
-      setStatus("error");
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      setStatus('error');
       return;
     }
 
-    setStatus("success");
+    setStatus('success');
     setFormData(initialForm);
   };
 
@@ -110,16 +104,10 @@ export default function ContactForm() {
             className="mt-2 min-h-12 w-full rounded-md border border-white/10 bg-slate-950/70 px-3 text-slate-100 shadow-sm focus:border-cyan-400"
           >
             <option value="">Select a service</option>
-            <option value="Full-stack development">
-              Full-stack development
-            </option>
-            <option value="AI and LLM applications">
-              AI and LLM applications
-            </option>
+            <option value="Full-stack development">Full-stack development</option>
+            <option value="AI and LLM applications">AI and LLM applications</option>
             <option value="Automation solutions">Automation solutions</option>
-            <option value="Backend and cloud systems">
-              Backend and cloud systems
-            </option>
+            <option value="Backend and cloud systems">Backend and cloud systems</option>
             <option value="Other">Other</option>
           </select>
         </div>
@@ -141,17 +129,17 @@ export default function ContactForm() {
         />
       </div>
 
-      {status === "success" ? (
+      {status === 'success' ? (
         <p
           className="rounded-md border border-emerald-400/20 bg-emerald-400/8 px-4 py-3 text-sm font-semibold text-emerald-200"
           role="status"
         >
-          Thanks. Your message is ready and the next step is to email The Byte
-          Office directly if you want to send the details now.
+          Thanks. Your message is ready and the next step is to email The Byte Office directly if you want to send the
+          details now.
         </p>
       ) : null}
 
-      {status === "error" ? (
+      {status === 'error' ? (
         <p
           className="rounded-md border border-rose-400/20 bg-rose-400/8 px-4 py-3 text-sm font-semibold text-rose-200"
           role="alert"
@@ -175,7 +163,7 @@ export default function ContactForm() {
 function Field({
   label,
   name,
-  type = "text",
+  type = 'text',
   value,
   onChange,
   required = false,
@@ -189,7 +177,7 @@ function Field({
     event:
       | React.ChangeEvent<HTMLInputElement>
       | React.ChangeEvent<HTMLTextAreaElement>
-      | React.ChangeEvent<HTMLSelectElement>,
+      | React.ChangeEvent<HTMLSelectElement>
   ) => void;
   required?: boolean;
   autoComplete?: string;

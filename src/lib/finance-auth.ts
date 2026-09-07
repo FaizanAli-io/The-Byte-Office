@@ -1,5 +1,5 @@
-export const FINANCE_SESSION_COOKIE = "finance_session";
-export const FINANCE_SESSION_MAX_AGE = 60 * 60 * 24 * 7;
+export const FINANCE_SESSION_COOKIE = 'finance_session';
+export const FINANCE_SESSION_MAX_AGE = 3600 * 24 * 30;
 export const FINANCE_MAGIC_LINK_MAX_AGE = 60 * 15;
 
 const encoder = new TextEncoder();
@@ -10,7 +10,7 @@ export function getSessionSecret() {
 
 export async function createFinanceSession() {
   const secret = getSessionSecret();
-  if (!secret) throw new Error("FINANCE_SESSION_SECRET is not configured");
+  if (!secret) throw new Error('FINANCE_SESSION_SECRET is not configured');
 
   const expires = Date.now() + FINANCE_SESSION_MAX_AGE * 1000;
   const signature = await sign(`session:${expires}`, secret);
@@ -19,7 +19,7 @@ export async function createFinanceSession() {
 
 export async function verifyFinanceSession(token?: string) {
   if (!token) return false;
-  const [expiresValue, signature, ...extra] = token.split(".");
+  const [expiresValue, signature, ...extra] = token.split('.');
   if (!expiresValue || !signature || extra.length) return false;
 
   const expires = Number(expiresValue);
@@ -33,7 +33,7 @@ export async function verifyFinanceSession(token?: string) {
 
 export async function createMagicLinkToken() {
   const secret = getSessionSecret();
-  if (!secret) throw new Error("FINANCE_SESSION_SECRET is not configured");
+  if (!secret) throw new Error('FINANCE_SESSION_SECRET is not configured');
 
   const expires = Date.now() + FINANCE_MAGIC_LINK_MAX_AGE * 1000;
   const nonce = crypto.randomUUID();
@@ -43,8 +43,8 @@ export async function createMagicLinkToken() {
 
 export async function verifyMagicLinkToken(token?: string) {
   if (!token) return false;
-  const [prefix, expiresValue, nonce, signature, ...extra] = token.split(".");
-  if (prefix !== "magic" || !expiresValue || !nonce || !signature || extra.length) {
+  const [prefix, expiresValue, nonce, signature, ...extra] = token.split('.');
+  if (prefix !== 'magic' || !expiresValue || !nonce || !signature || extra.length) {
     return false;
   }
 
@@ -58,39 +58,28 @@ export async function verifyMagicLinkToken(token?: string) {
 }
 
 export function appOrigin(request: Request) {
-  const host =
-    request.headers.get("x-forwarded-host") || request.headers.get("host");
-  if (!host) return "http://localhost:3000";
-  const protocol =
-    request.headers.get("x-forwarded-proto") ||
-    (host.includes("localhost") ? "http" : "https");
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  if (!host) return 'http://localhost:3000';
+  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   return `${protocol}://${host}`;
 }
 
 export function sessionCookieOptions(maxAge = FINANCE_SESSION_MAX_AGE) {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
     maxAge,
-    path: "/",
+    path: '/',
   };
 }
 
 async function sign(value: string, secret: string) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const bytes = new Uint8Array(
-    await crypto.subtle.sign("HMAC", key, encoder.encode(`finance:${value}`)),
-  );
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
-    "",
-  );
+  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+  ]);
+  const bytes = new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(`finance:${value}`)));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function constantTimeEqual(left: string, right: string) {

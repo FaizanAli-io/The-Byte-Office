@@ -1,12 +1,7 @@
-export type LedgerCurrency = "PKR" | "USD";
-export type LedgerStatus = "draft" | "finalized";
-export type LedgerAccountType = "bank" | "fund";
-export type LedgerEntryType =
-  | "income"
-  | "expense"
-  | "transfer"
-  | "fund_contribution"
-  | "fund_withdrawal";
+export type LedgerCurrency = 'PKR' | 'USD';
+export type LedgerStatus = 'draft' | 'finalized';
+export type LedgerAccountType = 'bank' | 'fund';
+export type LedgerEntryType = 'income' | 'expense' | 'transfer' | 'fund_contribution' | 'fund_withdrawal';
 
 export interface LedgerAccount {
   id: string;
@@ -43,7 +38,4 @@ export interface MonthlyLedger {
   finalizedAt?: Date | string;
 }
 
-export type MonthlyLedgerPayload = Omit<
-  MonthlyLedger,
-  "_id" | "createdAt" | "updatedAt"
->;
+export type MonthlyLedgerPayload = Omit<MonthlyLedger, '_id' | 'createdAt' | 'updatedAt'>;

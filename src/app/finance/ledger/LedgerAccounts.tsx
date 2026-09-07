@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { accountStats, formatMoney } from "@/lib/ledger";
-import type { LedgerAccount, LedgerEntry } from "@/types/ledger";
-import { useState } from "react";
-import { FinanceCard, financeStyles } from "../components/FinanceUI";
+import { accountStats, formatMoney } from '@/lib/ledger';
+import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
+import { useState } from 'react';
+import { FinanceCard, financeStyles } from '../components/FinanceUI';
 
 export function LedgerAccounts({
   accounts,
@@ -22,9 +22,9 @@ export function LedgerAccounts({
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [draft, setDraft] = useState({
-    name: "",
-    type: "bank" as LedgerAccount["type"],
-    currency: "PKR" as LedgerAccount["currency"],
+    name: '',
+    type: 'bank' as LedgerAccount['type'],
+    currency: 'PKR' as LedgerAccount['currency'],
   });
 
   function addAccount() {
@@ -35,10 +35,10 @@ export function LedgerAccounts({
       type: draft.type,
       currency: draft.currency,
       openingBalance: 0,
-      openingCostBasis: draft.type === "fund" ? 0 : undefined,
-      exchangeRate: draft.currency === "USD" ? 280 : 1,
+      openingCostBasis: draft.type === 'fund' ? 0 : undefined,
+      exchangeRate: draft.currency === 'USD' ? 280 : 1,
     });
-    setDraft({ name: "", type: "bank", currency: "PKR" });
+    setDraft({ name: '', type: 'bank', currency: 'PKR' });
     setShowAdd(false);
   }
 
@@ -48,28 +48,20 @@ export function LedgerAccounts({
       description="Native account balances stay separate; USD is converted only in PKR summaries."
       action={
         !readOnly ? (
-          <button
-            type="button"
-            className={financeStyles.secondary}
-            onClick={() => setShowAdd((value) => !value)}
-          >
-            {showAdd ? "Cancel" : "Add account"}
+          <button type="button" className={financeStyles.secondary} onClick={() => setShowAdd((value) => !value)}>
+            {showAdd ? 'Cancel' : 'Add account'}
           </button>
         ) : null
       }
     >
       {showAdd ? (
-        <div
-          className={`${financeStyles.inset} mb-5 grid gap-3 p-4 md:grid-cols-[1fr_12rem_10rem_auto]`}
-        >
+        <div className={`${financeStyles.inset} mb-5 grid gap-3 p-4 md:grid-cols-[1fr_12rem_10rem_auto]`}>
           <Field label="Account name">
             <input
               autoFocus
               className={financeStyles.input}
               value={draft.name}
-              onChange={(event) =>
-                setDraft({ ...draft, name: event.target.value })
-              }
+              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               placeholder="e.g. Main bank"
             />
           </Field>
@@ -80,9 +72,8 @@ export function LedgerAccounts({
               onChange={(event) =>
                 setDraft({
                   ...draft,
-                  type: event.target.value as LedgerAccount["type"],
-                  currency:
-                    event.target.value === "fund" ? "PKR" : draft.currency,
+                  type: event.target.value as LedgerAccount['type'],
+                  currency: event.target.value === 'fund' ? 'PKR' : draft.currency,
                 })
               }
             >
@@ -93,12 +84,12 @@ export function LedgerAccounts({
           <Field label="Currency">
             <select
               className={financeStyles.input}
-              disabled={draft.type === "fund"}
+              disabled={draft.type === 'fund'}
               value={draft.currency}
               onChange={(event) =>
                 setDraft({
                   ...draft,
-                  currency: event.target.value as LedgerAccount["currency"],
+                  currency: event.target.value as LedgerAccount['currency'],
                 })
               }
             >
@@ -106,11 +97,7 @@ export function LedgerAccounts({
               <option value="USD">USD</option>
             </select>
           </Field>
-          <button
-            type="button"
-            onClick={addAccount}
-            className={`${financeStyles.primary} self-end`}
-          >
+          <button type="button" onClick={addAccount} className={`${financeStyles.primary} self-end`}>
             Add
           </button>
         </div>
@@ -127,16 +114,11 @@ export function LedgerAccounts({
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-bold text-slate-100">
-                        {account.name}
-                      </h3>
-                      <Badge>
-                        {account.type === "fund" ? "Fund" : account.currency}
-                      </Badge>
+                      <h3 className="font-bold text-slate-100">{account.name}</h3>
+                      <Badge>{account.type === 'fund' ? 'Fund' : account.currency}</Badge>
                     </div>
                     <p className="mt-1 text-xs text-slate-600">
-                      Expected now:{" "}
-                      {formatMoney(stats.expected, account.currency)}
+                      Expected now: {formatMoney(stats.expected, account.currency)}
                     </p>
                   </div>
                   {!readOnly ? (
@@ -155,46 +137,32 @@ export function LedgerAccounts({
                     <MoneyInput
                       value={account.openingBalance}
                       disabled={readOnly}
-                      onChange={(openingBalance) =>
-                        onChange(account.id, { openingBalance })
-                      }
+                      onChange={(openingBalance) => onChange(account.id, { openingBalance })}
                     />
                   </Field>
-                  <Field
-                    label={
-                      account.type === "fund"
-                        ? "Current market value"
-                        : "Actual closing balance"
-                    }
-                  >
+                  <Field label={account.type === 'fund' ? 'Current market value' : 'Actual closing balance'}>
                     <MoneyInput
                       value={account.actualClosingBalance}
                       disabled={readOnly}
                       placeholder="Enter to reconcile"
-                      onChange={(actualClosingBalance) =>
-                        onChange(account.id, { actualClosingBalance })
-                      }
+                      onChange={(actualClosingBalance) => onChange(account.id, { actualClosingBalance })}
                     />
                   </Field>
-                  {account.type === "fund" ? (
+                  {account.type === 'fund' ? (
                     <Field label="Opening cost basis">
                       <MoneyInput
                         value={account.openingCostBasis}
                         disabled={readOnly}
-                        onChange={(openingCostBasis) =>
-                          onChange(account.id, { openingCostBasis })
-                        }
+                        onChange={(openingCostBasis) => onChange(account.id, { openingCostBasis })}
                       />
                     </Field>
                   ) : null}
-                  {account.currency === "USD" ? (
+                  {account.currency === 'USD' ? (
                     <Field label="PKR per USD">
                       <MoneyInput
                         value={account.exchangeRate}
                         disabled={readOnly}
-                        onChange={(exchangeRate) =>
-                          onChange(account.id, { exchangeRate })
-                        }
+                        onChange={(exchangeRate) => onChange(account.id, { exchangeRate })}
                       />
                     </Field>
                   ) : null}
@@ -202,35 +170,32 @@ export function LedgerAccounts({
 
                 <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/6 pt-4 text-sm">
                   <Metric
-                    label={
-                      account.type === "fund" ? "Net invested" : "Difference"
-                    }
+                    label={account.type === 'fund' ? 'Net invested' : 'Difference'}
                     value={
-                      account.type === "fund"
+                      account.type === 'fund'
                         ? formatMoney(stats.netInvested, account.currency)
                         : stats.difference === undefined
-                          ? "Not reconciled"
+                          ? 'Not reconciled'
                           : formatMoney(stats.difference, account.currency)
                     }
                   />
                   <Metric
-                    label={account.type === "fund" ? "Gain / loss" : "Status"}
+                    label={account.type === 'fund' ? 'Gain / loss' : 'Status'}
                     value={
-                      account.type === "fund"
+                      account.type === 'fund'
                         ? stats.gainLoss === undefined
-                          ? "Add current value"
+                          ? 'Add current value'
                           : formatMoney(stats.gainLoss, account.currency)
                         : stats.difference === undefined
-                          ? "Pending"
+                          ? 'Pending'
                           : Math.abs(stats.difference) < 0.01
-                            ? "Matched"
-                            : "Review"
+                            ? 'Matched'
+                            : 'Review'
                     }
                     positive={
-                      account.type === "fund"
+                      account.type === 'fund'
                         ? (stats.gainLoss ?? 0) >= 0
-                        : stats.difference !== undefined &&
-                          Math.abs(stats.difference) < 0.01
+                        : stats.difference !== undefined && Math.abs(stats.difference) < 0.01
                     }
                   />
                 </div>
@@ -243,13 +208,7 @@ export function LedgerAccounts({
   );
 }
 
-export function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label>
       <span className={financeStyles.label}>{label}</span>
@@ -276,13 +235,9 @@ function MoneyInput({
       min="0"
       step="any"
       disabled={disabled}
-      value={value ?? ""}
+      value={value ?? ''}
       placeholder={placeholder}
-      onChange={(event) =>
-        onChange(
-          event.target.value === "" ? undefined : Number(event.target.value),
-        )
-      }
+      onChange={(event) => onChange(event.target.value === '' ? undefined : Number(event.target.value))}
     />
   );
 }
@@ -295,33 +250,15 @@ function Badge({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Metric({
-  label,
-  value,
-  positive,
-}: {
-  label: string;
-  value: string;
-  positive?: boolean;
-}) {
+function Metric({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
   return (
     <div>
       <p className="text-xs text-slate-600">{label}</p>
-      <p
-        className={`mt-1 font-semibold ${positive ? "text-emerald-300" : "text-slate-300"}`}
-      >
-        {value}
-      </p>
+      <p className={`mt-1 font-semibold ${positive ? 'text-emerald-300' : 'text-slate-300'}`}>{value}</p>
     </div>
   );
 }
 
 function Empty({ message }: { message: string }) {
-  return (
-    <div
-      className={`${financeStyles.inset} p-8 text-center text-sm text-slate-500`}
-    >
-      {message}
-    </div>
-  );
+  return <div className={`${financeStyles.inset} p-8 text-center text-sm text-slate-500`}>{message}</div>;
 }

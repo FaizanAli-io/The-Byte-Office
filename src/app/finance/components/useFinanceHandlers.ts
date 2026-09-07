@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { SectionMap } from "./helpers";
-import { FinanceDoc } from "@/types/finance";
-import { useState, useEffect } from "react";
+import { SectionMap } from './helpers';
+import { FinanceDoc } from '@/types/finance';
+import { useState, useEffect } from 'react';
 
 export function useFinanceHandlers() {
   const [data, setData] = useState<FinanceDoc | null>(null);
@@ -13,16 +13,13 @@ export function useFinanceHandlers() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/finance");
+        const res = await fetch('/api/finance');
         const json = await res.json();
 
         if (!res.ok || !json) {
-          console.warn(
-            "/api/finance returned error, falling back to empty data",
-            json,
-          );
+          console.warn('/api/finance returned error, falling back to empty data', json);
           setData({
-            name: "finance",
+            name: 'finance',
             mutualFunds: [],
             remoteBanks: [],
             localBanks: [],
@@ -31,12 +28,9 @@ export function useFinanceHandlers() {
           setData(json);
         }
       } catch (err) {
-        console.error(
-          "Failed to fetch /api/finance, using empty fallback:",
-          err,
-        );
+        console.error('Failed to fetch /api/finance, using empty fallback:', err);
         setData({
-          name: "finance",
+          name: 'finance',
           mutualFunds: [],
           remoteBanks: [],
           localBanks: [],
@@ -48,10 +42,12 @@ export function useFinanceHandlers() {
   }, []);
 
   // ------------------ generic handler ------------------
-  function handleChange<
-    K extends keyof SectionMap,
-    F extends keyof SectionMap[K],
-  >(section: K, index: number, field: F, value: SectionMap[K][F]) {
+  function handleChange<K extends keyof SectionMap, F extends keyof SectionMap[K]>(
+    section: K,
+    index: number,
+    field: F,
+    value: SectionMap[K][F]
+  ) {
     setData((prev) => {
       if (!prev) return prev;
       const copy = structuredClone(prev) as FinanceDoc;
@@ -79,8 +75,8 @@ export function useFinanceHandlers() {
     mfIndex: number,
     bankKey: string,
     fundIndex: number | null,
-    field: "fund" | "value" | "bankName",
-    value: string | number,
+    field: 'fund' | 'value' | 'bankName',
+    value: string | number
   ) {
     setData((prev) => {
       if (!prev) return prev;
@@ -89,7 +85,7 @@ export function useFinanceHandlers() {
       const mfEntry = copy.mutualFunds[mfIndex];
       if (!mfEntry) return copy;
 
-      if (field === "bankName" && fundIndex === null) {
+      if (field === 'bankName' && fundIndex === null) {
         const bankFunds = (mfEntry as Record<string, any>)[bankKey];
         if (!bankFunds) return copy;
 
@@ -102,9 +98,7 @@ export function useFinanceHandlers() {
 
       if (fundIndex === null) return copy;
 
-      const bankFunds = (
-        mfEntry as Record<string, { fund: string; value: number }[]>
-      )[bankKey];
+      const bankFunds = (mfEntry as Record<string, { fund: string; value: number }[]>)[bankKey];
       if (!bankFunds || !bankFunds[fundIndex]) return copy;
 
       const newFund = { ...bankFunds[fundIndex], [field]: value };
@@ -125,12 +119,9 @@ export function useFinanceHandlers() {
       prev
         ? {
             ...prev,
-            mutualFunds: [
-              ...prev.mutualFunds,
-              { "New Bank": [{ fund: "", value: 0 }] },
-            ],
+            mutualFunds: [...prev.mutualFunds, { 'New Bank': [{ fund: '', value: 0 }] }],
           }
-        : prev,
+        : prev
     );
   }
 
@@ -143,12 +134,10 @@ export function useFinanceHandlers() {
       const mfEntry = copy.mutualFunds[mfIndex];
       if (!mfEntry) return copy;
 
-      const bankFunds = (
-        mfEntry as Record<string, { fund: string; value: number }[]>
-      )[bankKey];
+      const bankFunds = (mfEntry as Record<string, { fund: string; value: number }[]>)[bankKey];
       if (!bankFunds) return copy;
 
-      const newBankFunds = [...bankFunds, { fund: "", value: 0 }];
+      const newBankFunds = [...bankFunds, { fund: '', value: 0 }];
 
       const newMF = copy.mutualFunds.slice();
       newMF[mfIndex] = { [bankKey]: newBankFunds };
@@ -164,12 +153,9 @@ export function useFinanceHandlers() {
       prev
         ? {
             ...prev,
-            remoteBanks: [
-              ...prev.remoteBanks,
-              { name: "", amountUsd: 0, exchangeRate: 0 },
-            ],
+            remoteBanks: [...prev.remoteBanks, { name: '', amountUsd: 0, exchangeRate: 0 }],
           }
-        : prev,
+        : prev
     );
   }
 
@@ -178,20 +164,16 @@ export function useFinanceHandlers() {
       prev
         ? {
             ...prev,
-            localBanks: [...prev.localBanks, { name: "", amountPkr: 0 }],
+            localBanks: [...prev.localBanks, { name: '', amountPkr: 0 }],
           }
-        : prev,
+        : prev
     );
   }
 
   // ------------------ delete handlers ------------------
 
   // delete a specific fund under a mutual fund bank
-  function deleteFundFromBank(
-    mfIndex: number,
-    bankKey: string,
-    fundIndex: number,
-  ) {
+  function deleteFundFromBank(mfIndex: number, bankKey: string, fundIndex: number) {
     setData((prev) => {
       if (!prev) return prev;
       const copy = structuredClone(prev) as FinanceDoc;
@@ -199,9 +181,7 @@ export function useFinanceHandlers() {
       const mfEntry = copy.mutualFunds[mfIndex];
       if (!mfEntry) return copy;
 
-      const bankFunds = (
-        mfEntry as Record<string, { fund: string; value: number }[]>
-      )[bankKey];
+      const bankFunds = (mfEntry as Record<string, { fund: string; value: number }[]>)[bankKey];
       if (!bankFunds) return copy;
 
       const newBankFunds = bankFunds.filter((_, i) => i !== fundIndex);
@@ -222,7 +202,7 @@ export function useFinanceHandlers() {
             ...prev,
             mutualFunds: prev.mutualFunds.filter((_, i) => i !== mfIndex),
           }
-        : prev,
+        : prev
     );
   }
 
@@ -234,7 +214,7 @@ export function useFinanceHandlers() {
             ...prev,
             remoteBanks: prev.remoteBanks.filter((_, i) => i !== index),
           }
-        : prev,
+        : prev
     );
   }
 
@@ -246,7 +226,7 @@ export function useFinanceHandlers() {
             ...prev,
             localBanks: prev.localBanks.filter((_, i) => i !== index),
           }
-        : prev,
+        : prev
     );
   }
 
@@ -254,9 +234,9 @@ export function useFinanceHandlers() {
   async function handleSave() {
     if (!data) return;
     setSaving(true);
-    await fetch("/api/finance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    await fetch('/api/finance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
     setSaving(false);

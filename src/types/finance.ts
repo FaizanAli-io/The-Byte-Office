@@ -21,6 +21,6 @@ export interface FinanceDoc {
 export interface FinanceSnapshot {
   _id?: string;
   timestamp: Date;
-  data: Omit<FinanceDoc, "_id">;
+  data: Omit<FinanceDoc, '_id'>;
   grandTotal: number;
 }

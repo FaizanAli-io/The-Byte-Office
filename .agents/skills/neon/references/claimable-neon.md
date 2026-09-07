@@ -25,7 +25,7 @@ neon claim --help
 If that help lists `create` and you need Auth or the Data API, `npm i @neon/config` and write `neon.ts`. Then `neon claim create --env-pull`.
 
 ```typescript
-import { defineConfig } from "@neon/config/v1";
+import { defineConfig } from '@neon/config/v1';
 
 export default defineConfig({
   auth: true,
@@ -52,7 +52,7 @@ When `reconciled` is true, the pre-claim `DATABASE_URL` no longer works. Auth an
 Auth and the Data API stay off unless requested at create or enabled later. On the unclaimed project, `neon.ts` plus `neon deploy` enables them. After claim, the same config talks to Neon directly. An external JWKS is only accepted after claim. Data API with the default auth provider requires Auth:
 
 ```typescript
-import { defineConfig } from "@neon/config/v1";
+import { defineConfig } from '@neon/config/v1';
 
 export default defineConfig({
   auth: true,
@@ -67,8 +67,8 @@ neon deploy
 ```typescript
 export default defineConfig({
   dataApi: {
-    authProvider: "external",
-    jwksUrl: "https://example.com/.well-known/jwks.json",
+    authProvider: 'external',
+    jwksUrl: 'https://example.com/.well-known/jwks.json',
   },
 });
 ```

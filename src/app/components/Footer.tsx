@@ -1,12 +1,9 @@
-import Link from "next/link";
-import { company, navItems, services } from "../data/site";
+import Link from 'next/link';
+import { company, navItems, services } from '../data/site';
 
 export default function Footer() {
   return (
-    <footer
-      data-public-footer
-      className="border-t border-slate-900/10 bg-slate-950 text-white"
-    >
+    <footer data-public-footer className="border-t border-slate-900/10 bg-slate-950 text-white">
       <div className="container-page py-14">
         <div className="grid gap-10 lg:grid-cols-[1.3fr_0.7fr_0.7fr_0.8fr]">
           <div>
@@ -19,9 +16,7 @@ export default function Footer() {
               </span>
               <span className="text-lg font-extrabold">{company.name}</span>
             </Link>
-            <p className="mt-5 max-w-md text-sm leading-7 text-slate-300">
-              {company.summary}
-            </p>
+            <p className="mt-5 max-w-md text-sm leading-7 text-slate-300">{company.summary}</p>
             <a
               href={`mailto:${company.email}`}
               className="mt-6 inline-flex text-sm font-semibold text-white underline decoration-white/30 underline-offset-4 hover:decoration-white"
@@ -31,9 +26,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
-              Navigation
-            </h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Navigation</h2>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
               {navItems.map((item) => (
                 <li key={item.href}>
@@ -46,9 +39,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
-              Services
-            </h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Services</h2>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
               {services.slice(0, 4).map((service) => (
                 <li key={service.title}>
@@ -61,9 +52,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
-              Contact
-            </h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Contact</h2>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
               <li>{company.responseTime}</li>
               <li>{company.workingHours}</li>
@@ -78,8 +67,7 @@ export default function Footer() {
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            &copy; {new Date().getFullYear()} {company.name}. All rights
-            reserved.
+            &copy; {new Date().getFullYear()} {company.name}. All rights reserved.
           </p>
           <div className="flex gap-4">
             <Link href="/llms.txt" className="hover:text-white">

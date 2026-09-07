@@ -12,12 +12,10 @@ headings, lists, emphasis, links, inline code, and tables.
 Add these values to `.env`:
 
 ```dotenv
-OPENROUTER_API_KEY=your_server_side_key
-OPENROUTER_MODEL=z-ai/glm-5.2:free
+GROQ_API_KEY=your_server_side_key
 ```
 
-`OPENROUTER_MODEL` is optional. When unset, the app tries a small set of free
-tool-capable models before returning a clear rate-limit error.
+The assistant uses Groq's `openai/gpt-oss-20b` model.
 
 Review the pending migrations in `drizzle/`, then apply them with:
 
@@ -25,7 +23,7 @@ Review the pending migrations in `drizzle/`, then apply them with:
 npm run db:migrate
 ```
 
-Never expose the OpenRouter key through a `NEXT_PUBLIC_` variable.
+Never expose the Groq key through a `NEXT_PUBLIC_` variable.
 
 ## Tools
 
@@ -54,7 +52,7 @@ Open `/finance/agent/logs` to review these calls.
 
 ## Privacy and limits
 
-Relevant finance data and recent chat messages are sent to OpenRouter when the
+Relevant finance data and recent chat messages are sent to Groq when the
 assistant uses a tool. Conversation history is stored in
 `finance_agent_messages` so it continues across devices. Clear chat deletes that
 conversation. The server limits message size, history size, reasoning rounds,
@@ -66,7 +64,7 @@ routes.
 
 ## Troubleshooting
 
-- `OpenRouter is not configured`: set `OPENROUTER_API_KEY` and restart Next.js.
+- `Groq is not configured`: set `GROQ_API_KEY` and restart Next.js.
 - Proposal creation or logging reports a missing table: review and apply the
   pending migrations.
 - Assistant logs are empty until a new assistant request runs after migration
@@ -74,8 +72,5 @@ routes.
 - Conversation history needs migration `0003` (`finance_agent_messages`).
 - A confirmation is stale or expired: ask the assistant to read current data
   and create a new proposal.
-- A free model is unavailable or rate-limited: OpenRouter free models share one
-  daily quota across your account (50/day without credits). Add $10 in credits
-  at openrouter.ai for 1,000 free requests/day, wait until the quota resets,
-  or set `OPENROUTER_MODEL` to a paid tool-capable model (for example
-  `z-ai/glm-5.2` without the `:free` suffix).
+- The model is rate-limited: wait and try again later, or review your Groq
+  account limits.

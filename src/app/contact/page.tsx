@@ -1,31 +1,31 @@
-﻿import BackgroundEffect from "../components/BackgroundEffect";
-import ContactForm from "./ContactForm";
-import { company, processSteps, siteUrl } from "../data/site";
-import { createMetadata, jsonLd } from "../lib/seo";
+﻿import BackgroundEffect from '../components/BackgroundEffect';
+import ContactForm from './ContactForm';
+import { company, processSteps, siteUrl } from '../data/site';
+import { createMetadata, jsonLd } from '../lib/seo';
 
 export const metadata = createMetadata({
-  title: "Contact",
+  title: 'Contact',
   description:
-    "Contact The Byte Office to discuss custom software development, AI agents, RAG systems, automation solutions, SaaS platforms, APIs, backend systems, and full-stack web applications.",
-  path: "/contact",
+    'Contact The Byte Office to discuss custom software development, AI agents, RAG systems, automation solutions, SaaS platforms, APIs, backend systems, and full-stack web applications.',
+  path: '/contact',
 });
 
 export default function ContactPage() {
   const schema = {
-    "@context": "https://schema.org",
-    "@type": "ContactPage",
-    name: "Contact The Byte Office",
+    '@context': 'https://schema.org',
+    '@type': 'ContactPage',
+    name: 'Contact The Byte Office',
     url: `${siteUrl}/contact`,
     description:
-      "Contact The Byte Office for software development, AI development, automation, and full-stack web application projects.",
+      'Contact The Byte Office for software development, AI development, automation, and full-stack web application projects.',
     mainEntity: {
-      "@type": "Organization",
+      '@type': 'Organization',
       name: company.name,
       email: company.email,
       contactPoint: {
-        "@type": "ContactPoint",
+        '@type': 'ContactPoint',
         email: company.email,
-        contactType: "sales",
+        contactType: 'sales',
       },
     },
   };
@@ -39,14 +39,11 @@ export default function ContactPage() {
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
           <div>
             <p className="eyebrow">Contact</p>
-            <h1 className="display mt-6 text-balance">
-              Tell us what you need to build next.
-            </h1>
+            <h1 className="display mt-6 text-balance">Tell us what you need to build next.</h1>
           </div>
           <p className="lead">
-            Bring the product idea, automation problem, AI workflow, backend
-            requirement, or existing system that needs improvement. The first
-            conversation is about clarity and the most practical next step.
+            Bring the product idea, automation problem, AI workflow, backend requirement, or existing system that needs
+            improvement. The first conversation is about clarity and the most practical next step.
           </p>
         </div>
       </section>
@@ -56,9 +53,8 @@ export default function ContactPage() {
           <div className="surface-card p-6 sm:p-8">
             <h2 className="heading-lg">Start a project inquiry</h2>
             <p className="body-copy mt-3">
-              This form preserves the current local confirmation behavior. Use
-              the email draft option to send the inquiry directly to The Byte
-              Office.
+              This form preserves the current local confirmation behavior. Use the email draft option to send the
+              inquiry directly to The Byte Office.
             </p>
             <div className="mt-8">
               <ContactForm />
@@ -67,14 +63,10 @@ export default function ContactPage() {
 
           <aside className="space-y-5">
             <div className="dark-panel p-6">
-              <h2 className="text-2xl font-extrabold text-white">
-                Contact details
-              </h2>
+              <h2 className="text-2xl font-extrabold text-white">Contact details</h2>
               <dl className="mt-6 space-y-5">
                 <div>
-                  <dt className="text-sm font-bold uppercase text-slate-400">
-                    Email
-                  </dt>
+                  <dt className="text-sm font-bold uppercase text-slate-400">Email</dt>
                   <dd className="mt-1">
                     <a
                       href={`mailto:${company.email}`}
@@ -85,20 +77,12 @@ export default function ContactPage() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-bold uppercase text-slate-400">
-                    Response time
-                  </dt>
-                  <dd className="mt-1 text-slate-200">
-                    {company.responseTime}
-                  </dd>
+                  <dt className="text-sm font-bold uppercase text-slate-400">Response time</dt>
+                  <dd className="mt-1 text-slate-200">{company.responseTime}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-bold uppercase text-slate-400">
-                    Working hours
-                  </dt>
-                  <dd className="mt-1 text-slate-200">
-                    {company.workingHours}
-                  </dd>
+                  <dt className="text-sm font-bold uppercase text-slate-400">Working hours</dt>
+                  <dd className="mt-1 text-slate-200">{company.workingHours}</dd>
                 </div>
               </dl>
             </div>
@@ -113,9 +97,7 @@ export default function ContactPage() {
                     </span>
                     <div>
                       <h3 className="font-bold text-slate-100">{step.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-400">
-                        {step.text}
-                      </p>
+                      <p className="mt-1 text-sm leading-6 text-slate-400">{step.text}</p>
                     </div>
                   </div>
                 ))}

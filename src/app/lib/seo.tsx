@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { company, siteUrl } from "../data/site";
+import type { Metadata } from 'next';
+import { company, siteUrl } from '../data/site';
 
 type PageMeta = {
   title: string;
@@ -8,15 +8,9 @@ type PageMeta = {
   noIndex?: boolean;
 };
 
-export function createMetadata({
-  title,
-  description,
-  path = "",
-  noIndex = false,
-}: PageMeta): Metadata {
+export function createMetadata({ title, description, path = '', noIndex = false }: PageMeta): Metadata {
   const url = `${siteUrl}${path}`;
-  const fullTitle =
-    title === company.name ? title : `${title} | ${company.name}`;
+  const fullTitle = title === company.name ? title : `${title} | ${company.name}`;
 
   return {
     title: fullTitle,
@@ -30,11 +24,11 @@ export function createMetadata({
       description,
       url,
       siteName: company.name,
-      locale: "en_US",
-      type: "website",
+      locale: 'en_US',
+      type: 'website',
     },
     twitter: {
-      card: "summary_large_image",
+      card: 'summary_large_image',
       title: fullTitle,
       description,
     },
@@ -55,31 +49,31 @@ export function jsonLd(data: Record<string, unknown>) {
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{
-        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+        __html: JSON.stringify(data).replace(/</g, '\\u003c'),
       }}
     />
   );
 }
 
 export const organizationSchema = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
   name: company.name,
   url: siteUrl,
   email: company.email,
   description: company.summary,
   contactPoint: {
-    "@type": "ContactPoint",
+    '@type': 'ContactPoint',
     email: company.email,
-    contactType: "sales",
-    availableLanguage: ["English"],
+    contactType: 'sales',
+    availableLanguage: ['English'],
   },
   sameAs: [],
 };
 
 export const websiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
   name: company.name,
   url: siteUrl,
   description: company.summary,

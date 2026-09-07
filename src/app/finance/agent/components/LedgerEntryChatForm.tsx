@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { ENTRY_LABELS, monthBounds } from "@/lib/ledger";
-import type { LedgerEntryFormState } from "@/lib/finance-agent/types";
-import type { LedgerEntryType } from "@/types/ledger";
-import { FormEvent, useMemo, useState } from "react";
-import { financeStyles } from "../../components/FinanceUI";
-import { Field } from "../../ledger/LedgerAccounts";
+import { ENTRY_LABELS, monthBounds } from '@/lib/ledger';
+import type { LedgerEntryFormState } from '@/lib/finance-agent/types';
+import type { LedgerEntryType } from '@/types/ledger';
+import { FormEvent, useMemo, useState } from 'react';
+import { financeStyles } from '../../components/FinanceUI';
+import { Field } from '../../ledger/LedgerAccounts';
 
 export function LedgerEntryChatForm({
   form,
@@ -20,21 +20,14 @@ export function LedgerEntryChatForm({
 }) {
   const bounds = monthBounds(form.month);
   const [draft, setDraft] = useState(() => draftFromForm(form));
-  const sourceAccount = form.accounts.find(
-    (account) => account.id === draft.accountId,
-  );
-  const destinationAccount = form.accounts.find(
-    (account) => account.id === draft.destinationAccountId,
-  );
+  const sourceAccount = form.accounts.find((account) => account.id === draft.accountId);
+  const destinationAccount = form.accounts.find((account) => account.id === draft.destinationAccountId);
   const requiresDestinationAmount =
-    draft.type === "transfer" &&
+    draft.type === 'transfer' &&
     Boolean(sourceAccount) &&
     Boolean(destinationAccount) &&
     sourceAccount?.currency !== destinationAccount?.currency;
-  const eligible = useMemo(
-    () => eligibleAccounts(form.accounts, draft.type),
-    [draft.type, form.accounts],
-  );
+  const eligible = useMemo(() => eligibleAccounts(form.accounts, draft.type), [draft.type, form.accounts]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -47,13 +40,10 @@ export function LedgerEntryChatForm({
       date: draft.date,
       type: draft.type,
       accountId: draft.accountId,
-      destinationAccountId:
-        draft.type === "transfer" ? draft.destinationAccountId : undefined,
+      destinationAccountId: draft.type === 'transfer' ? draft.destinationAccountId : undefined,
       amount,
       destinationAmount:
-        draft.type === "transfer" && draft.destinationAmount
-          ? Number(draft.destinationAmount)
-          : undefined,
+        draft.type === 'transfer' && draft.destinationAmount ? Number(draft.destinationAmount) : undefined,
       exchangeRate: sourceAccount?.exchangeRate ?? 1,
       category: draft.category.trim() || undefined,
       note: draft.note.trim() || undefined,
@@ -70,9 +60,7 @@ export function LedgerEntryChatForm({
           max={bounds.max}
           value={draft.date}
           disabled={busy}
-          onChange={(event) =>
-            setDraft({ ...draft, date: event.target.value })
-          }
+          onChange={(event) => setDraft({ ...draft, date: event.target.value })}
         />
       </Field>
       <Field label="Type">
@@ -83,19 +71,14 @@ export function LedgerEntryChatForm({
           onChange={(event) => {
             const type = event.target.value as LedgerEntryType;
             const nextAccounts = eligibleAccounts(form.accounts, type);
-            const accountId = nextAccounts.some(
-              (account) => account.id === draft.accountId,
-            )
+            const accountId = nextAccounts.some((account) => account.id === draft.accountId)
               ? draft.accountId
-              : (nextAccounts[0]?.id ?? "");
+              : (nextAccounts[0]?.id ?? '');
             setDraft({
               ...draft,
               type,
               accountId,
-              destinationAccountId:
-                type === "transfer"
-                  ? firstOtherAccountId(form.accounts, accountId)
-                  : "",
+              destinationAccountId: type === 'transfer' ? firstOtherAccountId(form.accounts, accountId) : '',
             });
           }}
         >
@@ -106,14 +89,12 @@ export function LedgerEntryChatForm({
           ))}
         </select>
       </Field>
-      <Field label={draft.type === "transfer" ? "From account" : "Account"}>
+      <Field label={draft.type === 'transfer' ? 'From account' : 'Account'}>
         <select
           className={financeStyles.input}
           value={draft.accountId}
           disabled={busy}
-          onChange={(event) =>
-            setDraft({ ...draft, accountId: event.target.value })
-          }
+          onChange={(event) => setDraft({ ...draft, accountId: event.target.value })}
         >
           {eligible.map((account) => (
             <option key={account.id} value={account.id}>
@@ -131,12 +112,10 @@ export function LedgerEntryChatForm({
           value={draft.amount}
           disabled={busy}
           placeholder="0"
-          onChange={(event) =>
-            setDraft({ ...draft, amount: event.target.value })
-          }
+          onChange={(event) => setDraft({ ...draft, amount: event.target.value })}
         />
       </Field>
-      {draft.type === "transfer" ? (
+      {draft.type === 'transfer' ? (
         <>
           <Field label="To account">
             <select
@@ -163,7 +142,7 @@ export function LedgerEntryChatForm({
             label={
               requiresDestinationAmount
                 ? `Amount received (${destinationAccount?.currency})`
-                : "Destination amount (optional)"
+                : 'Destination amount (optional)'
             }
           >
             <input
@@ -190,9 +169,7 @@ export function LedgerEntryChatForm({
           value={draft.category}
           disabled={busy}
           placeholder="Salary, bills, food…"
-          onChange={(event) =>
-            setDraft({ ...draft, category: event.target.value })
-          }
+          onChange={(event) => setDraft({ ...draft, category: event.target.value })}
         />
       </Field>
       <Field label="Note (optional)">
@@ -201,9 +178,7 @@ export function LedgerEntryChatForm({
           value={draft.note}
           disabled={busy}
           placeholder="Short description"
-          onChange={(event) =>
-            setDraft({ ...draft, note: event.target.value })
-          }
+          onChange={(event) => setDraft({ ...draft, note: event.target.value })}
         />
       </Field>
       <div className="flex flex-col gap-2 pt-1 md:col-span-2 sm:flex-row">
@@ -214,22 +189,13 @@ export function LedgerEntryChatForm({
             busy ||
             !draft.accountId ||
             !draft.amount ||
-            (draft.type === "transfer" && !draft.destinationAccountId) ||
+            (draft.type === 'transfer' && !draft.destinationAccountId) ||
             (Boolean(requiresDestinationAmount) && !draft.destinationAmount)
           }
         >
-          {busy
-            ? "Saving…"
-            : form.kind === "ledger_entry_update"
-              ? "Save entry"
-              : "Add entry"}
+          {busy ? 'Saving…' : form.kind === 'ledger_entry_update' ? 'Save entry' : 'Add entry'}
         </button>
-        <button
-          type="button"
-          className={financeStyles.secondary}
-          disabled={busy}
-          onClick={onCancel}
-        >
+        <button type="button" className={financeStyles.secondary} disabled={busy} onClick={onCancel}>
           Cancel
         </button>
       </div>
@@ -238,43 +204,27 @@ export function LedgerEntryChatForm({
 }
 
 function draftFromForm(form: LedgerEntryFormState) {
-  const type = form.entry.type ?? ("expense" as LedgerEntryType);
-  const accountId =
-    form.entry.accountId ||
-    eligibleAccounts(form.accounts, type)[0]?.id ||
-    "";
+  const type = form.entry.type ?? ('expense' as LedgerEntryType);
+  const accountId = form.entry.accountId || eligibleAccounts(form.accounts, type)[0]?.id || '';
   return {
     date: form.entry.date,
     type,
     accountId,
     destinationAccountId:
-      form.entry.destinationAccountId ||
-      (type === "transfer" ? firstOtherAccountId(form.accounts, accountId) : ""),
-    amount:
-      form.kind === "ledger_entry_add" || form.entry.amount === undefined
-        ? ""
-        : String(form.entry.amount),
-    destinationAmount:
-      form.entry.destinationAmount === undefined
-        ? ""
-        : String(form.entry.destinationAmount),
-    category: form.entry.category ?? "",
-    note: form.entry.note ?? "",
+      form.entry.destinationAccountId || (type === 'transfer' ? firstOtherAccountId(form.accounts, accountId) : ''),
+    amount: form.entry.amount === undefined ? '' : String(form.entry.amount),
+    destinationAmount: form.entry.destinationAmount === undefined ? '' : String(form.entry.destinationAmount),
+    category: form.entry.category ?? '',
+    note: form.entry.note ?? '',
   };
 }
 
-function eligibleAccounts(
-  accounts: LedgerEntryFormState["accounts"],
-  type: LedgerEntryType,
-) {
-  return type === "fund_contribution" || type === "fund_withdrawal"
-    ? accounts.filter((account) => account.type === "fund")
+function eligibleAccounts(accounts: LedgerEntryFormState['accounts'], type: LedgerEntryType) {
+  return type === 'fund_contribution' || type === 'fund_withdrawal'
+    ? accounts.filter((account) => account.type === 'fund')
     : accounts;
 }
 
-function firstOtherAccountId(
-  accounts: LedgerEntryFormState["accounts"],
-  accountId: string,
-) {
-  return accounts.find((account) => account.id !== accountId)?.id ?? "";
+function firstOtherAccountId(accounts: LedgerEntryFormState['accounts'], accountId: string) {
+  return accounts.find((account) => account.id !== accountId)?.id ?? '';
 }

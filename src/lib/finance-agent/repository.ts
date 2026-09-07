@@ -1,6 +1,6 @@
-import { createHash } from "crypto";
-import { and, asc, desc, eq, gt, inArray, max } from "drizzle-orm";
-import { getDb } from "@/lib/db";
+import { createHash } from 'crypto';
+import { and, asc, desc, eq, gt, inArray, max } from 'drizzle-orm';
+import { getDb } from '@/lib/db';
 import {
   financeAgentActions,
   financeAgentMessages,
@@ -9,7 +9,7 @@ import {
   localBanks,
   mutualFunds,
   remoteBanks,
-} from "@/lib/db/schema";
+} from '@/lib/db/schema';
 import type {
   ActionPreview,
   AgentActionPayload,
@@ -18,7 +18,7 @@ import type {
   PendingAgentAction,
   PortfolioItemInput,
   PortfolioItemType,
-} from "./types";
+} from './types';
 
 const ACTION_TTL_MS = 15 * 60 * 1000;
 
@@ -36,42 +36,21 @@ export async function loadAgentPortfolio() {
   };
 }
 
-export async function getPortfolioItem(
-  itemType: PortfolioItemType,
-  id: string,
-) {
+export async function getPortfolioItem(itemType: PortfolioItemType, id: string) {
   const db = getDb();
-  if (itemType === "local_bank") {
-    return (
-      (
-        await db.select().from(localBanks).where(eq(localBanks.id, id)).limit(1)
-      )[0] ?? null
-    );
+  if (itemType === 'local_bank') {
+    return (await db.select().from(localBanks).where(eq(localBanks.id, id)).limit(1))[0] ?? null;
   }
-  if (itemType === "remote_bank") {
-    return (
-      (
-        await db
-          .select()
-          .from(remoteBanks)
-          .where(eq(remoteBanks.id, id))
-          .limit(1)
-      )[0] ?? null
-    );
+  if (itemType === 'remote_bank') {
+    return (await db.select().from(remoteBanks).where(eq(remoteBanks.id, id)).limit(1))[0] ?? null;
   }
-  return (
-    (
-      await db.select().from(mutualFunds).where(eq(mutualFunds.id, id)).limit(1)
-    )[0] ?? null
-  );
+  return (await db.select().from(mutualFunds).where(eq(mutualFunds.id, id)).limit(1))[0] ?? null;
 }
 
 export async function addPortfolioItem(item: PortfolioItemInput) {
   const db = getDb();
-  if (item.itemType === "local_bank") {
-    const [order] = await db
-      .select({ value: max(localBanks.sortOrder) })
-      .from(localBanks);
+  if (item.itemType === 'local_bank') {
+    const [order] = await db.select({ value: max(localBanks.sortOrder) }).from(localBanks);
     const [created] = await db
       .insert(localBanks)
       .values({
@@ -82,10 +61,8 @@ export async function addPortfolioItem(item: PortfolioItemInput) {
       .returning();
     return created;
   }
-  if (item.itemType === "remote_bank") {
-    const [order] = await db
-      .select({ value: max(remoteBanks.sortOrder) })
-      .from(remoteBanks);
+  if (item.itemType === 'remote_bank') {
+    const [order] = await db.select({ value: max(remoteBanks.sortOrder) }).from(remoteBanks);
     const [created] = await db
       .insert(remoteBanks)
       .values({
@@ -98,9 +75,7 @@ export async function addPortfolioItem(item: PortfolioItemInput) {
     return created;
   }
 
-  const [order] = await db
-    .select({ value: max(mutualFunds.sortOrder) })
-    .from(mutualFunds);
+  const [order] = await db.select({ value: max(mutualFunds.sortOrder) }).from(mutualFunds);
   const [created] = await db
     .insert(mutualFunds)
     .values({
@@ -113,14 +88,10 @@ export async function addPortfolioItem(item: PortfolioItemInput) {
   return created;
 }
 
-export async function updatePortfolioItem(
-  itemType: PortfolioItemType,
-  id: string,
-  changes: Record<string, unknown>,
-) {
+export async function updatePortfolioItem(itemType: PortfolioItemType, id: string, changes: Record<string, unknown>) {
   const db = getDb();
   const updatedAt = new Date();
-  if (itemType === "local_bank") {
+  if (itemType === 'local_bank') {
     return (
       (
         await db
@@ -135,7 +106,7 @@ export async function updatePortfolioItem(
       )[0] ?? null
     );
   }
-  if (itemType === "remote_bank") {
+  if (itemType === 'remote_bank') {
     return (
       (
         await db
@@ -167,27 +138,15 @@ export async function updatePortfolioItem(
   );
 }
 
-export async function removePortfolioItem(
-  itemType: PortfolioItemType,
-  id: string,
-) {
+export async function removePortfolioItem(itemType: PortfolioItemType, id: string) {
   const db = getDb();
-  if (itemType === "local_bank") {
-    return db
-      .delete(localBanks)
-      .where(eq(localBanks.id, id))
-      .returning({ id: localBanks.id });
+  if (itemType === 'local_bank') {
+    return db.delete(localBanks).where(eq(localBanks.id, id)).returning({ id: localBanks.id });
   }
-  if (itemType === "remote_bank") {
-    return db
-      .delete(remoteBanks)
-      .where(eq(remoteBanks.id, id))
-      .returning({ id: remoteBanks.id });
+  if (itemType === 'remote_bank') {
+    return db.delete(remoteBanks).where(eq(remoteBanks.id, id)).returning({ id: remoteBanks.id });
   }
-  return db
-    .delete(mutualFunds)
-    .where(eq(mutualFunds.id, id))
-    .returning({ id: mutualFunds.id });
+  return db.delete(mutualFunds).where(eq(mutualFunds.id, id)).returning({ id: mutualFunds.id });
 }
 
 export async function listAgentSnapshots() {
@@ -235,15 +194,7 @@ export async function listAgentToolLogs(limit = 200) {
 }
 
 export async function getAgentSnapshot(id: string) {
-  return (
-    (
-      await getDb()
-        .select()
-        .from(financeSnapshots)
-        .where(eq(financeSnapshots.id, id))
-        .limit(1)
-    )[0] ?? null
-  );
+  return (await getDb().select().from(financeSnapshots).where(eq(financeSnapshots.id, id)).limit(1))[0] ?? null;
 }
 
 export async function createAgentAction(input: {
@@ -266,15 +217,7 @@ export async function createAgentAction(input: {
 }
 
 export async function getAgentAction(id: string) {
-  return (
-    (
-      await getDb()
-        .select()
-        .from(financeAgentActions)
-        .where(eq(financeAgentActions.id, id))
-        .limit(1)
-    )[0] ?? null
-  );
+  return (await getDb().select().from(financeAgentActions).where(eq(financeAgentActions.id, id)).limit(1))[0] ?? null;
 }
 
 export async function claimAgentAction(id: string) {
@@ -282,13 +225,13 @@ export async function claimAgentAction(id: string) {
     (
       await getDb()
         .update(financeAgentActions)
-        .set({ status: "executing", error: null })
+        .set({ status: 'executing', error: null })
         .where(
           and(
             eq(financeAgentActions.id, id),
-            eq(financeAgentActions.status, "pending"),
-            gt(financeAgentActions.expiresAt, new Date()),
-          ),
+            eq(financeAgentActions.status, 'pending'),
+            gt(financeAgentActions.expiresAt, new Date())
+          )
         )
         .returning()
     )[0] ?? null
@@ -300,13 +243,8 @@ export async function cancelAgentAction(id: string) {
     (
       await getDb()
         .update(financeAgentActions)
-        .set({ status: "cancelled" })
-        .where(
-          and(
-            eq(financeAgentActions.id, id),
-            eq(financeAgentActions.status, "pending"),
-          ),
-        )
+        .set({ status: 'cancelled' })
+        .where(and(eq(financeAgentActions.id, id), eq(financeAgentActions.status, 'pending')))
         .returning()
     )[0] ?? null
   );
@@ -315,13 +253,8 @@ export async function cancelAgentAction(id: string) {
 export async function completeAgentAction(id: string) {
   const [action] = await getDb()
     .update(financeAgentActions)
-    .set({ status: "completed", executedAt: new Date(), error: null })
-    .where(
-      and(
-        eq(financeAgentActions.id, id),
-        eq(financeAgentActions.status, "executing"),
-      ),
-    )
+    .set({ status: 'completed', executedAt: new Date(), error: null })
+    .where(and(eq(financeAgentActions.id, id), eq(financeAgentActions.status, 'executing')))
     .returning();
   return action ?? null;
 }
@@ -329,7 +262,7 @@ export async function completeAgentAction(id: string) {
 export async function failAgentAction(id: string, error: string) {
   const [action] = await getDb()
     .update(financeAgentActions)
-    .set({ status: "failed", error: error.slice(0, 500) })
+    .set({ status: 'failed', error: error.slice(0, 500) })
     .where(eq(financeAgentActions.id, id))
     .returning();
   return action ?? null;
@@ -341,30 +274,20 @@ export async function listAgentMessages(limit = 80) {
     .from(financeAgentMessages)
     .orderBy(asc(financeAgentMessages.createdAt))
     .limit(Math.min(Math.max(limit, 1), 200));
-  const storedActions = rows.flatMap((row) =>
-    Array.isArray(row.actions) ? row.actions : [],
-  );
+  const storedActions = rows.flatMap((row) => (Array.isArray(row.actions) ? row.actions : []));
   const actionIds = [
     ...new Set(
       storedActions.flatMap((action) => {
-        if (
-          typeof action === "object" &&
-          action !== null &&
-          "id" in action &&
-          typeof action.id === "string"
-        ) {
+        if (typeof action === 'object' && action !== null && 'id' in action && typeof action.id === 'string') {
           return [action.id];
         }
         return [];
-      }),
+      })
     ),
   ];
   const liveActions =
     actionIds.length > 0
-      ? await getDb()
-          .select()
-          .from(financeAgentActions)
-          .where(inArray(financeAgentActions.id, actionIds))
+      ? await getDb().select().from(financeAgentActions).where(inArray(financeAgentActions.id, actionIds))
       : [];
   const liveById = new Map(liveActions.map((action) => [action.id, action]));
 
@@ -374,7 +297,7 @@ export async function listAgentMessages(limit = 80) {
       : undefined;
     return {
       id: row.id,
-      role: row.role === "assistant" ? "assistant" : "user",
+      role: row.role === 'assistant' ? 'assistant' : 'user',
       content: row.content,
       createdAt: row.createdAt.toISOString(),
       actions: actions?.length ? actions : undefined,
@@ -408,44 +331,33 @@ export async function clearAgentMessages() {
   await getDb().delete(financeAgentMessages);
 }
 
-export async function syncActionInMessages(
-  actionId: string,
-  patch: Partial<PendingAgentAction>,
-) {
+export async function syncActionInMessages(actionId: string, patch: Partial<PendingAgentAction>) {
   const rows = await getDb().select().from(financeAgentMessages);
   for (const row of rows) {
     if (!Array.isArray(row.actions) || row.actions.length === 0) continue;
     let changed = false;
     const actions = row.actions.map((item) => {
-      if (
-        typeof item !== "object" ||
-        item === null ||
-        !("id" in item) ||
-        item.id !== actionId
-      ) {
+      if (typeof item !== 'object' || item === null || !('id' in item) || item.id !== actionId) {
         return item;
       }
       changed = true;
       return { ...item, ...patch };
     });
     if (!changed) continue;
-    await getDb()
-      .update(financeAgentMessages)
-      .set({ actions })
-      .where(eq(financeAgentMessages.id, row.id));
+    await getDb().update(financeAgentMessages).set({ actions }).where(eq(financeAgentMessages.id, row.id));
   }
 }
 
 function hydrateStoredAction(
   item: unknown,
-  liveById: Map<string, typeof financeAgentActions.$inferSelect>,
+  liveById: Map<string, typeof financeAgentActions.$inferSelect>
 ): PendingAgentAction {
   const stored = item as PendingAgentAction;
   const live = stored?.id ? liveById.get(stored.id) : undefined;
   if (!live) return stored;
   return {
     ...stored,
-    actionType: live.actionType as PendingAgentAction["actionType"],
+    actionType: live.actionType as PendingAgentAction['actionType'],
     preview: live.preview,
     status: live.status,
     expiresAt: live.expiresAt.toISOString(),
@@ -454,5 +366,5 @@ function hydrateStoredAction(
 }
 
 export function fingerprint(value: unknown) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }

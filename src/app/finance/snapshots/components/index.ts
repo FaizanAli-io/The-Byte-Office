@@ -1,2 +1,2 @@
-export { TextSummary } from "./TextSummary";
-export { AllocationChart } from "./AllocationChart";
+export { TextSummary } from './TextSummary';
+export { AllocationChart } from './AllocationChart';

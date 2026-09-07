@@ -1,13 +1,13 @@
-import nodemailer from "nodemailer";
-import { FINANCE_LOGIN_EMAIL } from "@/lib/finance-constants";
+import nodemailer from 'nodemailer';
+import { FINANCE_LOGIN_EMAIL } from '@/lib/finance-constants';
 
 export async function sendFinanceLoginEmail(loginUrl: string) {
   const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.replace(/\s+/g, "");
+  const pass = process.env.SMTP_PASS?.replace(/\s+/g, '');
   if (!user || !pass) return false;
 
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: Number(process.env.SMTP_PORT) || 465,
     secure: true,
     auth: { user, pass },
@@ -16,7 +16,7 @@ export async function sendFinanceLoginEmail(loginUrl: string) {
   await transporter.sendMail({
     from: `The Byte Office <${user}>`,
     to: FINANCE_LOGIN_EMAIL,
-    subject: "Your finance login link",
+    subject: 'Your finance login link',
     html: `
       <p>Use this link to open the private finance workspace:</p>
       <p><a href="${loginUrl}">Open finance workspace</a></p>

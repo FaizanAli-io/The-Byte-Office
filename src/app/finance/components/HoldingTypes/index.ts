@@ -1,3 +1,3 @@
-export * from "./MutualFundsSection";
-export * from "./RemoteBanksSection";
-export * from "./LocalBanksSection";
+export * from './MutualFundsSection';
+export * from './RemoteBanksSection';
+export * from './LocalBanksSection';

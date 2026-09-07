@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { clearFinanceToken } from "@/lib/finance-session-client";
-import { useState } from "react";
+import { clearFinanceToken } from '@/lib/finance-session-client';
+import { useState } from 'react';
 
 export function FinanceLogoutButton() {
   const [submitting, setSubmitting] = useState(false);
@@ -10,9 +10,9 @@ export function FinanceLogoutButton() {
     setSubmitting(true);
     try {
       clearFinanceToken();
-      await fetch("/api/finance-auth/logout", { method: "POST" });
+      await fetch('/api/finance-auth/logout', { method: 'POST' });
     } finally {
-      window.location.replace("/finance/login");
+      window.location.replace('/finance/login');
     }
   }
 
@@ -23,7 +23,7 @@ export function FinanceLogoutButton() {
       onClick={logout}
       className="whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold text-slate-500 transition hover:bg-rose-400/8 hover:text-rose-300 disabled:opacity-50"
     >
-      {submitting ? "Signing out…" : "Sign out"}
+      {submitting ? 'Signing out…' : 'Sign out'}
     </button>
   );
 }

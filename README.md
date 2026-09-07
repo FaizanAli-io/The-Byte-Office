@@ -28,8 +28,7 @@ npm install
 DATABASE_URL=
 DATABASE_URL_UNPOOLED=
 FINANCE_SESSION_SECRET=
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=
+GROQ_API_KEY=
 SMTP_USER=
 SMTP_PASS=
 ```
@@ -50,15 +49,13 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Finance assistant
 
-The assistant lives at `/finance/agent` and uses OpenRouter for model access. Reads run immediately; writes create confirmation cards or in-chat ledger forms that must be submitted before data changes.
+The assistant lives at `/finance/agent` and uses Groq with `openai/gpt-oss-20b`. Reads run immediately; writes create confirmation cards or in-chat ledger forms that must be submitted before data changes.
 
 Setup and troubleshooting details are in [`docs/finance-agent.md`](docs/finance-agent.md).
 
 Notes:
 
-- `OPENROUTER_MODEL` is optional. When unset, the app defaults to `z-ai/glm-5.2:free`.
-- Free OpenRouter models share one daily quota per account.
-- Never expose `OPENROUTER_API_KEY` through a `NEXT_PUBLIC_` variable.
+- Never expose `GROQ_API_KEY` through a `NEXT_PUBLIC_` variable.
 
 ## Scripts
 

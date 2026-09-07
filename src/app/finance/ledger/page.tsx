@@ -1,14 +1,10 @@
-"use client";
+'use client';
 
-import { formatMoney, ledgerSummary } from "@/lib/ledger";
-import {
-  FinancePageShell,
-  StatCard,
-  financeStyles,
-} from "../components/FinanceUI";
-import { LedgerAccounts } from "./LedgerAccounts";
-import { LedgerEntries } from "./LedgerEntries";
-import { useLedger } from "./useLedger";
+import { formatMoney, ledgerSummary } from '@/lib/ledger';
+import { FinancePageShell, StatCard, financeStyles } from '../components/FinanceUI';
+import { LedgerAccounts } from './LedgerAccounts';
+import { LedgerEntries } from './LedgerEntries';
+import { useLedger } from './useLedger';
 
 export default function LedgerPage() {
   const ledgerState = useLedger();
@@ -31,12 +27,9 @@ export default function LedgerPage() {
     removeEntry,
   } = ledgerState;
   const summary = ledger ? ledgerSummary(ledger) : null;
-  const isFinalized = ledger?.status === "finalized";
+  const isFinalized = ledger?.status === 'finalized';
   const canFinalize =
-    Boolean(ledger?.accounts.length) &&
-    ledger?.accounts.every(
-      (account) => account.actualClosingBalance !== undefined,
-    );
+    Boolean(ledger?.accounts.length) && ledger?.accounts.every((account) => account.actualClosingBalance !== undefined);
 
   return (
     <FinancePageShell
@@ -55,12 +48,7 @@ export default function LedgerPage() {
           </label>
           {ledger ? (
             isFinalized ? (
-              <button
-                type="button"
-                className={financeStyles.secondary}
-                disabled={saving}
-                onClick={() => save("draft")}
-              >
+              <button type="button" className={financeStyles.secondary} disabled={saving} onClick={() => save('draft')}>
                 Reopen month
               </button>
             ) : (
@@ -69,20 +57,16 @@ export default function LedgerPage() {
                   type="button"
                   className={financeStyles.secondary}
                   disabled={saving}
-                  onClick={() => save("draft")}
+                  onClick={() => save('draft')}
                 >
-                  {saving ? "Saving…" : "Save"}
+                  {saving ? 'Saving…' : 'Save'}
                 </button>
                 <button
                   type="button"
                   className={financeStyles.primary}
                   disabled={saving || !canFinalize}
-                  title={
-                    canFinalize
-                      ? undefined
-                      : "Enter every actual closing balance first"
-                  }
-                  onClick={() => save("finalized")}
+                  title={canFinalize ? undefined : 'Enter every actual closing balance first'}
+                  onClick={() => save('finalized')}
                 >
                   Finalize month
                 </button>
@@ -96,33 +80,19 @@ export default function LedgerPage() {
       {notice ? <Alert tone="success">{notice}</Alert> : null}
 
       {loading ? (
-        <div
-          className={`${financeStyles.card} p-12 text-center text-slate-500`}
-        >
-          Loading ledger…
-        </div>
+        <div className={`${financeStyles.card} p-12 text-center text-slate-500`}>Loading ledger…</div>
       ) : !ledger ? (
         <div className={`${financeStyles.card} p-8 text-center sm:p-12`}>
           <p className="text-xl font-bold text-white">No ledger for {month}</p>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500">
-            Create a blank month (which carries the latest finalized balances
-            when available), or take a one-time copy from the portfolio editor.
+            Create a blank month (which carries the latest finalized balances when available), or take a one-time copy
+            from the portfolio editor.
           </p>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <button
-              type="button"
-              className={financeStyles.primary}
-              disabled={saving}
-              onClick={() => create(false)}
-            >
+            <button type="button" className={financeStyles.primary} disabled={saving} onClick={() => create(false)}>
               Create month
             </button>
-            <button
-              type="button"
-              className={financeStyles.secondary}
-              disabled={saving}
-              onClick={() => create(true)}
-            >
+            <button type="button" className={financeStyles.secondary} disabled={saving} onClick={() => create(true)}>
               Import portfolio balances
             </button>
           </div>
@@ -131,44 +101,28 @@ export default function LedgerPage() {
         <div className="space-y-6">
           <div className="flex flex-col gap-1 rounded-xl border border-white/8 bg-white/[0.025] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-400">
-              Status:{" "}
-              <span
-                className={
-                  isFinalized
-                    ? "font-semibold text-emerald-300"
-                    : "font-semibold text-amber-300"
-                }
-              >
-                {isFinalized ? "Finalized" : "Draft"}
+              Status:{' '}
+              <span className={isFinalized ? 'font-semibold text-emerald-300' : 'font-semibold text-amber-300'}>
+                {isFinalized ? 'Finalized' : 'Draft'}
               </span>
             </p>
             <p className="text-xs text-slate-600">
-              {isFinalized
-                ? "Reopen to make changes"
-                : "Changes save when you click Save"}
+              {isFinalized ? 'Reopen to make changes' : 'Changes save when you click Save'}
             </p>
           </div>
 
           {summary ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                label="Income"
-                value={formatMoney(summary.income, "PKR")}
-                tone="emerald"
-              />
-              <StatCard
-                label="Expenses"
-                value={formatMoney(summary.expenses, "PKR")}
-                tone="rose"
-              />
+              <StatCard label="Income" value={formatMoney(summary.income, 'PKR')} tone="emerald" />
+              <StatCard label="Expenses" value={formatMoney(summary.expenses, 'PKR')} tone="rose" />
               <StatCard
                 label="Net cash flow"
-                value={formatMoney(summary.netCashFlow, "PKR")}
-                tone={summary.netCashFlow >= 0 ? "cyan" : "rose"}
+                value={formatMoney(summary.netCashFlow, 'PKR')}
+                tone={summary.netCashFlow >= 0 ? 'cyan' : 'rose'}
               />
               <StatCard
                 label="Fund cash flow"
-                value={formatMoney(summary.fundFlow, "PKR")}
+                value={formatMoney(summary.fundFlow, 'PKR')}
                 hint="Contributions minus withdrawals"
                 tone="amber"
               />
@@ -198,20 +152,14 @@ export default function LedgerPage() {
   );
 }
 
-function Alert({
-  tone,
-  children,
-}: {
-  tone: "error" | "success";
-  children: React.ReactNode;
-}) {
+function Alert({ tone, children }: { tone: 'error' | 'success'; children: React.ReactNode }) {
   return (
     <div
       role="status"
       className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
-        tone === "error"
-          ? "border-rose-400/20 bg-rose-400/8 text-rose-200"
-          : "border-emerald-400/20 bg-emerald-400/8 text-emerald-200"
+        tone === 'error'
+          ? 'border-rose-400/20 bg-rose-400/8 text-rose-200'
+          : 'border-emerald-400/20 bg-emerald-400/8 text-emerald-200'
       }`}
     >
       {children}

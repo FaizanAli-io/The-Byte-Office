@@ -1,26 +1,21 @@
-"use client";
+'use client';
 
-import { currentMonth } from "@/lib/ledger";
-import type {
-  LedgerAccount,
-  LedgerEntry,
-  MonthlyLedger,
-  MonthlyLedgerPayload,
-} from "@/types/ledger";
-import { useCallback, useEffect, useState } from "react";
+import { currentMonth } from '@/lib/ledger';
+import type { LedgerAccount, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
+import { useCallback, useEffect, useState } from 'react';
 
 export function useLedger() {
   const [month, setMonth] = useState(currentMonth);
   const [ledger, setLedger] = useState<MonthlyLedger | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const load = useCallback(async (selectedMonth: string) => {
     setLoading(true);
-    setError("");
-    setNotice("");
+    setError('');
+    setNotice('');
     try {
       const response = await fetch(`/api/ledger?month=${selectedMonth}`);
       if (response.status === 404) {
@@ -28,12 +23,10 @@ export function useLedger() {
         return;
       }
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Could not load ledger");
+      if (!response.ok) throw new Error(data.error || 'Could not load ledger');
       setLedger(data);
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Could not load ledger",
-      );
+      setError(cause instanceof Error ? cause.message : 'Could not load ledger');
     } finally {
       setLoading(false);
     }
@@ -45,26 +38,19 @@ export function useLedger() {
 
   async function create(importFinance: boolean) {
     setSaving(true);
-    setError("");
+    setError('');
     try {
-      const response = await fetch("/api/ledger", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ month, importFinance }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Could not create ledger");
+      if (!response.ok) throw new Error(data.error || 'Could not create ledger');
       setLedger(data);
-      setNotice(
-        importFinance
-          ? "Opening balances imported from the portfolio editor."
-          : "Monthly ledger created.",
-      );
+      setNotice(importFinance ? 'Opening balances imported from the portfolio editor.' : 'Monthly ledger created.');
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Could not create ledger",
-      );
+      setError(cause instanceof Error ? cause.message : 'Could not create ledger');
     } finally {
       setSaving(false);
     }
@@ -73,35 +59,33 @@ export function useLedger() {
   async function save(status = ledger?.status) {
     if (!ledger || !status) return;
     setSaving(true);
-    setError("");
-    setNotice("");
+    setError('');
+    setNotice('');
     try {
       const payload: MonthlyLedgerPayload = {
         month: ledger.month,
         status,
         accounts: ledger.accounts,
         entries: ledger.entries,
-        finalizedAt: status === "finalized" ? ledger.finalizedAt : undefined,
+        finalizedAt: status === 'finalized' ? ledger.finalizedAt : undefined,
       };
-      const response = await fetch("/api/ledger", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/ledger', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Could not save ledger");
+      if (!response.ok) throw new Error(data.error || 'Could not save ledger');
       setLedger(data);
       setNotice(
-        status === "finalized"
-          ? "Month finalized and locked."
-          : ledger.status === "finalized"
-            ? "Month reopened for editing."
-            : "Ledger saved.",
+        status === 'finalized'
+          ? 'Month finalized and locked.'
+          : ledger.status === 'finalized'
+            ? 'Month reopened for editing.'
+            : 'Ledger saved.'
       );
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Could not save ledger",
-      );
+      setError(cause instanceof Error ? cause.message : 'Could not save ledger');
     } finally {
       setSaving(false);
     }
@@ -112,29 +96,20 @@ export function useLedger() {
       current
         ? {
             ...current,
-            accounts: current.accounts.map((account) =>
-              account.id === id ? { ...account, ...patch } : account,
-            ),
+            accounts: current.accounts.map((account) => (account.id === id ? { ...account, ...patch } : account)),
           }
-        : current,
+        : current
     );
   }
 
   function addAccount(account: LedgerAccount) {
-    setLedger((current) =>
-      current
-        ? { ...current, accounts: [...current.accounts, account] }
-        : current,
-    );
+    setLedger((current) => (current ? { ...current, accounts: [...current.accounts, account] } : current));
   }
 
   function removeAccount(id: string) {
     setLedger((current) => {
-      if (
-        !current ||
-        current.entries.some((entry) => entryUsesAccount(entry, id))
-      ) {
-        setError("Delete entries for this account before removing it.");
+      if (!current || current.entries.some((entry) => entryUsesAccount(entry, id))) {
+        setError('Delete entries for this account before removing it.');
         return current;
       }
       return {
@@ -145,9 +120,7 @@ export function useLedger() {
   }
 
   function addEntry(entry: LedgerEntry) {
-    setLedger((current) =>
-      current ? { ...current, entries: [...current.entries, entry] } : current,
-    );
+    setLedger((current) => (current ? { ...current, entries: [...current.entries, entry] } : current));
   }
 
   function updateEntry(entry: LedgerEntry) {
@@ -155,11 +128,9 @@ export function useLedger() {
       current
         ? {
             ...current,
-            entries: current.entries.map((item) =>
-              item.id === entry.id ? entry : item,
-            ),
+            entries: current.entries.map((item) => (item.id === entry.id ? entry : item)),
           }
-        : current,
+        : current
     );
   }
 
@@ -170,7 +141,7 @@ export function useLedger() {
             ...current,
             entries: current.entries.filter((entry) => entry.id !== id),
           }
-        : current,
+        : current
     );
   }
 

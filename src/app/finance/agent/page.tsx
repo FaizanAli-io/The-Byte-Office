@@ -1,5 +1,5 @@
-import { FinancePageShell } from "../components/FinanceUI";
-import { FinanceAgentChat } from "./components/FinanceAgentChat";
+import { FinancePageShell } from '../components/FinanceUI';
+import { FinanceAgentChat } from './components/FinanceAgentChat';
 
 export default function FinanceAgentPage() {
   return (
