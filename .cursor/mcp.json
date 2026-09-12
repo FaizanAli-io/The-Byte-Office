@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "the-byte-office": {
+      "url": "http://localhost:3000/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:MCP_API_KEY}"
+      }
+    }
+  }
+}

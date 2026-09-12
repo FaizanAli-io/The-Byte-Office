@@ -10,9 +10,11 @@
     "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:import-mongo": "node scripts/migrate-mongo-to-postgres.mjs"
+    "db:import-mongo": "node scripts/migrate-mongo-to-postgres.mjs",
+    "mcp:smoke": "node scripts/mcp-smoke.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
     "@neondatabase/serverless": "^1.1.0",
     "drizzle-orm": "^0.44.7",
     "framer-motion": "^12.19.2",
@@ -21,7 +23,8 @@
     "nodemailer": "^10.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "recharts": "^3.3.0"
+    "recharts": "^3.3.0",
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
@@ -35,6 +38,7 @@
     "eslint-config-next": "15.3.8",
     "prettier": "^3.8.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

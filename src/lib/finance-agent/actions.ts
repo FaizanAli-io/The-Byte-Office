@@ -30,6 +30,17 @@ import type {
 
 export { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
 
+export const FINANCE_WRITE_ACTIONS = [
+  'portfolio_item_add',
+  'portfolio_item_update',
+  'portfolio_item_remove',
+  'ledger_entry_add',
+  'ledger_entry_update',
+  'ledger_entry_remove',
+] as const;
+
+export type FinanceWriteAction = (typeof FINANCE_WRITE_ACTIONS)[number];
+
 export async function proposeAgentAction(actionType: AgentActionType, rawArgs: unknown) {
   const args = requireRecord(rawArgs);
 
@@ -163,6 +174,12 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
       note: current.note,
     })
   );
+}
+
+export async function applyFinanceAction(actionType: FinanceWriteAction, rawArgs: unknown) {
+  const pending = await proposeAgentAction(actionType, rawArgs);
+  const { result } = await executeAgentAction(pending.id, rawArgs);
+  return result;
 }
 
 export async function executeAgentAction(id: string, entryOverride?: unknown) {
@@ -521,7 +538,6 @@ function requirePositive(value: unknown, key: string) {
 function portfolioLabel(type: PortfolioItemType) {
   return type.replace('_', ' ');
 }
-
 
 function applyEntryOverride(payload: AgentActionPayload, override: unknown): AgentActionPayload {
   if (
