@@ -1,0 +1,3 @@
+ALTER TABLE "finance"."agent_conversations" ADD COLUMN "workspace" text DEFAULT 'finance' NOT NULL;--> statement-breakpoint
+CREATE INDEX "agent_conversations_workspace_updated_idx" ON "finance"."agent_conversations" USING btree ("workspace","updated_at");--> statement-breakpoint
+ALTER TABLE "finance"."agent_conversations" ADD CONSTRAINT "agent_conversations_workspace_check" CHECK ("finance"."agent_conversations"."workspace" in ('finance', 'personal'));

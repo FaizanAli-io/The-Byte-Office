@@ -68,8 +68,9 @@ export default function FinanceAgentLogsPage() {
 
   return (
     <FinancePageShell
+      section="agent"
       title="Assistant logs"
-      description="Review every finance tool call made by the assistant, including its arguments, result, model, timing, and errors. This page refreshes every 5 seconds."
+      description="Review every tool call made by the assistant, including its arguments, result, model, timing, and errors. This page refreshes every 5 seconds."
       actions={
         <button type="button" className={financeStyles.secondary} onClick={() => void loadLogs()} disabled={refreshing}>
           {refreshing ? 'Refreshing…' : 'Refresh logs'}

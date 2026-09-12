@@ -1,24 +1,34 @@
 'use client';
 
-import { accountStats, formatMoney } from '@/lib/ledger';
+import { accountStats, formatMoney, formatVariancePct, reconcileDate, variancePct } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
 import { useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 
 export function LedgerAccounts({
+  month,
   accounts,
   entries,
   readOnly,
+  saving,
+  accountsDirty,
   onAdd,
   onChange,
   onRemove,
+  onAddEntry,
+  onSave,
 }: {
+  month: string;
   accounts: LedgerAccount[];
   entries: LedgerEntry[];
   readOnly: boolean;
+  saving: boolean;
+  accountsDirty: boolean;
   onAdd: (account: LedgerAccount) => void;
   onChange: (id: string, patch: Partial<LedgerAccount>) => void;
   onRemove: (id: string) => void;
+  onAddEntry: (entry: LedgerEntry) => void;
+  onSave: () => void;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [draft, setDraft] = useState({
@@ -42,15 +52,42 @@ export function LedgerAccounts({
     setShowAdd(false);
   }
 
+  function forceReconcile(account: LedgerAccount) {
+    const stats = accountStats(account, entries);
+    if (account.type !== 'bank' || stats.difference === undefined || Math.abs(stats.difference) < 0.01) {
+      return;
+    }
+    onAddEntry({
+      id: crypto.randomUUID(),
+      date: reconcileDate(month),
+      type: stats.difference > 0 ? 'income' : 'expense',
+      accountId: account.id,
+      amount: Math.round(Math.abs(stats.difference) * 100) / 100,
+      exchangeRate: account.exchangeRate,
+      category: 'Reconciliation',
+      note: 'Force reconcile',
+    });
+  }
+
   return (
     <FinanceCard
       title="Accounts & opening balances"
       description="Native account balances stay separate; USD is converted only in PKR summaries."
       action={
         !readOnly ? (
-          <button type="button" className={financeStyles.secondary} onClick={() => setShowAdd((value) => !value)}>
-            {showAdd ? 'Cancel' : 'Add account'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={financeStyles.primary}
+              disabled={saving || !accountsDirty}
+              onClick={onSave}
+            >
+              {saving && accountsDirty ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" className={financeStyles.secondary} onClick={() => setShowAdd((value) => !value)}>
+              {showAdd ? 'Cancel' : 'Add account'}
+            </button>
+          </div>
         ) : null
       }
     >
@@ -109,17 +146,18 @@ export function LedgerAccounts({
         <div className="grid gap-4 xl:grid-cols-2">
           {accounts.map((account) => {
             const stats = accountStats(account, entries);
+            const variance = variancePct(stats.difference, stats.expected);
+            const canForceReconcile =
+              !readOnly &&
+              account.type === 'bank' &&
+              stats.difference !== undefined &&
+              Math.abs(stats.difference) >= 0.01;
             return (
               <div key={account.id} className={`${financeStyles.inset} p-4`}>
                 <div className="mb-4 flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-bold text-slate-100">{account.name}</h3>
-                      <Badge>{account.type === 'fund' ? 'Fund' : account.currency}</Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-600">
-                      Expected now: {formatMoney(stats.expected, account.currency)}
-                    </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-bold text-slate-100">{account.name}</h3>
+                    <Badge>{account.type === 'fund' ? 'Fund' : account.currency}</Badge>
                   </div>
                   {!readOnly ? (
                     <button
@@ -140,6 +178,9 @@ export function LedgerAccounts({
                       onChange={(openingBalance) => onChange(account.id, { openingBalance })}
                     />
                   </Field>
+                  <Field label={account.type === 'fund' ? 'Expected book value' : 'Expected closing'}>
+                    <MoneyInput value={stats.expected} disabled onChange={() => undefined} />
+                  </Field>
                   <Field label={account.type === 'fund' ? 'Current market value' : 'Actual closing balance'}>
                     <MoneyInput
                       value={account.actualClosingBalance}
@@ -149,7 +190,10 @@ export function LedgerAccounts({
                     />
                   </Field>
                   {account.type === 'fund' ? (
-                    <Field label="Opening cost basis">
+                    <Field
+                      label="Opening cost basis"
+                      hint="Cash invested at month start, not the market value."
+                    >
                       <MoneyInput
                         value={account.openingCostBasis}
                         disabled={readOnly}
@@ -168,36 +212,49 @@ export function LedgerAccounts({
                   ) : null}
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/6 pt-4 text-sm">
-                  <Metric
-                    label={account.type === 'fund' ? 'Net invested' : 'Difference'}
-                    value={
-                      account.type === 'fund'
-                        ? formatMoney(stats.netInvested, account.currency)
-                        : stats.difference === undefined
-                          ? 'Not reconciled'
-                          : formatMoney(stats.difference, account.currency)
-                    }
-                  />
-                  <Metric
-                    label={account.type === 'fund' ? 'Gain / loss' : 'Status'}
-                    value={
-                      account.type === 'fund'
-                        ? stats.gainLoss === undefined
-                          ? 'Add current value'
-                          : formatMoney(stats.gainLoss, account.currency)
-                        : stats.difference === undefined
-                          ? 'Pending'
-                          : Math.abs(stats.difference) < 0.01
-                            ? 'Matched'
-                            : 'Review'
-                    }
-                    positive={
-                      account.type === 'fund'
-                        ? (stats.gainLoss ?? 0) >= 0
-                        : stats.difference !== undefined && Math.abs(stats.difference) < 0.01
-                    }
-                  />
+                <div className="mt-4 flex flex-col gap-3 border-t border-white/6 pt-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="grid flex-1 grid-cols-2 gap-3 text-sm">
+                    <Metric
+                      label={account.type === 'fund' ? 'Net invested' : 'Difference'}
+                      value={
+                        account.type === 'fund'
+                          ? formatMoney(stats.netInvested, account.currency)
+                          : stats.difference === undefined
+                            ? 'Not reconciled'
+                            : formatMoney(stats.difference, account.currency)
+                      }
+                    />
+                    <Metric
+                      label={account.type === 'fund' ? 'Gain / loss' : 'Variance'}
+                      value={
+                        account.type === 'fund'
+                          ? stats.gainLoss === undefined
+                            ? 'Add current value'
+                            : formatMoney(stats.gainLoss, account.currency)
+                          : formatVariancePct(variance)
+                      }
+                      positive={
+                        account.type === 'fund'
+                          ? (stats.gainLoss ?? 0) >= 0
+                          : stats.difference !== undefined && Math.abs(stats.difference) < 0.01
+                      }
+                    />
+                  </div>
+                  {account.type === 'bank' && !readOnly ? (
+                    <button
+                      type="button"
+                      className={financeStyles.secondary}
+                      disabled={!canForceReconcile}
+                      title={
+                        canForceReconcile
+                          ? 'Add a transaction so expected closing matches the actual'
+                          : 'Enter an actual closing that differs from expected'
+                      }
+                      onClick={() => forceReconcile(account)}
+                    >
+                      Force reconcile
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );
@@ -208,11 +265,20 @@ export function LedgerAccounts({
   );
 }
 
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label>
       <span className={financeStyles.label}>{label}</span>
       {children}
+      {hint ? <span className="mt-1 block text-[11px] leading-4 text-slate-600">{hint}</span> : null}
     </label>
   );
 }

@@ -33,5 +33,10 @@ export const config = {
     '/api/finance-agent/:path*',
     '/api/snapshots/:path*',
     '/api/ledger/:path*',
+    '/api/prayers',
+    '/api/prayers/:path*',
+    '/api/health-tracking',
+    '/api/health-tracking/:path*',
+    '/api/agent/:path*',
   ],
 };

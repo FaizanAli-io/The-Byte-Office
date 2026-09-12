@@ -7,8 +7,7 @@ import {
   integer,
   jsonb,
   numeric,
-  pgEnum,
-  pgTable,
+  pgSchema,
   text,
   timestamp,
   uniqueIndex,
@@ -18,25 +17,30 @@ import {
 /**
  * Maps the Mongo `finance` database to Postgres.
  *
- *   Mongo collection `data`        → local_banks, remote_banks, mutual_funds
- *   Mongo collection `ledgers`     → ledgers, ledger_accounts, ledger_entries
- *   Mongo collection `snapshots`   → finance_snapshots (JSONB copy of holdings)
+ *   Mongo collection `data`        → finance.local_banks, remote_banks, mutual_funds
+ *   Mongo collection `ledgers`     → finance.ledgers, ledger_accounts, ledger_entries
+ *   Mongo collection `snapshots`   → finance.finance_snapshots (JSONB copy of holdings)
  *
  * Holding tables replace the single finance document. Array order is kept in
  * `sort_order`. Ledger account/entry UUIDs from Mongo are preserved.
+ *
+ * `personal` holds prayers and health tracking.
  */
 
-export const ledgerStatusEnum = pgEnum('ledger_status', ['draft', 'finalized']);
-export const ledgerAccountTypeEnum = pgEnum('ledger_account_type', ['bank', 'fund']);
-export const ledgerCurrencyEnum = pgEnum('ledger_currency', ['PKR', 'USD']);
-export const ledgerEntryTypeEnum = pgEnum('ledger_entry_type', [
+export const finance = pgSchema('finance');
+export const personal = pgSchema('personal');
+
+export const ledgerStatusEnum = finance.enum('ledger_status', ['draft', 'finalized']);
+export const ledgerAccountTypeEnum = finance.enum('ledger_account_type', ['bank', 'fund']);
+export const ledgerCurrencyEnum = finance.enum('ledger_currency', ['PKR', 'USD']);
+export const ledgerEntryTypeEnum = finance.enum('ledger_entry_type', [
   'income',
   'expense',
   'transfer',
   'fund_contribution',
   'fund_withdrawal',
 ]);
-export const financeAgentActionStatusEnum = pgEnum('finance_agent_action_status', [
+export const financeAgentActionStatusEnum = finance.enum('finance_agent_action_status', [
   'pending',
   'executing',
   'completed',
@@ -44,7 +48,7 @@ export const financeAgentActionStatusEnum = pgEnum('finance_agent_action_status'
   'failed',
 ]);
 
-export const localBanks = pgTable('local_banks', {
+export const localBanks = finance.table('local_banks', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   amountPkr: numeric('amount_pkr', {
@@ -59,7 +63,7 @@ export const localBanks = pgTable('local_banks', {
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
 
-export const remoteBanks = pgTable('remote_banks', {
+export const remoteBanks = finance.table('remote_banks', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   amountUsd: numeric('amount_usd', {
@@ -81,7 +85,7 @@ export const remoteBanks = pgTable('remote_banks', {
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
 
-export const mutualFunds = pgTable('mutual_funds', {
+export const mutualFunds = finance.table('mutual_funds', {
   id: uuid('id').defaultRandom().primaryKey(),
   bankName: text('bank_name').notNull(),
   fundName: text('fund_name').notNull(),
@@ -91,7 +95,7 @@ export const mutualFunds = pgTable('mutual_funds', {
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
 
-export const ledgers = pgTable(
+export const ledgers = finance.table(
   'ledgers',
   {
     id: uuid('id').defaultRandom().primaryKey(),
@@ -110,7 +114,7 @@ export const ledgers = pgTable(
   ]
 );
 
-export const ledgerAccounts = pgTable(
+export const ledgerAccounts = finance.table(
   'ledger_accounts',
   {
     id: uuid('id').primaryKey(),
@@ -147,7 +151,7 @@ export const ledgerAccounts = pgTable(
   (table) => [index('ledger_accounts_ledger_idx').on(table.ledgerId)]
 );
 
-export const ledgerEntries = pgTable(
+export const ledgerEntries = finance.table(
   'ledger_entries',
   {
     id: uuid('id').primaryKey(),
@@ -197,7 +201,7 @@ export type SnapshotHoldings = {
   mutualFunds: Record<string, { fund: string; value: number }[]>[];
 };
 
-export const financeSnapshots = pgTable(
+export const financeSnapshots = finance.table(
   'finance_snapshots',
   {
     id: uuid('id').defaultRandom().primaryKey(),
@@ -212,7 +216,7 @@ export const financeSnapshots = pgTable(
   (table) => [index('finance_snapshots_timestamp_idx').on(table.timestamp)]
 );
 
-export const financeAgentActions = pgTable(
+export const financeAgentActions = finance.table(
   'finance_agent_actions',
   {
     id: uuid('id').defaultRandom().primaryKey(),
@@ -235,20 +239,42 @@ export const financeAgentActions = pgTable(
   (table) => [index('finance_agent_actions_status_expiry_idx').on(table.status, table.expiresAt)]
 );
 
-export const financeAgentMessages = pgTable(
+export const agentConversations = finance.table(
+  'agent_conversations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    title: text('title').notNull().default('New chat'),
+    workspace: text('workspace').notNull().default('finance'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('agent_conversations_updated_idx').on(table.updatedAt),
+    index('agent_conversations_workspace_updated_idx').on(table.workspace, table.updatedAt),
+    check('agent_conversations_workspace_check', sql`${table.workspace} in ('finance', 'personal')`),
+  ]
+);
+
+export const financeAgentMessages = finance.table(
   'finance_agent_messages',
   {
     id: uuid('id').primaryKey(),
+    chatId: uuid('chat_id')
+      .notNull()
+      .references(() => agentConversations.id, { onDelete: 'cascade' }),
     role: text('role').notNull(),
     content: text('content').notNull(),
     actions: jsonb('actions').$type<unknown[]>().notNull().default([]),
     isError: boolean('is_error').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
-  (table) => [index('finance_agent_messages_created_idx').on(table.createdAt)]
+  (table) => [
+    index('finance_agent_messages_created_idx').on(table.createdAt),
+    index('finance_agent_messages_chat_idx').on(table.chatId, table.createdAt),
+  ]
 );
 
-export const financeAgentToolLogs = pgTable(
+export const financeAgentToolLogs = finance.table(
   'finance_agent_tool_logs',
   {
     id: uuid('id').defaultRandom().primaryKey(),
@@ -266,6 +292,39 @@ export const financeAgentToolLogs = pgTable(
     index('finance_agent_tool_logs_created_idx').on(table.createdAt),
     index('finance_agent_tool_logs_request_idx').on(table.requestId),
     index('finance_agent_tool_logs_tool_idx').on(table.toolName),
+  ]
+);
+
+export const NAMAAZ_VALUES = ['fajr', 'zuhr', 'asar', 'maghreb', 'isha'] as const;
+export type Namaaz = (typeof NAMAAZ_VALUES)[number];
+
+export const namaazEnum = personal.enum('namaaz', NAMAAZ_VALUES);
+
+export const prayers = personal.table(
+  'prayers',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    namaaz: namaazEnum('namaaz').notNull(),
+    missed: integer('missed').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('prayers_namaaz_uidx').on(table.namaaz),
+    check('prayers_missed_non_negative', sql`${table.missed} >= 0`),
+  ]
+);
+
+export const healthTracking = personal.table(
+  'health_tracking',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    metric: text('metric').notNull(),
+    value: integer('value').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('health_tracking_created_idx').on(table.createdAt),
+    index('health_tracking_metric_idx').on(table.metric),
   ]
 );
 

@@ -54,6 +54,26 @@ export function expectedBalance(account: LedgerAccount, entries: LedgerEntry[]) 
   return entries.reduce((balance, entry) => balance + accountMovement(account.id, entry), account.openingBalance);
 }
 
+export function reconcileDate(month: string) {
+  const today = new Date();
+  const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const bounds = monthBounds(month);
+  return iso >= bounds.min && iso <= bounds.max ? iso : bounds.max;
+}
+
+export function variancePct(difference: number | undefined, expected: number) {
+  if (difference === undefined) return undefined;
+  if (Math.abs(expected) < 0.0001) return difference === 0 ? 0 : null;
+  return (difference / expected) * 100;
+}
+
+export function formatVariancePct(pct: number | null | undefined) {
+  if (pct === undefined) return '—';
+  if (pct === null) return 'n/a';
+  const sign = pct > 0 ? '+' : '';
+  return `${sign}${pct.toFixed(2)}%`;
+}
+
 export function accountStats(account: LedgerAccount, entries: LedgerEntry[]) {
   const expected = expectedBalance(account, entries);
   const actual = account.actualClosingBalance;

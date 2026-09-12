@@ -3,13 +3,15 @@ import { listLedgerSummaries } from '@/lib/db/queries';
 import {
   formatGroqErrorForUser,
   GroqError,
+  PRIMARY_MODEL,
   requestGroq,
   type GroqMessage,
   type GroqToolChoice,
 } from '@/lib/finance-agent/groq';
-import { executeFinanceTool, financeAgentTools } from '@/lib/finance-agent/tools';
+import { getAgentRuntime } from '@/lib/agent/runtime';
+import { executeFinanceTool } from '@/lib/finance-agent/tools';
 import type { FinanceAgentResponse, FinanceChatMessage, PendingAgentAction } from '@/lib/finance-agent/types';
-import { logAgentToolCall, saveAgentMessage } from '@/lib/finance-agent/repository';
+import { getConversation, logAgentToolCall, saveAgentMessage } from '@/lib/finance-agent/repository';
 import { NextResponse } from 'next/server';
 
 const MAX_MESSAGES = 24;
@@ -18,28 +20,22 @@ const MAX_TOTAL_CHARS = 24_000;
 const MAX_TOOL_ROUNDS = 6;
 const MAX_TOOL_CALLS = 8;
 
-const systemPrompt = `You are the private finance assistant for The Byte Office.
-Be concise, accurate, and explicit about currencies. Use tools for every claim about live portfolio, snapshots, or ledgers. Never invent IDs or balances.
-Read before proposing a mutation. Write tools create pending confirmation proposals only: they do not apply changes. Say that the user must review and confirm the card, and never claim a pending action succeeded.
-Do not ask for or reveal credentials. Do not provide arbitrary SQL. Refuse requests outside the available finance tools.
-For ambiguous portfolio mutations, ask one focused clarification instead of guessing. Finalized ledgers are read-only.
-When the user wants to add a ledger entry, immediately call ledger_entry_add. Never ask for type, account, amount, date, or notes — a form appears in chat with those fields. Type defaults to expense, account to the first account, and date to today. Month is enough; if unknown, list ledgers then call ledger_entry_add with the latest draft month.
-When the user wants to add a ledger entry, pass every detail they explicitly supplied—type, accountName or accountId, amount, date, category, and note—to ledger_entry_add. Preserve those details in the form; only missing fields may use defaults.
-When the user wants to edit or remove a ledger entry, load the ledger if needed. Use its entry serial (for example, 0001) as entrySerial when calling ledger_entry_update or ledger_entry_remove; do not expose or ask for UUIDs. Do not ask them to retype existing fields.
-The user submits the form to save. Keep your reply short and point them at the form.
-When invoking tools, always provide arguments as a clean JSON object. For parameterless tools (portfolio_get, snapshots_list, ledgers_list), always pass an empty object: {}.
-For responses with multiple values, comparisons, or records, prefer clear Markdown headings, bullet lists, and Markdown tables. Keep prose concise and never put sensitive credentials in output.`;
-
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { messages?: unknown };
+    const body = (await request.json()) as { chatId?: unknown; messages?: unknown };
+    const chatId = typeof body.chatId === 'string' ? body.chatId : '';
+    const conversation = chatId ? await getConversation(chatId) : null;
+    if (!conversation) {
+      return error('Chat not found', 404);
+    }
+    const runtime = getAgentRuntime();
     const history = sanitizeHistory(body.messages);
     if (!history.length || history.at(-1)?.role !== 'user') {
       return error('A user message is required', 400);
     }
 
     const lastUser = history.at(-1)!;
-    await saveAgentMessage({
+    await saveAgentMessage(chatId, {
       id: lastUser.id,
       role: 'user',
       content: lastUser.content,
@@ -55,13 +51,13 @@ export async function POST(request: Request) {
         try {
           send({ type: 'status', status: 'thinking' });
           const messages: GroqMessage[] = [
-            { role: 'system', content: systemPrompt },
+            { role: 'system', content: runtime.systemPrompt },
             ...history.map(({ role, content }) => ({ role, content })),
           ];
           const pendingActions: PendingAgentAction[] = [];
           const requestId = randomUUID();
           let toolCalls = 0;
-          let model = 'openai/gpt-oss-20b';
+          let model = PRIMARY_MODEL;
           let streamedText = '';
           let finalText = '';
 
@@ -73,7 +69,7 @@ export async function POST(request: Request) {
             const forcedTool = round === 0 && requiredTool ? requiredTool : needsAddForm ? 'ledger_entry_add' : null;
             const response = await requestGroq({
               messages,
-              tools: financeAgentTools,
+              tools: runtime.tools,
               toolChoice: forcedTool
                 ? ({
                     type: 'function',
@@ -108,7 +104,7 @@ export async function POST(request: Request) {
               const toolName = call.function.name.replace(/^functions\./, '').trim();
               try {
                 toolArgs = parseToolArguments(call.function.arguments, toolName);
-                const result = await executeFinanceTool(toolName, toolArgs);
+                const result = await runtime.execute(toolName, toolArgs);
                 toolOutput = result.output;
                 if (result.pendingAction) pendingActions.push(result.pendingAction);
               } catch (cause) {
@@ -172,7 +168,7 @@ export async function POST(request: Request) {
           }
           const response = buildResponse(streamedText || finalText, pendingActions, model);
           try {
-            await saveAgentMessage(response.message);
+            await saveAgentMessage(chatId, response.message);
           } catch (persistError) {
             console.error('Could not persist finance agent assistant message:', persistError);
           }
@@ -184,7 +180,7 @@ export async function POST(request: Request) {
           console.error('POST /api/finance-agent/chat stream error:', cause);
           const message = formatGroqErrorForUser(cause);
           try {
-            await saveAgentMessage({
+            await saveAgentMessage(chatId, {
               id: randomUUID(),
               role: 'assistant',
               content: `I couldn't complete that request.\n\n${message}`,
@@ -214,7 +210,7 @@ export async function POST(request: Request) {
     console.error('POST /api/finance-agent/chat error:', cause);
     if (cause instanceof RequestValidationError) return error(cause.message, cause.status);
     if (cause instanceof GroqError) return error(cause.message, cause.status);
-    return error('The finance assistant is temporarily unavailable', 500);
+    return error('The assistant is temporarily unavailable', 500);
   }
 }
 
@@ -259,7 +255,7 @@ function sanitizeHistory(value: unknown) {
   return messages;
 }
 
-const PARAMETERLESS_TOOLS = new Set(['portfolio_get', 'snapshots_list', 'ledgers_list']);
+const PARAMETERLESS_TOOLS = new Set(['portfolio_get', 'snapshots_list', 'ledgers_list', 'prayers_list', 'health_list']);
 
 function parseToolArguments(raw: unknown, toolName?: string): Record<string, unknown> {
   if (raw === null || raw === undefined) {

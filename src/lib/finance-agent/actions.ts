@@ -1,4 +1,7 @@
 import { randomUUID } from 'crypto';
+import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
+import { executePersonalPayload } from '@/lib/agent/modules/personal';
+import { executeTboInquiry } from '@/lib/agent/modules/tbo-actions';
 import { loadLedger, saveLedger } from '@/lib/db/queries';
 import { isRecord, validMoney, validName, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
 import { monthBounds } from '@/lib/ledger';
@@ -21,19 +24,11 @@ import type {
   AgentActionPayload,
   AgentActionType,
   LedgerEntryFormState,
-  PendingAgentAction,
   PortfolioItemInput,
   PortfolioItemType,
 } from './types';
 
-export class AgentActionError extends Error {
-  constructor(
-    message: string,
-    public status = 400
-  ) {
-    super(message);
-  }
-}
+export { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
 
 export async function proposeAgentAction(actionType: AgentActionType, rawArgs: unknown) {
   const args = requireRecord(rawArgs);
@@ -149,7 +144,7 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
   return toPublicAction(
     await createAgentAction({
       actionType,
-      payload: { actionType, month, entryId, entry: current },
+      payload: { actionType: 'ledger_entry_update', month, entryId, entry: current },
       preview: {
         title: 'Update ledger entry',
         before: current,
@@ -235,6 +230,14 @@ async function executePayload(payload: AgentActionPayload, sourceFingerprint: st
     case 'ledger_entry_update':
     case 'ledger_entry_remove':
       return executeLedgerPayload(payload, sourceFingerprint);
+    case 'prayer_set':
+    case 'prayer_remove':
+    case 'health_add':
+    case 'health_update':
+    case 'health_remove':
+      return executePersonalPayload(payload, sourceFingerprint);
+    case 'tbo_send_inquiry':
+      return executeTboInquiry(payload);
   }
 }
 
@@ -519,27 +522,6 @@ function portfolioLabel(type: PortfolioItemType) {
   return type.replace('_', ' ');
 }
 
-export function toPublicAction(
-  action: {
-    id: string;
-    actionType: string;
-    preview: { title: string; before?: unknown; after?: unknown };
-    status: 'pending' | 'executing' | 'completed' | 'cancelled' | 'failed';
-    expiresAt: Date;
-    error: string | null;
-  },
-  form?: LedgerEntryFormState
-): PendingAgentAction {
-  return {
-    id: action.id,
-    actionType: action.actionType as AgentActionType,
-    preview: action.preview,
-    status: action.status,
-    expiresAt: action.expiresAt.toISOString(),
-    error: action.error,
-    form,
-  };
-}
 
 function applyEntryOverride(payload: AgentActionPayload, override: unknown): AgentActionPayload {
   if (

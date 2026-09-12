@@ -36,7 +36,8 @@ export type GroqAssistantMessage = {
 };
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_MODEL = 'openai/gpt-oss-20b';
+export const PRIMARY_MODEL = 'openai/gpt-oss-20b';
+export const FALLBACK_MODEL = 'openai/gpt-oss-120b';
 
 export class GroqError extends Error {
   constructor(
@@ -51,8 +52,10 @@ export function formatGroqErrorForUser(error: unknown) {
   if (!(error instanceof GroqError)) {
     return 'The finance assistant is temporarily unavailable';
   }
-  if (isSharedQuotaError(error)) {
-    return `Groq rate limit reached for ${DEFAULT_MODEL}. Try again later.`;
+  if (isRateLimitError(error)) {
+    return error.message.includes(FALLBACK_MODEL)
+      ? error.message
+      : `Groq rate limit reached for ${PRIMARY_MODEL}. Try again later.`;
   }
   if (error.status === 503 && error.message.includes('not configured')) {
     return 'Groq is not configured. Set GROQ_API_KEY in .env and restart the app.';
@@ -66,29 +69,38 @@ export async function requestGroq(input: {
   onText?: (text: string) => void;
   toolChoice?: 'auto' | 'required' | GroqToolChoice;
 }) {
+  let streamed = false;
+  const onText = (text: string) => {
+    streamed = true;
+    input.onText?.(text);
+  };
+
   try {
-    return await requestModel(input);
+    return await requestModel({ ...input, model: PRIMARY_MODEL, onText });
   } catch (cause) {
-    if (isSharedQuotaError(cause)) {
-      throw new GroqError(formatGroqErrorForUser(cause), 429);
+    if (!isRateLimitError(cause) || streamed) {
+      throw cause;
     }
-    throw cause;
+    try {
+      return await requestModel({ ...input, model: FALLBACK_MODEL, onText });
+    } catch (fallbackCause) {
+      if (isRateLimitError(fallbackCause)) {
+        throw new GroqError(
+          `Groq rate limit reached for ${PRIMARY_MODEL} and ${FALLBACK_MODEL}. Try again later.`,
+          429
+        );
+      }
+      throw fallbackCause;
+    }
   }
 }
 
-function isSharedQuotaError(error: unknown) {
-  if (!(error instanceof GroqError)) return false;
-  if (error.status !== 429) return false;
-  const message = error.message.toLowerCase();
-  return (
-    message.includes('free-models-per-day') ||
-    message.includes('rate limit exceeded') ||
-    message.includes('rate-limited') ||
-    message.includes('too many requests')
-  );
+function isRateLimitError(error: unknown) {
+  return error instanceof GroqError && error.status === 429;
 }
 
 async function requestModel(input: {
+  model: string;
   messages: GroqMessage[];
   tools: GroqTool[];
   onText?: (text: string) => void;
@@ -106,7 +118,7 @@ async function requestModel(input: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: DEFAULT_MODEL,
+      model: input.model,
       messages: input.messages,
       tools: input.tools,
       stream: true,
@@ -131,7 +143,7 @@ async function requestModel(input: {
   const decoder = new TextDecoder();
   let buffer = '';
   let content = '';
-  let responseModel = DEFAULT_MODEL;
+  let responseModel = input.model;
   const toolCalls: GroqToolCall[] = [];
 
   const consume = (data: string) => {

@@ -7,34 +7,28 @@ import { useState, useEffect } from 'react';
 export function useFinanceHandlers() {
   const [data, setData] = useState<FinanceDoc | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   // ------------------ lifecycle ------------------
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/finance');
-        const json = await res.json();
+        const res = await fetch('/api/finance', { cache: 'no-store' });
+        const json = (await res.json()) as FinanceDoc & { error?: string };
 
-        if (!res.ok || !json) {
-          console.warn('/api/finance returned error, falling back to empty data', json);
-          setData({
-            name: 'finance',
-            mutualFunds: [],
-            remoteBanks: [],
-            localBanks: [],
-          });
-        } else {
-          setData(json);
+        if (!res.ok) {
+          throw new Error(json.error || 'Failed to load finance data');
         }
+        if (!json || !Array.isArray(json.localBanks)) {
+          throw new Error('Finance data was empty or invalid');
+        }
+        setData(json);
+        setError('');
       } catch (err) {
-        console.error('Failed to fetch /api/finance, using empty fallback:', err);
-        setData({
-          name: 'finance',
-          mutualFunds: [],
-          remoteBanks: [],
-          localBanks: [],
-        });
+        console.error('Failed to fetch /api/finance:', err);
+        setData(null);
+        setError(err instanceof Error ? err.message : 'Failed to load finance data');
       } finally {
         setLoading(false);
       }
@@ -244,6 +238,7 @@ export function useFinanceHandlers() {
 
   return {
     data,
+    error,
     saving,
     loading,
     handleChange,

@@ -10,6 +10,7 @@ import { useFinanceHandlers } from './useFinanceHandlers';
 export default function FinanceEditor() {
   const {
     data,
+    error,
     saving,
     loading,
     handleChange,
@@ -59,9 +60,15 @@ export default function FinanceEditor() {
 
   if (!data) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-slate-500">No finance data found.</p>
-      </div>
+      <FinancePageShell
+        title="Portfolio editor"
+        description="Keep the latest value of each account and fund. Use snapshots for history and the ledger for monthly reconciliation."
+      >
+        <div className={`${financeStyles.card} p-12 text-center`}>
+          <p className="font-bold text-white">Could not load portfolio</p>
+          <p className="mt-2 text-sm text-slate-500">{error || 'No finance data found.'}</p>
+        </div>
+      </FinancePageShell>
     );
   }
 

@@ -29,6 +29,41 @@
       "when": 1788624620698,
       "tag": "0003_huge_captain_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789170540000,
+      "tag": "0004_move_public_to_finance",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789210336040,
+      "tag": "0005_minor_starfox",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789210867716,
+      "tag": "0006_outgoing_korg",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789211779866,
+      "tag": "0007_acoustic_peter_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789213039207,
+      "tag": "0008_harsh_jackal",
+      "breakpoints": true
     }
   ]
 }

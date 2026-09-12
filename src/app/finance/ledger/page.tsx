@@ -19,6 +19,8 @@ export default function LedgerPage() {
     notice,
     create,
     save,
+    saveAccounts,
+    accountsDirty,
     updateAccount,
     addAccount,
     removeAccount,
@@ -52,25 +54,15 @@ export default function LedgerPage() {
                 Reopen month
               </button>
             ) : (
-              <>
-                <button
-                  type="button"
-                  className={financeStyles.secondary}
-                  disabled={saving}
-                  onClick={() => save('draft')}
-                >
-                  {saving ? 'Saving…' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  className={financeStyles.primary}
-                  disabled={saving || !canFinalize}
-                  title={canFinalize ? undefined : 'Enter every actual closing balance first'}
-                  onClick={() => save('finalized')}
-                >
-                  Finalize month
-                </button>
-              </>
+              <button
+                type="button"
+                className={financeStyles.primary}
+                disabled={saving || !canFinalize}
+                title={canFinalize ? undefined : 'Enter every actual closing balance first'}
+                onClick={() => save('finalized')}
+              >
+                Finalize month
+              </button>
             )
           ) : null}
         </>
@@ -107,7 +99,9 @@ export default function LedgerPage() {
               </span>
             </p>
             <p className="text-xs text-slate-600">
-              {isFinalized ? 'Reopen to make changes' : 'Changes save when you click Save'}
+              {isFinalized
+                ? 'Reopen to make changes'
+                : 'Transactions save automatically. Account balances save when you click Save.'}
             </p>
           </div>
 
@@ -130,12 +124,17 @@ export default function LedgerPage() {
           ) : null}
 
           <LedgerAccounts
+            month={ledger.month}
             accounts={ledger.accounts}
             entries={ledger.entries}
             readOnly={isFinalized}
+            saving={saving}
+            accountsDirty={accountsDirty}
             onAdd={addAccount}
             onChange={updateAccount}
             onRemove={removeAccount}
+            onAddEntry={addEntry}
+            onSave={saveAccounts}
           />
           <LedgerEntries
             month={ledger.month}

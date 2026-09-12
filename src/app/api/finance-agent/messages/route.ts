@@ -1,10 +1,14 @@
-import { clearAgentMessages, listAgentMessages, saveAgentMessage } from '@/lib/finance-agent/repository';
+import { clearAgentMessages, getConversation, listAgentMessages, saveAgentMessage } from '@/lib/finance-agent/repository';
 import type { FinanceChatMessage } from '@/lib/finance-agent/types';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    return NextResponse.json({ messages: await listAgentMessages() });
+    const chatId = new URL(request.url).searchParams.get('chatId');
+    if (!chatId || !(await getConversation(chatId))) {
+      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
+    }
+    return NextResponse.json({ messages: await listAgentMessages(chatId) });
   } catch (cause) {
     console.error('GET /api/finance-agent/messages error:', cause);
     return NextResponse.json({ error: 'Failed to load conversation' }, { status: 500 });
@@ -13,9 +17,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { message?: unknown };
+    const body = (await request.json()) as { chatId?: unknown; message?: unknown };
+    const chatId = typeof body.chatId === 'string' ? body.chatId : '';
+    if (!chatId || !(await getConversation(chatId))) {
+      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
+    }
     const message = parseMessage(body.message);
-    await saveAgentMessage(message);
+    await saveAgentMessage(chatId, message);
     return NextResponse.json({ message });
   } catch (cause) {
     console.error('POST /api/finance-agent/messages error:', cause);
@@ -25,9 +33,13 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
-    await clearAgentMessages();
+    const chatId = new URL(request.url).searchParams.get('chatId');
+    if (!chatId || !(await getConversation(chatId))) {
+      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
+    }
+    await clearAgentMessages(chatId);
     return NextResponse.json({ ok: true });
   } catch (cause) {
     console.error('DELETE /api/finance-agent/messages error:', cause);

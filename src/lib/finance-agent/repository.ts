@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { and, asc, desc, eq, gt, inArray, max } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import {
+  agentConversations,
   financeAgentActions,
   financeAgentMessages,
   financeAgentToolLogs,
@@ -10,14 +11,17 @@ import {
   mutualFunds,
   remoteBanks,
 } from '@/lib/db/schema';
-import type {
-  ActionPreview,
-  AgentActionPayload,
-  AgentActionType,
-  FinanceChatMessage,
-  PendingAgentAction,
-  PortfolioItemInput,
-  PortfolioItemType,
+import {
+  parseAgentWorkspace,
+  type ActionPreview,
+  type AgentActionPayload,
+  type AgentActionType,
+  type AgentConversation,
+  type AgentWorkspace,
+  type FinanceChatMessage,
+  type PendingAgentAction,
+  type PortfolioItemInput,
+  type PortfolioItemType,
 } from './types';
 
 const ACTION_TTL_MS = 15 * 60 * 1000;
@@ -268,10 +272,73 @@ export async function failAgentAction(id: string, error: string) {
   return action ?? null;
 }
 
-export async function listAgentMessages(limit = 80) {
+export async function listConversations(workspace?: AgentWorkspace): Promise<AgentConversation[]> {
+  const db = getDb();
+  const rows = workspace
+    ? await db
+        .select()
+        .from(agentConversations)
+        .where(eq(agentConversations.workspace, workspace))
+        .orderBy(desc(agentConversations.updatedAt))
+    : await db.select().from(agentConversations).orderBy(desc(agentConversations.updatedAt));
+  return rows.map(toConversation);
+}
+
+export async function getConversation(id: string): Promise<AgentConversation | null> {
+  const [row] = await getDb().select().from(agentConversations).where(eq(agentConversations.id, id)).limit(1);
+  return row ? toConversation(row) : null;
+}
+
+export async function createConversation(
+  title = 'New chat',
+  workspace: AgentWorkspace = 'finance'
+): Promise<AgentConversation> {
+  const [row] = await getDb().insert(agentConversations).values({ title, workspace }).returning();
+  return toConversation(row);
+}
+
+export async function renameConversation(id: string, title: string) {
+  const [row] = await getDb()
+    .update(agentConversations)
+    .set({ title, updatedAt: new Date() })
+    .where(eq(agentConversations.id, id))
+    .returning();
+  return row ? toConversation(row) : null;
+}
+
+export async function deleteConversation(id: string) {
+  const deleted = await getDb()
+    .delete(agentConversations)
+    .where(eq(agentConversations.id, id))
+    .returning({ id: agentConversations.id });
+  return deleted.length > 0;
+}
+
+export async function touchConversation(id: string, title?: string) {
+  await getDb()
+    .update(agentConversations)
+    .set({
+      updatedAt: new Date(),
+      ...(title ? { title } : {}),
+    })
+    .where(eq(agentConversations.id, id));
+}
+
+function toConversation(row: typeof agentConversations.$inferSelect): AgentConversation {
+  return {
+    id: row.id,
+    title: row.title,
+    workspace: parseAgentWorkspace(row.workspace),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export async function listAgentMessages(chatId: string, limit = 80) {
   const rows = await getDb()
     .select()
     .from(financeAgentMessages)
+    .where(eq(financeAgentMessages.chatId, chatId))
     .orderBy(asc(financeAgentMessages.createdAt))
     .limit(Math.min(Math.max(limit, 1), 200));
   const storedActions = rows.flatMap((row) => (Array.isArray(row.actions) ? row.actions : []));
@@ -306,11 +373,12 @@ export async function listAgentMessages(limit = 80) {
   });
 }
 
-export async function saveAgentMessage(message: FinanceChatMessage) {
+export async function saveAgentMessage(chatId: string, message: FinanceChatMessage) {
   await getDb()
     .insert(financeAgentMessages)
     .values({
       id: message.id,
+      chatId,
       role: message.role,
       content: message.content,
       actions: message.actions ?? [],
@@ -325,10 +393,18 @@ export async function saveAgentMessage(message: FinanceChatMessage) {
         isError: Boolean(message.isError),
       },
     });
+
+  const conversation = await getConversation(chatId);
+  const nextTitle =
+    conversation?.title === 'New chat' && message.role === 'user'
+      ? message.content.replace(/\s+/g, ' ').slice(0, 48)
+      : undefined;
+  await touchConversation(chatId, nextTitle);
 }
 
-export async function clearAgentMessages() {
-  await getDb().delete(financeAgentMessages);
+export async function clearAgentMessages(chatId: string) {
+  await getDb().delete(financeAgentMessages).where(eq(financeAgentMessages.chatId, chatId));
+  await touchConversation(chatId);
 }
 
 export async function syncActionInMessages(actionId: string, patch: Partial<PendingAgentAction>) {

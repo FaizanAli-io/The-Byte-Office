@@ -10,17 +10,22 @@ import { AllocationChart, TextSummary } from './components';
 export default function SnapshotsPage() {
   const [snapshots, setSnapshots] = useState<FinanceSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<string[]>([]);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [toast, setToast] = useState<FinanceToastState>(null);
 
   useEffect(() => {
-    fetch('/api/snapshots')
+    fetch('/api/snapshots', { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('Could not load snapshots');
         setSnapshots(await response.json());
+        setError('');
       })
-      .catch((error) => console.error('Error fetching snapshots:', error))
+      .catch((cause) => {
+        console.error('Error fetching snapshots:', cause);
+        setError(cause instanceof Error ? cause.message : 'Could not load snapshots');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -57,6 +62,11 @@ export default function SnapshotsPage() {
     >
       {loading ? (
         <div className={`${financeStyles.card} p-12 text-center text-slate-500`}>Loading snapshots…</div>
+      ) : error ? (
+        <div className={`${financeStyles.card} p-12 text-center`}>
+          <p className="font-bold text-white">Could not load snapshots</p>
+          <p className="mt-2 text-sm text-slate-500">{error}</p>
+        </div>
       ) : snapshots.length === 0 ? (
         <div className={`${financeStyles.card} p-12 text-center`}>
           <p className="font-bold text-white">No snapshots yet</p>

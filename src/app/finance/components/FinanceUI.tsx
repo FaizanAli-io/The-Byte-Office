@@ -19,32 +19,50 @@ export const financeStyles = {
     'inline-flex min-h-9 items-center justify-center rounded-lg border border-rose-400/15 bg-rose-400/8 px-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-400/15 disabled:opacity-50',
 };
 
-const links = [
-  { href: '/finance', label: 'Portfolio' },
-  { href: '/finance/snapshots', label: 'Snapshots' },
-  { href: '/finance/ledger', label: 'Monthly ledger' },
-  { href: '/finance/agent', label: 'Assistant' },
-  { href: '/finance/agent/logs', label: 'Assistant logs' },
-];
+const sectionLinks = {
+  finance: [
+    { href: '/finance', label: 'Portfolio' },
+    { href: '/finance/snapshots', label: 'Snapshots' },
+    { href: '/finance/ledger', label: 'Monthly ledger' },
+  ],
+  personal: [
+    { href: '/finance/personal', label: 'Prayers' },
+    { href: '/finance/personal/health', label: 'Health' },
+  ],
+  agent: [
+    { href: '/finance/agent', label: 'Assistant' },
+    { href: '/finance/agent/logs', label: 'Assistant logs' },
+  ],
+} as const;
+
+function isWorkspaceLinkActive(pathname: string, href: string) {
+  if (href === '/finance' || href === '/finance/agent' || href === '/finance/personal') {
+    return pathname === href;
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function FinancePageShell({
   title,
   description,
   actions,
+  section = 'finance',
   children,
 }: {
   title: string;
   description: string;
   actions?: ReactNode;
+  section?: keyof typeof sectionLinks;
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const links = sectionLinks[section];
 
   return (
     <div className="mx-auto w-full max-w-[1480px] px-4 pb-16 pt-24 sm:px-6 sm:pb-20 sm:pt-28 lg:px-8">
       <div className="mb-8 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Private finance workspace</p>
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Private workspace</p>
           <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{title}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">{description}</p>
         </div>
@@ -55,16 +73,11 @@ export function FinancePageShell({
         ) : null}
       </div>
       <nav
-        aria-label="Finance navigation"
+        aria-label="Workspace navigation"
         className="mb-8 flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl border border-white/8 bg-slate-950/55 p-1"
       >
         {links.map((link) => {
-          const active =
-            link.href === '/finance'
-              ? pathname === link.href
-              : link.href === '/finance/agent'
-                ? pathname === link.href
-                : pathname.startsWith(link.href);
+          const active = isWorkspaceLinkActive(pathname, link.href);
           return (
             <Link
               key={link.href}

@@ -2,20 +2,34 @@
 
 import { FormEvent, Fragment, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { FinanceAgentResponse, FinanceChatMessage, PendingAgentAction } from '@/lib/finance-agent/types';
+import type {
+  AgentConversation,
+  FinanceAgentResponse,
+  FinanceChatMessage,
+  PendingAgentAction,
+} from '@/lib/finance-agent/types';
 import { FinanceToast, type FinanceToastState } from '../../components/FinanceToast';
 import { financeStyles } from '../../components/FinanceUI';
 import { LedgerEntryChatForm } from './LedgerEntryChatForm';
 
 const MAX_STORED_MESSAGES = 30;
-const prompts = [
-  'Summarize my current portfolio.',
-  'Show my latest snapshots.',
-  'List my monthly ledgers.',
-  'Compare my current portfolio with the latest snapshot.',
-];
+const ACTIVE_CHAT_KEY = 'tbo_agent_chat_id';
+const copy = {
+  subtitle: 'TBO · finance · personal · writes need confirmation',
+  placeholder: 'Ask about TBO, finance, or personal data…',
+  empty:
+    'I can explain The Byte Office, work with finance data, and update prayers or health readings. Writes wait for your confirmation.',
+  prompts: [
+    'What can The Byte Office build for a SaaS team?',
+    'Summarize my current portfolio.',
+    'How many prayers have I missed?',
+    'Add a health reading for water of 8.',
+  ],
+};
 
 export function FinanceAgentChat() {
+  const [chats, setChats] = useState<AgentConversation[]>([]);
+  const [chatId, setChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<FinanceChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,16 +40,48 @@ export function FinanceAgentChat() {
   const [streaming, setStreaming] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
+  async function loadChats() {
+    const response = await fetch('/api/agent/chats', { cache: 'no-store' });
+    const body = (await response.json()) as { chats?: AgentConversation[]; error?: string };
+    if (!response.ok) throw new Error(body.error || 'Could not load chats');
+    let next = body.chats ?? [];
+    if (!next.length) {
+      const created = await fetch('/api/agent/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const createdBody = (await created.json()) as { chat?: AgentConversation; error?: string };
+      if (!created.ok || !createdBody.chat) throw new Error(createdBody.error || 'Could not create chat');
+      next = [createdBody.chat];
+    }
+    setChats(next);
+    const stored = window.localStorage.getItem(ACTIVE_CHAT_KEY);
+    const selected = next.find((chat) => chat.id === stored)?.id ?? next[0].id;
+    setChatId(selected);
+    window.localStorage.setItem(ACTIVE_CHAT_KEY, selected);
+    return selected;
+  }
+
+  async function loadMessages(id: string) {
+    const response = await fetch(`/api/finance-agent/messages?chatId=${encodeURIComponent(id)}`, {
+      cache: 'no-store',
+    });
+    const body = (await response.json()) as { messages?: FinanceChatMessage[]; error?: string };
+    if (!response.ok) throw new Error(body.error || 'Could not load chat');
+    setMessages(body.messages ?? []);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    void fetch('/api/finance-agent/messages')
-      .then(async (response) => {
-        const body = (await response.json()) as {
-          messages?: FinanceChatMessage[];
-          error?: string;
-        };
-        if (!response.ok) throw new Error(body.error || 'Could not load chat');
-        if (!cancelled) setMessages(body.messages ?? []);
+    setReady(false);
+    setMessages([]);
+    setChats([]);
+    setChatId(null);
+    void loadChats()
+      .then(async (id) => {
+        if (cancelled) return;
+        await loadMessages(id);
       })
       .catch((cause) => {
         if (cancelled) return;
@@ -62,17 +108,22 @@ export function FinanceAgentChat() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  async function submit(content: string, historyOverride?: FinanceChatMessage[]) {
+  async function submit(content: string, historyOverride?: FinanceChatMessage[], retry = false) {
     const text = content.trim();
-    if (!text || loading) return;
-    const userMessage: FinanceChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: text,
-      createdAt: new Date().toISOString(),
-    };
-    const baseMessages = historyOverride ?? messages;
-    const nextMessages = [...baseMessages, userMessage].slice(-MAX_STORED_MESSAGES);
+    if (!text || loading || !chatId) return;
+    const nextMessages = (
+      retry && historyOverride
+        ? historyOverride
+        : [
+            ...(historyOverride ?? messages),
+            {
+              id: crypto.randomUUID(),
+              role: 'user' as const,
+              content: text,
+              createdAt: new Date().toISOString(),
+            },
+          ]
+    ).slice(-MAX_STORED_MESSAGES);
     setMessages(nextMessages);
     setFailedRequest(null);
     setInput('');
@@ -84,7 +135,7 @@ export function FinanceAgentChat() {
       const response = await fetch('/api/finance-agent/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ chatId, messages: nextMessages }),
       });
       if (!response.ok || !response.body) {
         const body = (await response.json()) as { error?: string };
@@ -125,7 +176,7 @@ export function FinanceAgentChat() {
             | { type: 'error'; error: string };
           if (item.type === 'status') {
             if (!streamedContent) {
-              setThinking(item.status === 'reading' ? 'Reading your finance data…' : 'Thinking…');
+              setThinking(item.status === 'reading' ? 'Reading workspace data…' : 'Thinking…');
             }
           } else if (item.type === 'delta') {
             streamedContent += item.content;
@@ -149,6 +200,11 @@ export function FinanceAgentChat() {
         if (done) break;
       }
       if (!completed) throw new Error('The assistant stream ended unexpectedly');
+      const chatsResponse = await fetch('/api/agent/chats', { cache: 'no-store' });
+      if (chatsResponse.ok) {
+        const chatsBody = (await chatsResponse.json()) as { chats?: AgentConversation[] };
+        setChats(chatsBody.chats ?? chats);
+      }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Could not send message';
       const errorMessage: FinanceChatMessage = {
@@ -172,9 +228,10 @@ export function FinanceAgentChat() {
   }
 
   function retryFailedRequest() {
-    const lastUserMessage = failedRequest?.at(-1);
-    if (!lastUserMessage || lastUserMessage.role !== 'user') return;
-    void submit(lastUserMessage.content, failedRequest!.slice(0, -1));
+    if (loading || !chatId) return;
+    const retry = historyForRetry(failedRequest ?? messages);
+    if (!retry) return;
+    void submit(retry.content, retry.history, true);
   }
 
   function onSubmit(event: FormEvent) {
@@ -205,7 +262,7 @@ export function FinanceAgentChat() {
       setMessages((current) => mapAction(current, actionId, () => body.action!));
       setToast({
         tone: intent === 'confirm' ? 'success' : 'info',
-        message: intent === 'confirm' ? 'Finance data updated.' : 'Action cancelled.',
+        message: intent === 'confirm' ? 'Change applied.' : 'Action cancelled.',
       });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Action request failed';
@@ -221,8 +278,9 @@ export function FinanceAgentChat() {
   }
 
   async function clearChat() {
+    if (!chatId) return;
     try {
-      const response = await fetch('/api/finance-agent/messages', {
+      const response = await fetch(`/api/finance-agent/messages?chatId=${encodeURIComponent(chatId)}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
@@ -239,14 +297,106 @@ export function FinanceAgentChat() {
     }
   }
 
+  async function startChat() {
+      const response = await fetch('/api/agent/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+    const body = (await response.json()) as { chat?: AgentConversation; error?: string };
+    if (!response.ok || !body.chat) {
+      setToast({ tone: 'error', message: body.error || 'Could not create chat' });
+      return;
+    }
+    setChats((current) => [body.chat!, ...current]);
+    setChatId(body.chat.id);
+    window.localStorage.setItem(ACTIVE_CHAT_KEY, body.chat.id);
+    setMessages([]);
+    setFailedRequest(null);
+  }
+
+  async function removeChat(id: string) {
+    const response = await fetch(`/api/agent/chats/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!response.ok) {
+      const body = (await response.json()) as { error?: string };
+      setToast({ tone: 'error', message: body.error || 'Could not delete chat' });
+      return;
+    }
+    const remaining = chats.filter((chat) => chat.id !== id);
+    if (!remaining.length) {
+      await startChat();
+      return;
+    }
+    setChats(remaining);
+    const nextId = remaining[0].id;
+    setChatId(nextId);
+    window.localStorage.setItem(ACTIVE_CHAT_KEY, nextId);
+    await loadMessages(nextId);
+  }
+
+  async function selectChat(id: string) {
+    if (id === chatId || loading) return;
+    setChatId(id);
+    window.localStorage.setItem(ACTIVE_CHAT_KEY, id);
+    setFailedRequest(null);
+    setReady(false);
+    try {
+      await loadMessages(id);
+    } catch (cause) {
+      setToast({
+        tone: 'error',
+        message: cause instanceof Error ? cause.message : 'Could not load chat',
+      });
+    } finally {
+      setReady(true);
+    }
+  }
+
+  const activeChat = chats.find((chat) => chat.id === chatId);
+
   return (
     <>
       <div className={`${financeStyles.card} overflow-hidden`}>
-        <div className="flex h-[min(680px,calc(100dvh))] min-h-0 flex-col">
+        <div className="grid h-[min(760px,calc(100dvh))] min-h-0 md:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="border-b border-white/8 md:border-b-0 md:border-r">
+            <div className="flex items-center justify-between px-3 py-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Chats</p>
+              <button type="button" className={financeStyles.secondary} onClick={() => void startChat()}>
+                New
+              </button>
+            </div>
+            <div className="max-h-40 space-y-1 overflow-y-auto px-2 pb-3 md:max-h-[calc(100%-3.5rem)]">
+              {chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`flex items-center gap-1 rounded-lg px-2 py-2 ${
+                    chat.id === chatId ? 'bg-cyan-300/12 text-cyan-100' : 'text-slate-400 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 truncate text-left text-sm font-semibold"
+                    onClick={() => void selectChat(chat.id)}
+                  >
+                    {chat.title}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded px-1 text-xs text-slate-500 hover:text-rose-300"
+                    aria-label={`Delete ${chat.title}`}
+                    onClick={() => void removeChat(chat.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </aside>
+          <div className="flex min-h-0 flex-col">
           <div className="flex items-center justify-between border-b border-white/8 px-4 py-3 sm:px-6">
             <div>
-              <p className="text-sm font-bold text-white">Finance assistant</p>
-              <p className="text-xs text-slate-500">Reads live data · writes require confirmation</p>
+              <p className="text-sm font-bold text-white">{activeChat?.title || 'Assistant'}</p>
+              <p className="text-xs text-slate-500">{copy.subtitle}</p>
             </div>
             <button
               type="button"
@@ -262,14 +412,18 @@ export function FinanceAgentChat() {
             {!ready ? (
               <p className="py-10 text-center text-sm text-slate-500">Loading conversation…</p>
             ) : !messages.length ? (
-              <EmptyState onPrompt={(prompt) => void submit(prompt)} />
+              <EmptyState
+                description={copy.empty}
+                prompts={copy.prompts}
+                onPrompt={(prompt) => void submit(prompt)}
+              />
             ) : (
               messages.map((message) => (
                 <Message
                   key={message.id}
                   message={message}
                   onAction={(id, intent, entry) => void updateAction(id, intent, entry)}
-                  onRetry={message.isError ? retryFailedRequest : undefined}
+                  onRetry={message.isError && !loading ? retryFailedRequest : undefined}
                 />
               ))
             )}
@@ -283,11 +437,11 @@ export function FinanceAgentChat() {
           >
             <div className="flex items-end gap-2">
               <textarea
-                aria-label="Message the finance assistant"
+                aria-label="Message the assistant"
                 className={`${financeStyles.input} max-h-36 min-h-12 resize-none py-3`}
                 rows={1}
                 maxLength={4000}
-                placeholder="Ask about your portfolio, snapshots, or ledger…"
+                placeholder={copy.placeholder}
                 value={input}
                 disabled={loading || !ready}
                 onChange={(event) => setInput(event.target.value)}
@@ -307,9 +461,10 @@ export function FinanceAgentChat() {
               </button>
             </div>
             <p className="mt-2 px-1 text-[11px] text-slate-600">
-              Relevant finance data is sent to Groq to answer requests.
+              Relevant workspace data is sent to Groq to answer requests.
             </p>
           </form>
+          </div>
         </div>
       </div>
       <FinanceToast toast={toast} onDismiss={() => setToast(null)} />
@@ -317,17 +472,22 @@ export function FinanceAgentChat() {
   );
 }
 
-function EmptyState({ onPrompt }: { onPrompt: (prompt: string) => void }) {
+function EmptyState({
+  description,
+  prompts,
+  onPrompt,
+}: {
+  description: string;
+  prompts: string[];
+  onPrompt: (prompt: string) => void;
+}) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center py-10 text-center sm:py-16">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-xl text-cyan-300">
         ✦
       </div>
       <h2 className="mt-5 text-xl font-bold text-white">What would you like to know?</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-500">
-        I can inspect live holdings, snapshots, and monthly ledgers. Any change is staged for your explicit
-        confirmation.
-      </p>
+      <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
       <div className="mt-7 grid w-full gap-2 sm:grid-cols-2">
         {prompts.map((prompt) => (
           <button
@@ -592,6 +752,26 @@ function ThinkingIndicator({ label }: { label: string }) {
       </div>
     </div>
   );
+}
+
+function historyForRetry(source: FinanceChatMessage[]) {
+  let end = source.length;
+  while (end > 0 && source[end - 1].isError) {
+    end -= 1;
+  }
+  const prefix = source.slice(0, end);
+  let lastUserIndex = -1;
+  for (let index = prefix.length - 1; index >= 0; index -= 1) {
+    if (prefix[index].role === 'user') {
+      lastUserIndex = index;
+      break;
+    }
+  }
+  if (lastUserIndex < 0) return null;
+  return {
+    content: prefix[lastUserIndex].content,
+    history: prefix.slice(0, lastUserIndex + 1),
+  };
 }
 
 function mapAction(

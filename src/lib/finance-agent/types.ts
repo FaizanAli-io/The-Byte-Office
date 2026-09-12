@@ -8,7 +8,13 @@ export type AgentActionType =
   | 'portfolio_item_remove'
   | 'ledger_entry_add'
   | 'ledger_entry_update'
-  | 'ledger_entry_remove';
+  | 'ledger_entry_remove'
+  | 'prayer_set'
+  | 'prayer_remove'
+  | 'health_add'
+  | 'health_update'
+  | 'health_remove'
+  | 'tbo_send_inquiry';
 
 export type PortfolioItemInput =
   | {
@@ -60,6 +66,40 @@ export type AgentActionPayload =
       actionType: 'ledger_entry_remove';
       month: string;
       entryId: string;
+    }
+  | {
+      actionType: 'prayer_set';
+      namaaz: 'fajr' | 'zuhr' | 'asar' | 'maghreb' | 'isha';
+      missed: number;
+    }
+  | {
+      actionType: 'prayer_remove';
+      id: string;
+    }
+  | {
+      actionType: 'health_add';
+      metric: string;
+      value: number;
+      createdAt?: string;
+    }
+  | {
+      actionType: 'health_update';
+      id: string;
+      metric?: string;
+      value?: number;
+      createdAt?: string;
+    }
+  | {
+      actionType: 'health_remove';
+      id: string;
+    }
+  | {
+      actionType: 'tbo_send_inquiry';
+      name: string;
+      email: string;
+      company?: string;
+      service?: string;
+      message: string;
     };
 
 export type ActionPreview = {
@@ -108,3 +148,17 @@ export type FinanceAgentResponse = {
   message: FinanceChatMessage;
   model: string;
 };
+
+export type AgentWorkspace = 'finance' | 'personal';
+
+export type AgentConversation = {
+  id: string;
+  title: string;
+  workspace: AgentWorkspace;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function parseAgentWorkspace(value: unknown): AgentWorkspace {
+  return value === 'personal' ? 'personal' : 'finance';
+}

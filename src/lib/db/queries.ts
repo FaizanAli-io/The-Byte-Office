@@ -68,21 +68,25 @@ export async function loadFinanceDoc(): Promise<FinanceDoc> {
 
 export async function saveFinanceDoc(doc: Omit<FinanceDoc, '_id'>) {
   const sql = getSql();
-  const statements = [sql`DELETE FROM local_banks`, sql`DELETE FROM remote_banks`, sql`DELETE FROM mutual_funds`];
+  const statements = [
+    sql`DELETE FROM finance.local_banks`,
+    sql`DELETE FROM finance.remote_banks`,
+    sql`DELETE FROM finance.mutual_funds`,
+  ];
 
   doc.localBanks.forEach((bank, index) => {
     statements.push(
-      sql`INSERT INTO local_banks (name, amount_pkr, sort_order) VALUES (${bank.name}, ${bank.amountPkr}, ${index})`
+      sql`INSERT INTO finance.local_banks (name, amount_pkr, sort_order) VALUES (${bank.name}, ${bank.amountPkr}, ${index})`
     );
   });
   doc.remoteBanks.forEach((bank, index) => {
     statements.push(
-      sql`INSERT INTO remote_banks (name, amount_usd, exchange_rate, sort_order) VALUES (${bank.name}, ${bank.amountUsd}, ${bank.exchangeRate}, ${index})`
+      sql`INSERT INTO finance.remote_banks (name, amount_usd, exchange_rate, sort_order) VALUES (${bank.name}, ${bank.amountUsd}, ${bank.exchangeRate}, ${index})`
     );
   });
   flattenMutualFunds(doc.mutualFunds).forEach((fund) => {
     statements.push(
-      sql`INSERT INTO mutual_funds (bank_name, fund_name, value, sort_order) VALUES (${fund.bankName}, ${fund.fundName}, ${fund.value}, ${fund.sortOrder})`
+      sql`INSERT INTO finance.mutual_funds (bank_name, fund_name, value, sort_order) VALUES (${fund.bankName}, ${fund.fundName}, ${fund.value}, ${fund.sortOrder})`
     );
   });
 
@@ -175,12 +179,12 @@ export async function createLedger(input: { month: string; accounts: LedgerAccou
   const now = new Date();
   const sql = getSql();
   const statements = [
-    sql`INSERT INTO ledgers (id, month, status, created_at, updated_at) VALUES (${id}, ${input.month}, 'draft', ${now.toISOString()}, ${now.toISOString()})`,
+    sql`INSERT INTO finance.ledgers (id, month, status, created_at, updated_at) VALUES (${id}, ${input.month}, 'draft', ${now.toISOString()}, ${now.toISOString()})`,
   ];
 
   input.accounts.forEach((account, index) => {
     statements.push(
-      sql`INSERT INTO ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${id}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${null}, ${account.exchangeRate}, ${index})`
+      sql`INSERT INTO finance.ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${id}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${null}, ${account.exchangeRate}, ${index})`
     );
   });
 
@@ -197,19 +201,19 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   const sql = getSql();
   const ledgerId = String(existing._id);
   const statements = [
-    sql`DELETE FROM ledger_entries WHERE ledger_id = ${ledgerId}`,
-    sql`DELETE FROM ledger_accounts WHERE ledger_id = ${ledgerId}`,
-    sql`UPDATE ledgers SET status = ${body.status}, updated_at = ${now.toISOString()}, finalized_at = ${finalizedAt ? finalizedAt.toISOString() : null} WHERE id = ${ledgerId}`,
+    sql`DELETE FROM finance.ledger_entries WHERE ledger_id = ${ledgerId}`,
+    sql`DELETE FROM finance.ledger_accounts WHERE ledger_id = ${ledgerId}`,
+    sql`UPDATE finance.ledgers SET status = ${body.status}, updated_at = ${now.toISOString()}, finalized_at = ${finalizedAt ? finalizedAt.toISOString() : null} WHERE id = ${ledgerId}`,
   ];
 
   body.accounts.forEach((account, index) => {
     statements.push(
-      sql`INSERT INTO ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${ledgerId}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${account.actualClosingBalance ?? null}, ${account.exchangeRate}, ${index})`
+      sql`INSERT INTO finance.ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${ledgerId}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${account.actualClosingBalance ?? null}, ${account.exchangeRate}, ${index})`
     );
   });
   body.entries.forEach((entry, index) => {
     statements.push(
-      sql`INSERT INTO ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category, note, sort_order) VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount ?? null}, ${entry.exchangeRate ?? null}, ${entry.category ?? null}, ${entry.note ?? null}, ${index})`
+      sql`INSERT INTO finance.ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category, note, sort_order) VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount ?? null}, ${entry.exchangeRate ?? null}, ${entry.category ?? null}, ${entry.note ?? null}, ${index})`
     );
   });
 

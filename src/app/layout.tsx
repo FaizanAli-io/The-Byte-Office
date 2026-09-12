@@ -87,7 +87,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className={`${inter.variable} scroll-smooth`}>
       <body className={inter.className}>
         {jsonLd(organizationSchema)}
         {jsonLd(websiteSchema)}
