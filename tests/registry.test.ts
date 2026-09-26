@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { agentToolRegistry, groqTools, httpMethodFor, mcpToolRegistry } from '@/lib/agent/registry';
+import { OAUTH_SCOPES, READ_SCOPES, scopeForTool } from '@/lib/oauth/tokens';
 import { buildOpenApiDocument } from '@/mcp/openapi';
 
 describe('agent tool registry', () => {
@@ -8,8 +9,15 @@ describe('agent tool registry', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it('exposes only finance tools over MCP', () => {
-    expect(mcpToolRegistry.every((tool) => tool.module === 'finance')).toBe(true);
+  it('exposes every tool over MCP except sending mail', () => {
+    const withheld = agentToolRegistry.filter((tool) => !tool.mcp).map((tool) => tool.name);
+    expect(withheld).toEqual(['tbo_send_inquiry']);
+  });
+
+  it('tells MCP that a write applies immediately, not that it is a proposal', () => {
+    for (const tool of mcpToolRegistry.filter((entry) => entry.write)) {
+      expect(tool.description.toLowerCase()).not.toContain('confirmation proposal');
+    }
   });
 
   it('marks every destructive tool as a write', () => {
@@ -77,11 +85,69 @@ describe('openapi document', () => {
     expect(spec.servers[0].url).toBe('https://example.com');
   });
 
-  it('marks every operation as requiring the bearer token', () => {
+  it('requires an OAuth scope on every operation, and never an API key', () => {
+    const serialised = JSON.stringify(spec);
+    expect(serialised).not.toContain('bearerAuth');
+    expect(serialised).not.toContain('MCP_API_KEY');
+
     for (const operations of Object.values(spec.paths)) {
       for (const operation of Object.values(operations)) {
-        expect(operation.security).toEqual([{ bearerAuth: [] }]);
+        expect(operation.security).toHaveLength(1);
+        expect(operation.security?.[0]).toHaveProperty('oauth2');
       }
     }
+  });
+
+  it('names each tool own module scope, and a write scope only where it writes', () => {
+    for (const tool of mcpToolRegistry) {
+      const operations = spec.paths[`/api/mcp/tools/${tool.name}`];
+      const [security] = Object.values(operations)[0].security as [{ oauth2: string[] }];
+      expect(security.oauth2).toEqual([scopeForTool(tool)]);
+      expect(security.oauth2[0].endsWith(':write')).toBe(Boolean(tool.write));
+    }
+  });
+});
+
+describe('scope filtering', () => {
+  // The same predicate `registerTools` and the REST wrapper apply.
+  const visibleWith = (scopes: string[]) => mcpToolRegistry.filter((tool) => scopes.includes(scopeForTool(tool)));
+  const names = (scopes: string[]) => visibleWith(scopes).map((tool) => tool.name);
+
+  it('shows a read-only finance token exactly the finance reads', () => {
+    expect(names(['finance:read'])).toEqual([
+      'portfolio_get',
+      'snapshots_list',
+      'snapshot_get',
+      'ledgers_list',
+      'ledger_get',
+    ]);
+  });
+
+  it('keeps one module out of another', () => {
+    expect(names(['finance:read', 'finance:write']).some((name) => name.startsWith('prayer'))).toBe(false);
+    expect(names(['personal:read', 'personal:write']).some((name) => name.startsWith('portfolio'))).toBe(false);
+    expect(names(['tbo:read'])).toEqual(['tbo_info']);
+  });
+
+  it('never exposes a write tool to a read-only token', () => {
+    expect(visibleWith([...READ_SCOPES]).some((tool) => tool.write)).toBe(false);
+  });
+
+  it('exposes every MCP tool when every scope is granted', () => {
+    expect(visibleWith([...OAUTH_SCOPES])).toHaveLength(mcpToolRegistry.length);
+    expect(agentToolRegistry).toHaveLength(20);
+    expect(mcpToolRegistry).toHaveLength(19);
+  });
+
+  it('offers no scope that would grant nothing', () => {
+    for (const scope of OAUTH_SCOPES) {
+      expect(visibleWith([scope]).length).toBeGreaterThan(0);
+    }
+    // Withdrawing the mail tool withdrew its scope with it.
+    expect(OAUTH_SCOPES).not.toContain('tbo:write');
+  });
+
+  it('cannot send mail over MCP under any scope', () => {
+    expect(names([...OAUTH_SCOPES])).not.toContain('tbo_send_inquiry');
   });
 });

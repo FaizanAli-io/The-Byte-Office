@@ -1,61 +1,67 @@
 import { NextResponse } from 'next/server';
 import { httpMethodFor, mcpToolByName } from '@/lib/agent/registry';
-import { invokeFinanceTool } from '@/mcp/invoke';
-import { unauthorizedResponse, verifyMcpRequest } from '@/mcp/auth';
+import { invokeAgentTool } from '@/mcp/invoke';
+import { gateFor } from '@/mcp/http';
+import { scopeForTool } from '@/lib/oauth/tokens';
 
 export const runtime = 'nodejs';
 
-type RouteContext = {
-  params: Promise<{ name: string }>;
-};
+type RouteContext = { params: Promise<{ name: string }> };
 
-export async function GET(request: Request, context: RouteContext) {
-  const authInfo = verifyMcpRequest(request);
-  if (!authInfo) return unauthorizedResponse();
+/**
+ * REST wrappers over the same tools, for Swagger and for scripts. They share
+ * the MCP bearer gate, so the same access token works here.
+ */
+async function resolve(request: Request, context: RouteContext, method: 'get' | 'post') {
+  const auth = await gateFor(request)(request);
+  if (auth instanceof Response) return { error: auth };
 
   const { name } = await context.params;
   const tool = mcpToolByName.get(name);
-  if (!tool) {
-    return NextResponse.json({ error: `Unknown tool: ${name}` }, { status: 404 });
+  if (!tool) return { error: NextResponse.json({ error: `Unknown tool: ${name}` }, { status: 404 }) };
+
+  const required = scopeForTool(tool);
+  if (!auth.scopes.includes(required)) {
+    return {
+      error: NextResponse.json(
+        { error: 'insufficient_scope', error_description: `${name} requires the ${required} scope` },
+        { status: 403, headers: { 'WWW-Authenticate': `Bearer error="insufficient_scope", scope="${required}"` } }
+      ),
+    };
   }
-  if (httpMethodFor(tool) !== 'get') {
-    return NextResponse.json({ error: `${name} expects POST with a JSON body` }, { status: 405 });
+  if (httpMethodFor(tool) !== method) {
+    const expected = httpMethodFor(tool).toUpperCase();
+    return { error: NextResponse.json({ error: `${name} expects ${expected}` }, { status: 405 }) };
   }
 
-  try {
-    const result = await invokeFinanceTool(name, {});
-    return NextResponse.json({ tool: name, result });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Tool execution failed';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return { name };
 }
 
-export async function POST(request: Request, context: RouteContext) {
-  const authInfo = verifyMcpRequest(request);
-  if (!authInfo) return unauthorizedResponse();
-
-  const { name } = await context.params;
-  const tool = mcpToolByName.get(name);
-  if (!tool) {
-    return NextResponse.json({ error: `Unknown tool: ${name}` }, { status: 404 });
-  }
-
-  let body: unknown = {};
-  if (httpMethodFor(tool) === 'post') {
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 });
-    }
-  }
-
+async function run(name: string, args: unknown) {
   try {
-    const result = await invokeFinanceTool(name, body);
-    return NextResponse.json({ tool: name, result });
+    return NextResponse.json({ tool: name, result: await invokeAgentTool(name, args) });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Tool execution failed';
     const status = message.startsWith('Unknown tool') ? 404 : message.includes('required') ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
+}
+
+export async function GET(request: Request, context: RouteContext) {
+  const resolved = await resolve(request, context, 'get');
+  if (resolved.error) return resolved.error;
+  return run(resolved.name, {});
+}
+
+export async function POST(request: Request, context: RouteContext) {
+  const resolved = await resolve(request, context, 'post');
+  if (resolved.error) return resolved.error;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 });
+  }
+  return run(resolved.name, body);
 }

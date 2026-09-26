@@ -1,8 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/server';
-import { applyFinanceAction, type FinanceWriteAction } from '@/lib/finance-agent/actions';
-import { executeFinanceTool } from '@/lib/finance-agent/tools';
 import { mcpToolRegistry, type AgentToolDefinition } from '@/lib/agent/registry';
-import { runTool } from '@/mcp/result';
+import { scopeForTool } from '@/lib/oauth/tokens';
+import { invokeAgentTool } from './invoke';
+import { runTool } from './result';
 
 function annotationsFor(tool: AgentToolDefinition) {
   return {
@@ -14,30 +14,30 @@ function annotationsFor(tool: AgentToolDefinition) {
   } as const;
 }
 
-function invoke(tool: AgentToolDefinition, args: unknown) {
-  return runTool(async () => {
-    if (tool.write) return applyFinanceAction(tool.name as FinanceWriteAction, args ?? {});
-    const { output } = await executeFinanceTool(tool.name, args ?? {});
-    return output;
-  });
-}
-
-export function registerFinanceTools(server: McpServer) {
+/**
+ * Registers only the tools the token's scopes allow, so a client sees exactly
+ * what it can use. Refusing the call afterwards would work, but a tool the
+ * model cannot use is a tool it should not be shown.
+ */
+export function registerTools(server: McpServer, scopes: string[]) {
   for (const tool of mcpToolRegistry) {
+    if (!scopes.includes(scopeForTool(tool))) continue;
+
     const config = {
       title: tool.title,
       description: tool.description,
       annotations: annotationsFor(tool),
     };
+    const invoke = (args: unknown) => runTool(() => invokeAgentTool(tool.name, args ?? {}));
 
     // A tool registered without an inputSchema receives the request "extra" as
     // its first callback argument rather than parsed arguments, so the two
     // cases have to be registered separately.
     if (Object.keys(tool.schema.shape).length === 0) {
-      server.registerTool(tool.name, config, async () => invoke(tool, {}));
+      server.registerTool(tool.name, config, async () => invoke({}));
       continue;
     }
 
-    server.registerTool(tool.name, { ...config, inputSchema: tool.schema.shape }, async (args) => invoke(tool, args));
+    server.registerTool(tool.name, { ...config, inputSchema: tool.schema.shape }, async (args) => invoke(args));
   }
 }

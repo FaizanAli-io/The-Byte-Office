@@ -25,8 +25,8 @@ What is left, in order:
 **Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan), item 8
 (per-instance login throttle), item 14 (ledger write concurrency).
 
-Item 3 (MCP writes bypass the confirmation model) is documented rather than surprising, and with one key holder it is
-a deliberate choice. It becomes urgent the moment a second person or a shared agent gets that key.
+Item 3 (MCP writes bypass the confirmation model) is now closed: writes still apply immediately on that surface, but
+a client only gets them if it was granted `finance:write`, and that grant is per client and revocable.
 
 -------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **1** | [4 — server-side session revocation](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--mostly-done) | The replay hole is closed and the token is no longer reachable from JavaScript, so what is left is revocation. Deliberately deferred: doing it properly means a database read in the middleware on every protected request. |
@@ -36,8 +36,8 @@ a deliberate choice. It becomes urgent the moment a second person or a shared ag
 **Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan), item 8
 (per-instance login throttle), item 14 (ledger write concurrency).
 
-Item 3 (MCP writes bypass the confirmation model) is documented rather than surprising, and with one key holder it is
-a deliberate choice. It becomes urgent the moment a second person or a shared agent gets that key.
+Item 3 (MCP writes bypass the confirmation model) is now closed: writes still apply immediately on that surface, but
+a client only gets them if it was granted `finance:write`, and that grant is per client and revocable.
 
 -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **1** | [6 — `/docs` is public and invites pasting the master API key](#6-docs-is-public-and-invites-pasting-the-master-api-key--open) | A public, indexable page that loads a third-party script from unpkg onto your origin and asks you to paste `MCP_API_KEY`, which it then stores in `localStorage`. That key writes to your ledger without confirmation. Cheapest fix on the list. |
@@ -105,19 +105,20 @@ round trip over Neon HTTP. Invisible today, degrades linearly forever.
 
 Add an `action_id` column (or a GIN index on `actions` and a `@>` query) and make it one statement.
 
-### 3. MCP write tools bypass the confirmation model the docs promise — **open**
+### 3. MCP write tools bypass the confirmation model the docs promise — **done**
 
-`docs/finance-agent.md` said the agent "cannot bypass confirmation". `applyFinanceAction` proposes an action and
-immediately executes it, and every MCP write tool plus `POST /api/mcp/tools/{name}` routes through it. Anyone holding
-`MCP_API_KEY` mutates the ledger with no human confirmation.
+The split was real: `applyFinanceAction` proposes and immediately executes, so every MCP write tool and
+`POST /api/mcp/tools/{name}` mutated the ledger with no human confirmation, while the chat surface required it. Two
+security models over one data store, and only one of them documented.
 
-The tool descriptions have already drifted to match: the chat catalog says "never writes before user confirmation" while
-`src/mcp/catalog.ts` says "Add an entry to a draft ledger immediately."
+Resolved by deciding explicitly rather than by unifying the flows. A machine-to-machine surface applying writes
+immediately is the right behaviour; what was missing was any way to withhold that capability. OAuth supplies it. The
+`scopes` array that nothing used to read is now the control: a client granted only `finance:read` never has a write
+tool registered for it, so the tool is absent from `tools/list` rather than refused on call.
 
-That may well be the intent for a machine-to-machine surface — but it is two security models over one data store, and
-only one of them was documented. Decide explicitly, then either document the split or route MCP writes through the same
-pending-action flow. `verifyMcpRequest` already returns a `scopes` array that nothing reads; splitting the key into
-read-only and read-write is cheap.
+Grant `finance:write` deliberately, per client, and revoke it by deleting that client's row. The tool descriptions
+that had drifted apart are also reconciled — `chatDescription` says a write is a proposal, `description` says it
+applies immediately, and each surface reads the one that is true for it. See [`oauth.md`](./oauth.md).
 
 ### 4. Magic links are replayable and sessions cannot be revoked — **mostly done**
 

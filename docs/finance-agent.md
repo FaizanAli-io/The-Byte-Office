@@ -63,9 +63,18 @@ existing finance session protects the page and all agent API routes.
 
 The confirmation flow described above covers the **chat** surface only. The MCP
 surface (`/api/mcp` and `/api/mcp/tools/{name}`) calls `applyFinanceAction`,
-which proposes and immediately executes in one step, so a client holding
-`MCP_API_KEY` writes without confirmation. That key is therefore as sensitive as
-the finance session itself. See item 3 in [`improvements.md`](./improvements.md).
+which proposes and immediately executes in one step, so a client writes without
+confirmation.
+
+What limits that is the OAuth scope it was granted. A client holding only
+`finance:read` cannot reach a write tool — it is not registered for that token,
+so it does not appear in `tools/list` at all. Scopes are per module, so a
+finance client also cannot touch prayers or health readings. Grant a `:write`
+scope only to a client you intend to let change data, and revoke it by
+deleting the client row. See [`oauth.md`](./oauth.md).
+
+`tbo_send_inquiry` is the one tool never exposed over MCP: it sends real
+email, so it stays on the chat surface where a person confirms it.
 
 ## Troubleshooting
 

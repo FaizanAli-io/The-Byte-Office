@@ -36,7 +36,7 @@ export type AgentToolDefinition = {
   schema: z.ZodObject;
   /** Mutating tools route through the action layer. */
   write?: boolean;
-  /** Exposed over MCP and the REST wrappers. Personal and TBO tools are chat-only. */
+  /** Exposed over MCP and the REST wrappers, gated by the module's OAuth scope. */
   mcp?: boolean;
   /** Removes data, for the MCP `destructiveHint` annotation. */
   destructive?: boolean;
@@ -211,26 +211,31 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'personal',
     description: 'List missed-prayer counts for fajr, zuhr, asar, maghreb, and isha.',
     schema: empty,
+    mcp: true,
   },
   {
     name: 'prayer_set',
     title: 'Set missed prayers',
     module: 'personal',
-    description:
+    description: 'Set the missed count for one namaaz immediately.',
+    chatDescription:
       'Create a confirmation proposal to set the missed count for one namaaz. Never claim the change was saved.',
     schema: z.object({
       namaaz: z.enum(['fajr', 'zuhr', 'asar', 'maghreb', 'isha']),
       missed: z.int().min(0),
     }),
     write: true,
+    mcp: true,
   },
   {
     name: 'prayer_remove',
     title: 'Remove prayer row',
     module: 'personal',
-    description: 'Create a confirmation proposal to delete one prayer row by id.',
+    description: 'Delete one prayer row by id.',
+    chatDescription: 'Create a confirmation proposal to delete one prayer row by id.',
     schema: z.object({ id: z.string().min(1) }),
     write: true,
+    mcp: true,
     destructive: true,
   },
   {
@@ -239,20 +244,24 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'personal',
     description: 'List health tracking entries, newest first. Optionally filter by metric name.',
     schema: z.object({ metric: z.string().min(1).optional() }),
+    mcp: true,
   },
   {
     name: 'health_add',
     title: 'Add health reading',
     module: 'personal',
-    description: 'Create a confirmation proposal to add a health metric reading. createdAt is optional.',
+    description: 'Add a health metric reading immediately. createdAt is optional.',
+    chatDescription: 'Create a confirmation proposal to add a health metric reading. createdAt is optional.',
     schema: z.object({ metric: z.string().min(1), value: z.int(), createdAt: z.string().optional() }),
     write: true,
+    mcp: true,
   },
   {
     name: 'health_update',
     title: 'Update health reading',
     module: 'personal',
-    description: 'Create a confirmation proposal to update one health tracking entry by id.',
+    description: 'Update one health tracking entry by id. Include only changed fields.',
+    chatDescription: 'Create a confirmation proposal to update one health tracking entry by id.',
     schema: z.object({
       id: z.string().min(1),
       metric: z.string().min(1).optional(),
@@ -260,14 +269,17 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       createdAt: z.string().optional(),
     }),
     write: true,
+    mcp: true,
   },
   {
     name: 'health_remove',
     title: 'Remove health reading',
     module: 'personal',
-    description: 'Create a confirmation proposal to delete one health tracking entry by id.',
+    description: 'Delete one health tracking entry by id.',
+    chatDescription: 'Create a confirmation proposal to delete one health tracking entry by id.',
     schema: z.object({ id: z.string().min(1) }),
     write: true,
+    mcp: true,
     destructive: true,
   },
 
@@ -281,6 +293,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     schema: z.object({
       topic: z.enum(['overview', 'services', 'projects', 'process', 'faqs', 'contact', 'all']),
     }),
+    mcp: true,
   },
   {
     name: 'tbo_send_inquiry',
@@ -305,7 +318,7 @@ export function toolNamesForModule(module: AgentToolModule) {
   return new Set(agentToolRegistry.filter((tool) => tool.module === module).map((tool) => tool.name));
 }
 
-/** Tools reachable over MCP and the REST wrappers: the finance module only. */
+/** Tools reachable over MCP and the REST wrappers. Each needs its module's scope. */
 export const mcpToolRegistry = agentToolRegistry.filter((tool) => tool.mcp);
 export const mcpToolByName = new Map(mcpToolRegistry.map((tool) => [tool.name, tool]));
 

@@ -29,13 +29,15 @@ DATABASE_URL=
 DATABASE_URL_UNPOOLED=
 FINANCE_SESSION_SECRET=
 GROQ_API_KEY=
-MCP_API_KEY=
+OAUTH_SIGNING_SECRET=
 SMTP_USER=
 SMTP_PASS=
 ```
 
-`MCP_API_KEY` is the bearer token for `/api/mcp` and `/api/mcp/tools/*`. Those
-endpoints return 401 for every request until it is set.
+`OAUTH_SIGNING_SECRET` signs the OAuth access tokens that guard `/api/mcp` and
+`/api/mcp/tools/*`. Those endpoints return 401 for every request until it is
+set. There is no API key: clients authenticate with OAuth 2.1, described in
+[`docs/oauth.md`](docs/oauth.md).
 
 3. Apply database migrations:
 

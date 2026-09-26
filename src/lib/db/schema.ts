@@ -258,6 +258,66 @@ export const magicLinks = finance.table(
   (table) => [index('magic_links_expires_idx').on(table.expiresAt)]
 );
 
+/**
+ * OAuth 2.1 authorization server state. `/api/mcp` is a resource server and
+ * these three tables are the authorization server behind it; see
+ * `docs/oauth.md`.
+ *
+ * Clients are public — ChatGPT and Claude cannot keep a secret — so there is
+ * no client secret anywhere here. PKCE is what proves a token request came
+ * from whoever started the flow.
+ */
+export const oauthClients = finance.table('oauth_clients', {
+  clientId: uuid('client_id').defaultRandom().primaryKey(),
+  clientName: text('client_name').notNull(),
+  // Matched exactly, never by prefix: a prefix match is an open redirect.
+  redirectUris: jsonb('redirect_uris').$type<string[]>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true, mode: 'date' }),
+});
+
+export const oauthAuthorizationCodes = finance.table(
+  'oauth_authorization_codes',
+  {
+    code: uuid('code').defaultRandom().primaryKey(),
+    clientId: uuid('client_id')
+      .notNull()
+      .references(() => oauthClients.clientId, { onDelete: 'cascade' }),
+    redirectUri: text('redirect_uri').notNull(),
+    codeChallenge: text('code_challenge').notNull(),
+    scopes: jsonb('scopes').$type<string[]>().notNull(),
+    resource: text('resource').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true, mode: 'date' }),
+  },
+  (table) => [index('oauth_authorization_codes_expires_idx').on(table.expiresAt)]
+);
+
+/**
+ * Refresh tokens rotate: redeeming one revokes it and issues a replacement
+ * carrying the same `family_id`. Presenting an already-revoked token means it
+ * leaked and was replayed, so the whole family is revoked.
+ *
+ * `expires_at` is reset on each rotation, which makes the window measure
+ * inactivity rather than time since authorization.
+ */
+export const oauthRefreshTokens = finance.table(
+  'oauth_refresh_tokens',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    tokenHash: text('token_hash').notNull().unique(),
+    clientId: uuid('client_id')
+      .notNull()
+      .references(() => oauthClients.clientId, { onDelete: 'cascade' }),
+    familyId: uuid('family_id').notNull(),
+    scopes: jsonb('scopes').$type<string[]>().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => [index('oauth_refresh_tokens_family_idx').on(table.familyId)]
+);
+
 export const agentConversations = finance.table(
   'agent_conversations',
   {

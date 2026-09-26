@@ -3,6 +3,8 @@
  * middleware, so it stays free of the database driver; the magic-link nonce
  * store lives in `finance-magic-link.ts`.
  */
+import { constantTimeEqual, hmacHex } from '@/lib/hmac';
+
 export const FINANCE_SESSION_COOKIE = 'finance_session';
 
 // Declared alongside the reader that uses it; re-exported so routes setting
@@ -14,8 +16,6 @@ export { FINANCE_SIGNED_IN_COOKIE } from './finance-session-client';
 // link is not needed every few days.
 export const FINANCE_SESSION_MAX_AGE = 3600 * 24 * 14;
 export const FINANCE_MAGIC_LINK_MAX_AGE = 60 * 15;
-
-const encoder = new TextEncoder();
 
 export function getSessionSecret() {
   return process.env.FINANCE_SESSION_SECRET;
@@ -67,10 +67,12 @@ export async function verifyMagicLinkSignature(token?: string) {
   return constantTimeEqual(signature, expected) ? nonce : null;
 }
 
-export function appOrigin(request: Request) {
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+/** Accepts a `Request` or bare `Headers`, which is what server components have. */
+export function appOrigin(source: Request | Headers) {
+  const headers = source instanceof Headers ? source : source.headers;
+  const host = headers.get('x-forwarded-host') || headers.get('host');
   if (!host) return 'http://localhost:3000';
-  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+  const protocol = headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   return `${protocol}://${host}`;
 }
 
@@ -90,18 +92,5 @@ export function signedInCookieOptions(maxAge = FINANCE_SESSION_MAX_AGE) {
 }
 
 async function sign(value: string, secret: string) {
-  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
-    'sign',
-  ]);
-  const bytes = new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(`finance:${value}`)));
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function constantTimeEqual(left: string, right: string) {
-  if (left.length !== right.length) return false;
-  let difference = 0;
-  for (let index = 0; index < left.length; index += 1) {
-    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
-  }
-  return difference === 0;
+  return hmacHex(`finance:${value}`, secret);
 }
