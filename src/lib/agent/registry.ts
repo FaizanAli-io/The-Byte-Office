@@ -252,7 +252,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'personal',
     description: 'Add a health metric reading immediately. createdAt is optional.',
     chatDescription: 'Create a confirmation proposal to add a health metric reading. createdAt is optional.',
-    schema: z.object({ metric: z.string().min(1), value: z.int(), createdAt: z.string().optional() }),
+    schema: z.object({ metric: z.string().min(1), value: z.number(), createdAt: z.string().optional() }),
     write: true,
     mcp: true,
   },
@@ -265,7 +265,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     schema: z.object({
       id: z.string().min(1),
       metric: z.string().min(1).optional(),
-      value: z.int().optional(),
+      value: z.number().optional(),
       createdAt: z.string().optional(),
     }),
     write: true,

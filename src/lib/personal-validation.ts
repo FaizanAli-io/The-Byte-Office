@@ -15,7 +15,7 @@ const missed = z
   .int({ error: 'Missed must be a non-negative integer' })
   .min(0, 'Missed must be a non-negative integer');
 const metric = z.string({ error: 'Metric is required' }).trim().min(1, 'Metric is required');
-const reading = z.int({ error: 'Value must be an integer' });
+const reading = z.number({ error: 'Value must be a number' }).finite('Value must be a number');
 const createdAt = z.coerce.date({ error: 'createdAt must be a valid date' });
 
 /** An update with every field omitted is a no-op, not a valid request. */

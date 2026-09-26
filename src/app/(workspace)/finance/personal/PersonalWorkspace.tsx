@@ -65,8 +65,8 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
 
   async function submitHealth() {
     const parsedValue = Number(value);
-    if (!metric.trim() || !Number.isInteger(parsedValue)) {
-      setToast({ tone: 'error', message: 'Enter a metric and an integer value.' });
+    if (!metric.trim() || !Number.isFinite(parsedValue) || !value.trim()) {
+      setToast({ tone: 'error', message: 'Enter a metric and a numeric value.' });
       return;
     }
     setSavingHealth(true);
@@ -214,10 +214,10 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
                 <span className={financeStyles.label}>Value</span>
                 <input
                   className={financeStyles.input}
-                  inputMode="numeric"
+                  inputMode="decimal"
                   value={value}
                   onChange={(event) => setValue(event.target.value)}
-                  placeholder="80"
+                  placeholder="80.5"
                 />
               </label>
               <label>

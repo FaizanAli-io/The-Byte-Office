@@ -133,6 +133,19 @@ describe('personal schemas', () => {
     expect(healthInputSchema.parse({ metric: 'w', value: 1, createdAt: '2026-01-02' }).createdAt).toBeInstanceOf(Date));
   it('rejects an unparseable date', () =>
     expect(healthInputSchema.safeParse({ metric: 'w', value: 1, createdAt: 'nope' }).success).toBe(false));
+
+  // Weight, temperature and glucose are not whole numbers.
+  it.each([[72.5], [36.65], [0.125], [-1.5], [0]])('accepts the decimal reading %s', (value) => {
+    expect(healthInputSchema.parse({ metric: 'weight_kg', value }).value).toBe(value);
+  });
+
+  it('accepts a decimal on update too', () => {
+    expect(healthUpdateSchema.parse({ value: 18.4 }).value).toBe(18.4);
+  });
+
+  it.each([[Number.NaN], [Number.POSITIVE_INFINITY], ['80'], [null]])('still rejects %s', (value) => {
+    expect(healthInputSchema.safeParse({ metric: 'w', value }).success).toBe(false);
+  });
 });
 
 describe('parseInquiry', () => {

@@ -398,7 +398,9 @@ export const healthTracking = personal.table(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     metric: text('metric').notNull(),
-    value: integer('value').notNull(),
+    // Readings are decimal: weight, temperature and glucose are not whole
+    // numbers. Not money, so a float is fine — nothing sums these.
+    value: numeric('value', { precision: 10, scale: 3, mode: 'number' }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (table) => [
