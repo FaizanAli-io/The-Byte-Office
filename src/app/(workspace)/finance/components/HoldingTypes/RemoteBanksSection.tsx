@@ -4,7 +4,7 @@ import type { SectionHandlers } from './types';
 
 const fields: HoldingField<FinanceRemoteBank>[] = [
   { key: 'name', label: 'Bank', placeholder: 'Bank name' },
-  { key: 'amountUsd', label: 'Amount (USD)', numeric: true },
+  { key: 'amountUsd', label: 'Amount (USD)', money: true },
   { key: 'exchangeRate', label: 'Exchange Rate', numeric: true },
 ];
 

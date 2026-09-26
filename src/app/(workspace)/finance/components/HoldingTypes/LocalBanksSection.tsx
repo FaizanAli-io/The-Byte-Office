@@ -4,7 +4,7 @@ import type { SectionHandlers } from './types';
 
 const fields: HoldingField<FinanceLocalBank>[] = [
   { key: 'name', label: 'Bank', placeholder: 'Bank name' },
-  { key: 'amountPkr', label: 'Amount (PKR)', numeric: true },
+  { key: 'amountPkr', label: 'Amount (PKR)', money: true },
 ];
 
 export function LocalBanksSection({ data, onAdd, onDelete, onChange }: SectionHandlers<FinanceDoc>) {

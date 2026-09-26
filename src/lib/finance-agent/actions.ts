@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
 import { executePersonalPayload } from '@/lib/agent/modules/personal';
+import { argsToMinor, previewToMajor } from '@/lib/money';
 import { executeTboInquiry } from '@/lib/agent/modules/tbo-actions';
 import { loadLedger, saveLedger } from '@/lib/db/queries';
 import type { LedgerEntry } from '@/types/ledger';
@@ -67,7 +68,7 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
         payload: { actionType, item },
         preview: {
           title: `Add ${portfolioLabel(item.itemType)}`,
-          after: item,
+          after: previewToMajor(item),
         },
       })
     );
@@ -86,7 +87,7 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
           payload: { actionType, itemType, id },
           preview: {
             title: `Remove ${portfolioLabel(itemType)}`,
-            before: current,
+            before: previewToMajor(current),
           },
           sourceFingerprint: fingerprint(current),
         })
@@ -100,8 +101,8 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
         payload: { actionType, itemType, id, changes },
         preview: {
           title: `Update ${portfolioLabel(itemType)}`,
-          before: current,
-          after: changes,
+          before: previewToMajor(current),
+          after: previewToMajor(changes),
         },
         sourceFingerprint: fingerprint(current),
       })
@@ -161,7 +162,7 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
       await createAgentAction({
         actionType,
         payload: { actionType, month, entryId },
-        preview: { title: 'Remove ledger entry', before: current },
+        preview: { title: 'Remove ledger entry', before: previewToMajor(current) },
         sourceFingerprint,
       })
     );
@@ -173,7 +174,7 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
       payload: { actionType: 'ledger_entry_update', month, entryId, entry: current },
       preview: {
         title: 'Update ledger entry',
-        before: current,
+        before: previewToMajor(current),
       },
       sourceFingerprint,
     }),
@@ -192,8 +193,10 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
 }
 
 export async function applyFinanceAction(actionType: FinanceWriteAction, rawArgs: unknown) {
-  const pending = await proposeAgentAction(actionType, rawArgs);
-  const { result } = await executeAgentAction(pending.id, rawArgs);
+  // MCP clients state amounts in rupees, like the assistant does.
+  const args = argsToMinor(rawArgs);
+  const pending = await proposeAgentAction(actionType, args);
+  const { result } = await executeAgentAction(pending.id, args);
   return result;
 }
 

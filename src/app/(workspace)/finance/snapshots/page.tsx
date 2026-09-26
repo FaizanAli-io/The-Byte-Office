@@ -1,6 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/client-api';
+import { toMajor } from '@/lib/money';
 import { bankFundAllocations, individualFundAllocations, portfolioAllocations } from '@/lib/finance';
 import type { FinanceSnapshot } from '@/types/finance';
 import { useEffect, useState } from 'react';
@@ -96,7 +97,7 @@ export default function SnapshotsPage() {
                       })}
                     </p>
                     <p className="mt-2 text-2xl font-bold text-cyan-300">
-                      {Math.round(snapshot.grandTotal).toLocaleString()} PKR
+                      {Math.round(toMajor(snapshot.grandTotal)).toLocaleString()} PKR
                     </p>
                   </button>
                   <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">

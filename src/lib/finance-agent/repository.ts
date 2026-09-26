@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { and, asc, desc, eq, gt, inArray, max } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
+import { parseMinor, serializeMinor } from '@/lib/money';
 import {
   agentConversations,
   financeAgentActions,
@@ -44,9 +45,23 @@ function holdingTable(itemType: PortfolioItemType): HoldingTable {
   return HOLDING_TABLES[itemType];
 }
 
+const MONEY_COLUMNS = ['amountPkr', 'amountUsd', 'value'] as const;
+
+/** Swaps the money columns between stored decimal strings and minor units. */
+function mapMoney<T extends Record<string, unknown>>(row: T, convert: (value: never) => unknown): T {
+  const mapped: Record<string, unknown> = { ...row };
+  for (const column of MONEY_COLUMNS) {
+    if (mapped[column] !== undefined && mapped[column] !== null) {
+      mapped[column] = convert(mapped[column] as never);
+    }
+  }
+  return mapped as T;
+}
+
 export async function getPortfolioItem(itemType: PortfolioItemType, id: string) {
   const table = holdingTable(itemType);
-  return (await getDb().select().from(table).where(eq(table.id, id)).limit(1))[0] ?? null;
+  const row = (await getDb().select().from(table).where(eq(table.id, id)).limit(1))[0];
+  return row ? mapMoney(row, parseMinor as (value: never) => unknown) : null;
 }
 
 export async function addPortfolioItem(item: PortfolioItemInput) {
@@ -56,19 +71,22 @@ export async function addPortfolioItem(item: PortfolioItemInput) {
   const [order] = await db.select({ value: max(table.sortOrder) }).from(table);
   const [created] = await db
     .insert(table)
-    .values({ ...values, sortOrder: (order.value ?? -1) + 1 } as never)
+    .values({
+      ...mapMoney(values, serializeMinor as (value: never) => unknown),
+      sortOrder: (order.value ?? -1) + 1,
+    } as never)
     .returning();
-  return created;
+  return mapMoney(created, parseMinor as (value: never) => unknown);
 }
 
 export async function updatePortfolioItem(itemType: PortfolioItemType, id: string, changes: Record<string, unknown>) {
   const table = holdingTable(itemType);
   const [row] = await getDb()
     .update(table)
-    .set({ ...changes, updatedAt: new Date() } as never)
+    .set({ ...mapMoney(changes, serializeMinor as (value: never) => unknown), updatedAt: new Date() } as never)
     .where(eq(table.id, id))
     .returning();
-  return row ?? null;
+  return row ? mapMoney(row, parseMinor as (value: never) => unknown) : null;
 }
 
 export async function removePortfolioItem(itemType: PortfolioItemType, id: string) {

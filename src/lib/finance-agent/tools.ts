@@ -1,5 +1,6 @@
 import { getSnapshot, listLedgerSummaries, listSnapshotSummaries, loadHoldings, loadLedger } from '@/lib/db/queries';
 import { holdingTotals } from '@/lib/finance';
+import { argsToMinor } from '@/lib/money';
 import { agentToolRegistry, type GroqTool } from '@/lib/agent/registry';
 import { proposeAgentAction } from './actions';
 import type { AgentActionType, PendingAgentAction } from './types';
@@ -43,7 +44,8 @@ export async function executeFinanceTool(
   }
 
   if (isWriteTool(name)) {
-    const pendingAction = await proposeAgentAction(name, input);
+    // The model states amounts in rupees; convert before anything stores them.
+    const pendingAction = await proposeAgentAction(name, argsToMinor(input));
     return {
       output: {
         status: 'pending_confirmation',

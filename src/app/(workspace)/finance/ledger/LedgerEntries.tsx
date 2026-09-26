@@ -1,6 +1,7 @@
 'use client';
 
 import { accountMovement, ENTRY_LABELS, formatMoney, monthBounds } from '@/lib/ledger';
+import { toMajor, toMinor } from '@/lib/money';
 import type { LedgerAccount, LedgerEntry, LedgerEntryType } from '@/types/ledger';
 import { useEffect, useMemo, useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
@@ -87,12 +88,13 @@ export function LedgerEntries({
   const sourceAccount = accounts.find((account) => account.id === draft.accountId);
 
   function addEntry() {
-    const amount = Number(draft.amount);
+    // The draft holds what was typed, in rupees; entries are minor units.
+    const amount = toMinor(Number(draft.amount));
     if (!draft.accountId || !draft.date || !Number.isFinite(amount) || amount <= 0) {
       return;
     }
     const destinationAmount =
-      draft.type === 'transfer' && draft.destinationAmount ? Number(draft.destinationAmount) : undefined;
+      draft.type === 'transfer' && draft.destinationAmount ? toMinor(Number(draft.destinationAmount)) : undefined;
     const previous = entries.find((item) => item.id === editingId);
     const entry: LedgerEntry = {
       id: editingId ?? crypto.randomUUID(),
@@ -127,8 +129,8 @@ export function LedgerEntries({
       type: entry.type,
       accountId: entry.accountId,
       destinationAccountId: entry.destinationAccountId ?? '',
-      amount: String(entry.amount),
-      destinationAmount: entry.destinationAmount === undefined ? '' : String(entry.destinationAmount),
+      amount: String(toMajor(entry.amount)),
+      destinationAmount: entry.destinationAmount === undefined ? '' : String(toMajor(entry.destinationAmount)),
       category: entry.category ?? '',
       note: entry.note ?? '',
     });

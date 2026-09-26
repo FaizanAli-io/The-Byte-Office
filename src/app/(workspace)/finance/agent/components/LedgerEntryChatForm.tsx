@@ -1,6 +1,7 @@
 'use client';
 
 import { monthBounds } from '@/lib/ledger';
+import { toMajor, toMinor } from '@/lib/money';
 import type { LedgerEntryFormState } from '@/lib/finance-agent/types';
 import type { LedgerEntryType } from '@/types/ledger';
 import { FormEvent, useState } from 'react';
@@ -29,7 +30,8 @@ export function LedgerEntryChatForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    const amount = Number(draft.amount);
+    // The form collects rupees; the action layer expects minor units.
+    const amount = toMinor(Number(draft.amount));
     if (!draft.accountId || !draft.date || !Number.isFinite(amount) || amount <= 0) return;
 
     onSubmit({
@@ -40,7 +42,7 @@ export function LedgerEntryChatForm({
       destinationAccountId: draft.type === 'transfer' ? draft.destinationAccountId : undefined,
       amount,
       destinationAmount:
-        draft.type === 'transfer' && draft.destinationAmount ? Number(draft.destinationAmount) : undefined,
+        draft.type === 'transfer' && draft.destinationAmount ? toMinor(Number(draft.destinationAmount)) : undefined,
       exchangeRate: sourceAccount?.exchangeRate ?? 1,
       category: draft.category.trim() || undefined,
       note: draft.note.trim() || undefined,
@@ -81,8 +83,8 @@ function draftFromForm(form: LedgerEntryFormState): EntryDraft {
     accountId,
     destinationAccountId:
       form.entry.destinationAccountId || (type === 'transfer' ? firstOtherAccountId(form.accounts, accountId) : ''),
-    amount: form.entry.amount === undefined ? '' : String(form.entry.amount),
-    destinationAmount: form.entry.destinationAmount === undefined ? '' : String(form.entry.destinationAmount),
+    amount: form.entry.amount === undefined ? '' : String(toMajor(form.entry.amount)),
+    destinationAmount: form.entry.destinationAmount === undefined ? '' : String(toMajor(form.entry.destinationAmount)),
     category: form.entry.category ?? '',
     note: form.entry.note ?? '',
   };

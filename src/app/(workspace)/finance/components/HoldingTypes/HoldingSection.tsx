@@ -7,7 +7,10 @@ import { DeleteButton, Field, SectionCard, SectionTotal } from './shared';
 export type HoldingField<T> = {
   key: keyof T & string;
   label: string;
+  /** A plain number, such as an exchange rate. */
   numeric?: boolean;
+  /** An amount: displayed in rupees, stored in minor units. */
+  money?: boolean;
   placeholder?: string;
 };
 
@@ -47,7 +50,8 @@ export function HoldingSection<T extends { id?: string }>({
                 key={field.key}
                 label={field.label}
                 numeric={field.numeric}
-                placeholder={field.placeholder ?? (field.numeric ? '0' : undefined)}
+                money={field.money}
+                placeholder={field.placeholder ?? (field.numeric || field.money ? '0' : undefined)}
                 value={row[field.key] as string | number}
                 onChange={(value) => onChange(index, field.key, value)}
               />

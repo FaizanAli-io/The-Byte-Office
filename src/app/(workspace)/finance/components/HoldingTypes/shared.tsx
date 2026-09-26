@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { toMajor, toMinor } from '@/lib/money';
 
 export const styleClasses = {
   cardClass:
@@ -18,30 +19,40 @@ export function numberOrZero(value: string) {
   return isNaN(n) ? 0 : n;
 }
 
-/** One labelled input. Numeric fields are clamped at zero like every holding amount. */
+/**
+ * One labelled input. `money` fields display rupees but report minor units, so
+ * this is one of the two places in the app that converts.
+ */
 export function Field({
   label,
   value,
   placeholder,
   numeric,
+  money,
   onChange,
 }: {
   label: string;
   value: string | number;
   placeholder?: string;
   numeric?: boolean;
+  money?: boolean;
   onChange: (value: string | number) => void;
 }) {
+  const isNumber = numeric || money;
   return (
     <div>
       <label className={styleClasses.labelClass}>{label}</label>
       <input
         className={styleClasses.inputClass}
-        type={numeric ? 'number' : undefined}
-        min={numeric ? 0 : undefined}
-        value={value}
+        type={isNumber ? 'number' : undefined}
+        min={isNumber ? 0 : undefined}
+        step={money ? '0.01' : undefined}
+        value={money ? toMajor(Number(value)) : value}
         placeholder={placeholder}
-        onChange={(event) => onChange(numeric ? numberOrZero(event.target.value) : event.target.value)}
+        onChange={(event) => {
+          if (money) return onChange(toMinor(numberOrZero(event.target.value)));
+          onChange(isNumber ? numberOrZero(event.target.value) : event.target.value);
+        }}
       />
     </div>
   );
@@ -68,7 +79,7 @@ export function SectionTotal({
     <div className="text-right">
       <span className="text-slate-400 text-sm font-medium">{label}: </span>
       <span className={unit ? 'text-xl font-bold text-cyan-300' : 'text-lg font-bold text-cyan-300'}>
-        {Math.round(value).toLocaleString()}
+        {Math.round(toMajor(value)).toLocaleString()}
       </span>
       {unit ? <span className="text-slate-400 text-sm ml-1">{unit}</span> : null}
     </div>

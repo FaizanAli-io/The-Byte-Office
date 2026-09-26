@@ -12,6 +12,8 @@ import {
 } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
 
+// Every amount below is an integer count of minor units: 1000 is ten rupees.
+
 const bank = (over: Partial<LedgerAccount> = {}): LedgerAccount => ({
   id: 'bank',
   name: 'HBL',
@@ -248,5 +250,48 @@ describe('ledgerSummary', () => {
       ],
     });
     expect(summary.fundFlow).toBe(500);
+  });
+});
+
+describe('exactness in minor units', () => {
+  it('reconciles to zero over many small entries, where floats would drift', () => {
+    // 1000 entries of one paisa against an opening balance of ten rupees.
+    const entries = Array.from({ length: 1000 }, (_, index) => entry({ id: `e${index}`, type: 'expense', amount: 1 }));
+    const account = bank({ openingBalance: 1000, actualClosingBalance: 0 });
+
+    expect(expectedBalance(account, entries)).toBe(0);
+    expect(accountStats(account, entries).difference).toBe(0);
+    expect(variancePct(0, 0)).toBe(0);
+
+    // The same arithmetic in rupees does not land on zero.
+    const asFloats = entries.reduce((balance) => balance - 0.01, 10);
+    expect(asFloats).not.toBe(0);
+    expect(Math.abs(asFloats)).toBeGreaterThan(0);
+  });
+
+  it('keeps a balanced month reporting no variance', () => {
+    const account = bank({ openingBalance: 0, actualClosingBalance: 0 });
+    const entries = [
+      entry({ id: 'a', type: 'income', amount: 1999 }),
+      entry({ id: 'b', type: 'income', amount: 2999 }),
+      entry({ id: 'c', type: 'expense', amount: 4998 }),
+    ];
+    const stats = accountStats(account, entries);
+    expect(stats.expected).toBe(0);
+    expect(stats.difference).toBe(0);
+    expect(formatVariancePct(variancePct(stats.difference, stats.expected))).toBe('0.00%');
+  });
+
+  it('rounds a cross-currency transfer once, to a whole minor unit', () => {
+    const accounts = [
+      bank({ id: 'usd', currency: 'USD', exchangeRate: 283.456789 }),
+      bank({ id: 'pkr', currency: 'PKR' }),
+    ];
+    const summary = ledgerSummary({
+      accounts,
+      entries: [entry({ id: 'i', accountId: 'usd', type: 'income', amount: 12_345 })],
+    });
+    expect(Number.isInteger(summary.income)).toBe(true);
+    expect(summary.income).toBe(Math.round(12_345 * 283.456789));
   });
 });

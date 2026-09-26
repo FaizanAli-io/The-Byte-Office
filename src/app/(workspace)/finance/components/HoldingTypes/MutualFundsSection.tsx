@@ -64,7 +64,7 @@ export function MutualFundsSection({
                   <Field
                     label="Value (PKR)"
                     value={fund.value}
-                    numeric
+                    money
                     onChange={(value) => onChange(mfIndex, bankKey, fundIndex, 'value', value)}
                   />
                   <DeleteButton onClick={() => onDeleteFund(mfIndex, bankKey, fundIndex)} />

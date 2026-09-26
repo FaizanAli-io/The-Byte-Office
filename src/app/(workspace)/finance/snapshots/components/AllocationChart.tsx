@@ -1,5 +1,6 @@
 'use client';
 
+import { toMajor } from '@/lib/money';
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 const colors = ['#67e8f9', '#818cf8', '#34d399', '#fbbf24', '#fb7185', '#c084fc', '#2dd4bf'];
@@ -28,7 +29,7 @@ export function AllocationChart({ title, data }: { title: string; data: { name: 
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => `${Number(value).toLocaleString()} PKR`}
+                formatter={(value) => `${Math.round(toMajor(Number(value))).toLocaleString()} PKR`}
                 contentStyle={{
                   background: '#ffffff',
                   border: '1px solid #e2e8f0',

@@ -15,6 +15,11 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /**
+ * Money columns are `numeric(18, 2)` read in string mode: Postgres numeric is
+ * exact, and reading it as a JavaScript number was what introduced rounding
+ * error. `src/lib/money.ts` converts those strings to integer minor units.
+ * Exchange rates stay numbers — they are ratios, not amounts.
+ *
  * Two schemas: `finance` holds the portfolio, ledgers, snapshots and the
  * assistant's conversations and pending actions; `personal` holds prayers and
  * health tracking.
@@ -51,10 +56,10 @@ export const localBanks = finance.table('local_banks', {
   amountPkr: numeric('amount_pkr', {
     precision: 18,
     scale: 2,
-    mode: 'number',
+    mode: 'string',
   })
     .notNull()
-    .default(0),
+    .default('0'),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
@@ -66,10 +71,10 @@ export const remoteBanks = finance.table('remote_banks', {
   amountUsd: numeric('amount_usd', {
     precision: 18,
     scale: 2,
-    mode: 'number',
+    mode: 'string',
   })
     .notNull()
-    .default(0),
+    .default('0'),
   exchangeRate: numeric('exchange_rate', {
     precision: 18,
     scale: 6,
@@ -86,7 +91,7 @@ export const mutualFunds = finance.table('mutual_funds', {
   id: uuid('id').defaultRandom().primaryKey(),
   bankName: text('bank_name').notNull(),
   fundName: text('fund_name').notNull(),
-  value: numeric('value', { precision: 18, scale: 2, mode: 'number' }).notNull().default(0),
+  value: numeric('value', { precision: 18, scale: 2, mode: 'string' }).notNull().default('0'),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
@@ -124,17 +129,17 @@ export const ledgerAccounts = finance.table(
     openingBalance: numeric('opening_balance', {
       precision: 18,
       scale: 2,
-      mode: 'number',
+      mode: 'string',
     }).notNull(),
     openingCostBasis: numeric('opening_cost_basis', {
       precision: 18,
       scale: 2,
-      mode: 'number',
+      mode: 'string',
     }),
     actualClosingBalance: numeric('actual_closing_balance', {
       precision: 18,
       scale: 2,
-      mode: 'number',
+      mode: 'string',
     }),
     exchangeRate: numeric('exchange_rate', {
       precision: 18,
@@ -164,12 +169,12 @@ export const ledgerEntries = finance.table(
     amount: numeric('amount', {
       precision: 18,
       scale: 2,
-      mode: 'number',
+      mode: 'string',
     }).notNull(),
     destinationAmount: numeric('destination_amount', {
       precision: 18,
       scale: 2,
-      mode: 'number',
+      mode: 'string',
     }),
     exchangeRate: numeric('exchange_rate', {
       precision: 18,
@@ -206,7 +211,7 @@ export const financeSnapshots = finance.table(
     grandTotal: numeric('grand_total', {
       precision: 18,
       scale: 2,
-      mode: 'number',
+      mode: 'string',
     }).notNull(),
     data: jsonb('data').$type<SnapshotHoldings>().notNull(),
   },

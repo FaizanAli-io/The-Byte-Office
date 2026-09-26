@@ -11,15 +11,28 @@ Status legend: **done** · **open**
 
 The workspace has exactly one user, so items whose only cost is scale are **not** the priority.
 
-The first three priorities are now done: the API docs page is locked down, magic links are single-use and the session
-token is out of `localStorage`, and the ledger arithmetic has tests. What remains at the top:
+All four original priorities are now done: the API docs page is locked down, magic links are single-use and the
+session token is out of `localStorage`, the ledger arithmetic has tests, and money is integer minor units. What is
+left, in order:
 
-| Priority | Item                                                                                                            | Why it is here                                                                                                                                                                                                                                                                                                                            |
-| -------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1**    | [15 — money is JavaScript floats](#15-money-is-javascript-floats--open)                                         | Independent of user count, and the last of the original four. Drift accumulates through `expectedBalance` and shows up as a phantom reconciliation variance. Now that the arithmetic has tests, this is finally safe to attempt — but it needs a decision first: `numeric` in string mode with a decimal library, or integer minor units. |
-| **2**    | [4 — server-side session revocation](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--mostly-done) | The replay hole is closed and the token is no longer reachable from JavaScript, so what is left is revocation. Deliberately deferred: doing it properly means a database read in the middleware on every protected request.                                                                                                               |
-| **3**    | [19 — no security headers](#19-no-security-headers--open)                                                       | `next.config.ts` is still an empty object. A CSP is the cheapest remaining hardening and complements the work already done on `/docs`.                                                                                                                                                                                                    |
-| **4**    | [17 — non-UUID path parameters return 500](#17-non-uuid-path-parameters-return-500--open)                       | Small and self-contained. A bad id should be a 400 or 404, not a stack trace and a generic server error.                                                                                                                                                                                                                                  |
+| Priority | Item                                                                                                            | Why it is here                                                                                                                                                                                                        |
+| -------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1**    | [19 — no security headers](#19-no-security-headers--open)                                                       | `next.config.ts` is still an empty object. A CSP is the cheapest remaining hardening and complements the work on `/docs`.                                                                                             |
+| **2**    | [4 — server-side session revocation](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--mostly-done) | The replay hole is closed and the token is no longer reachable from JavaScript, so what is left is revocation. Deferred because doing it properly means a database read in the middleware on every protected request. |
+| **3**    | [17 — non-UUID path parameters return 500](#17-non-uuid-path-parameters-return-500--open)                       | Small and self-contained. A bad id should be a 400 or 404, not a generic server error.                                                                                                                                |
+| **4**    | [16 — the mutual-funds shape works against the code](#16-the-mutual-funds-shape-works-against-the-code--open)   | The `Record<bank, funds[]>[]` shape and the sort-order stride are the last real awkwardness in the data model.                                                                                                        |
+
+**Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan), item 8
+(per-instance login throttle), item 14 (ledger write concurrency).
+
+Item 3 (MCP writes bypass the confirmation model) is documented rather than surprising, and with one key holder it is
+a deliberate choice. It becomes urgent the moment a second person or a shared agent gets that key.
+
+-------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | [15 — money is JavaScript floats](#15-money-is-javascript-floats--open) | Independent of user count, and the last of the original four. Drift accumulates through `expectedBalance` and shows up as a phantom reconciliation variance. Now that the arithmetic has tests, this is finally safe to attempt — but it needs a decision first: `numeric` in string mode with a decimal library, or integer minor units. |
+| **2** | [4 — server-side session revocation](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--mostly-done) | The replay hole is closed and the token is no longer reachable from JavaScript, so what is left is revocation. Deliberately deferred: doing it properly means a database read in the middleware on every protected request. |
+| **3** | [19 — no security headers](#19-no-security-headers--open) | `next.config.ts` is still an empty object. A CSP is the cheapest remaining hardening and complements the work already done on `/docs`. |
+| **4** | [17 — non-UUID path parameters return 500](#17-non-uuid-path-parameters-return-500--open) | Small and self-contained. A bad id should be a 400 or 404, not a stack trace and a generic server error. |
 
 **Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan), item 8
 (per-instance login throttle), item 14 (ledger write concurrency).
@@ -236,12 +249,31 @@ It deletes all entries and accounts for a month and rewrites them. The agent pat
 fingerprint in `executeLedgerPayload`, but `PUT /api/ledger` — used by the ledger UI — has no such check. Two open tabs
 means silent last-write-wins on a whole month's books. Add an `updated_at` precondition to the `UPDATE`.
 
-### 15. Money is JavaScript floats — **open**
+### 15. Money is JavaScript floats — **done**
 
-`numeric(18, 2, { mode: 'number' })` parses to `number`. `expectedBalance` reduces those across every entry and
-`variancePct` then compares against a `0.0001` epsilon, so accumulated drift can surface a phantom reconciliation
-variance. Fine at PKR scale today; a question of when for USD accounts with scale-6 exchange rates. Consider
-`mode: 'string'` plus a decimal library, or storing minor units as `bigint`.
+Done, as integer minor units — paisa and cents — held in `src/lib/money.ts`.
+
+The columns did not change. Postgres `numeric` is exact and never was the problem; the error came from
+`mode: 'number'` handing the application a float. Money columns are read in string mode and `parseMinor` converts the
+digits without going through a float, so **no data migration was required** and values written before the change read
+back identically. That was verified against the live database.
+
+Exchange rates stay decimal, because they are ratios rather than amounts. A conversion rounds once, explicitly, at the
+multiplication — `convertMinor` — so sums stay exact and only the currency conversion can move by a single minor unit.
+
+Exactly two places convert, and both say so in a comment:
+
+- the UI, where a person types and reads rupees: the holding editor's `Field`, the ledger's `MoneyInput`, and the
+  entry drafts in `LedgerEntries` and `LedgerEntryChatForm`
+- the assistant and MCP, so the model keeps talking in rupees: `argsToMinor` on the way in, `previewToMajor` so the
+  confirmation card a person approves still reads in rupees
+
+Snapshots keep their JSONB holdings in major units and convert at the boundary, which keeps the twelve existing
+snapshots readable and the stored document human-inspectable.
+
+`variancePct` no longer needs its `0.0001` epsilon: a zero expected balance is now genuinely zero. `tests/money.test.ts`
+covers the conversions, and `tests/ledger.test.ts` has a case that reconciles a thousand one-paisa entries to exactly
+zero and asserts the same arithmetic in rupees does not.
 
 ### 16. The mutual-funds shape works against the code — **open**
 
@@ -366,7 +398,9 @@ rewrite `package-lock.json` and Drizzle's generated snapshots.
 ## File size
 
 Every file in the repository is kept under 500 lines. `npm run lines -- --top 10` shows the current largest; the
-counter reads its file list from git, so build output and generated files are excluded.
+counter reads its file list from git, so build output and generated files are excluded. It counts lines that carry
+code, skipping comments and blank lines, so documenting something never reads as the codebase growing — `--raw`
+gives the unfiltered count, and tests are reported on their own line.
 
 Three files crossed the limit and were split along real seams rather than arbitrarily:
 

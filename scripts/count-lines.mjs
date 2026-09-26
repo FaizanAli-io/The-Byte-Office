@@ -8,7 +8,12 @@
  * files that are checked in but generated or not source at all: the lockfile,
  * Drizzle's migrations and snapshots, static assets in public/, and the icon.
  *
+ * Comments and blank lines are not counted: the number is meant to track how
+ * much code there is to understand and maintain, and writing a comment should
+ * never look like the codebase growing.
+ *
  *   node scripts/count-lines.mjs           # summary + top 5
+ *   node scripts/count-lines.mjs --raw     # count every line instead
  *   node scripts/count-lines.mjs --top 20  # summary + top 20
  *   node scripts/count-lines.mjs --all     # every file, largest first
  *   node scripts/count-lines.mjs --json    # machine-readable
@@ -70,12 +75,75 @@ function isSource(path) {
   return !EXCLUDED_PATHS.some((pattern) => pattern.test(path));
 }
 
-function countLines(path) {
+/**
+ * Counts lines that carry code.
+ *
+ * Block comments are tracked across lines, and a `//` only starts a comment
+ * when it is not inside a string or a regex — otherwise a URL in a string
+ * would silently drop the line from the count. Anything with code before the
+ * comment still counts, since the line does carry code.
+ */
+function countCodeLines(text) {
+  let inBlock = false;
+  let count = 0;
+
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    let hasCode = false;
+    let index = 0;
+
+    while (index < line.length) {
+      if (inBlock) {
+        const close = line.indexOf('*/', index);
+        if (close === -1) break;
+        inBlock = false;
+        index = close + 2;
+        continue;
+      }
+
+      const rest = line.slice(index);
+      if (rest.startsWith('/*')) {
+        inBlock = true;
+        index += 2;
+        continue;
+      }
+      if (rest.startsWith('//')) break;
+
+      // Skip over string and template literals so their contents cannot be
+      // mistaken for a comment.
+      const quote = rest[0];
+      if (quote === '"' || quote === "'" || quote === '`') {
+        hasCode = true;
+        index += 1;
+        while (index < line.length) {
+          if (line[index] === '\\') index += 2;
+          else if (line[index] === quote) {
+            index += 1;
+            break;
+          } else index += 1;
+        }
+        continue;
+      }
+
+      hasCode = true;
+      index += 1;
+    }
+
+    if (hasCode) count += 1;
+  }
+
+  return count;
+}
+
+function countLines(path, raw) {
   const absolute = join(ROOT, path);
   try {
     if (!statSync(absolute).isFile()) return null;
     const text = readFileSync(absolute, 'utf8');
     if (!text) return 0;
+    if (!raw) return countCodeLines(text);
     // A trailing newline terminates the last line rather than starting a new one.
     return text.endsWith('\n') ? text.split('\n').length - 1 : text.split('\n').length;
   } catch {
@@ -111,12 +179,13 @@ function table(rows, headers) {
 const args = process.argv.slice(2);
 const asJson = args.includes('--json');
 const showAll = args.includes('--all');
+const countRaw = args.includes('--raw');
 const topIndex = args.indexOf('--top');
 const topCount = showAll ? Infinity : topIndex === -1 ? 5 : Number(args[topIndex + 1]) || 5;
 
 const files = trackedFiles()
   .filter(isSource)
-  .map((path) => ({ path, lines: countLines(path), ext: extname(path) }))
+  .map((path) => ({ path, lines: countLines(path, countRaw), ext: extname(path) }))
   .filter((file) => file.lines !== null)
   .sort((a, b) => b.lines - a.lines);
 
@@ -141,7 +210,8 @@ if (asJson) {
   process.exit(0);
 }
 
-console.log(`\nCode  ${sum(code).toLocaleString()} lines across ${code.length} files\n`);
+const label = countRaw ? 'lines (raw)' : 'lines of code';
+console.log(`\nCode  ${sum(code).toLocaleString()} ${label} across ${code.length} files\n`);
 table(
   group(code, (file) => file.ext).map(([ext, totals]) => [ext, totals.files, totals.lines.toLocaleString()]),
   ['ext', 'files', 'lines']
@@ -154,7 +224,7 @@ table(
 );
 
 if (tests.length) {
-  console.log(`\nTests  ${sum(tests).toLocaleString()} lines across ${tests.length} files\n`);
+  console.log(`\nTests  ${sum(tests).toLocaleString()} ${label} across ${tests.length} files\n`);
   table(
     tests.map((file) => [file.path, file.lines.toLocaleString()]),
     ['file', 'lines']
