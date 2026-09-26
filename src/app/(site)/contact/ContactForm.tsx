@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { apiFetch, errorMessage } from '@/lib/client-api';
 import { company } from '@/content/site';
 
 type FormData = {
@@ -9,6 +10,8 @@ type FormData = {
   companyName: string;
   service: string;
   message: string;
+  /** Honeypot. Hidden from people; bots fill it in and get silently dropped. */
+  website: string;
 };
 
 const initialForm: FormData = {
@@ -17,11 +20,13 @@ const initialForm: FormData = {
   companyName: '',
   service: '',
   message: '',
+  website: '',
 };
 
 export default function ContactForm() {
   const [formData, setFormData] = useState<FormData>(initialForm);
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [error, setError] = useState('');
 
   const mailtoHref = useMemo(() => {
     const subject = encodeURIComponent(`Project inquiry from ${formData.name || 'website visitor'}`);
@@ -50,16 +55,35 @@ export default function ContactForm() {
     if (status !== 'idle') setStatus('idle');
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (status === 'sending') return;
 
     if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      setError('Please add your name, email, and project details before submitting.');
       setStatus('error');
       return;
     }
 
-    setStatus('success');
-    setFormData(initialForm);
+    setStatus('sending');
+    setError('');
+    try {
+      await apiFetch('/api/contact', {
+        body: {
+          name: formData.name,
+          email: formData.email,
+          company: formData.companyName,
+          service: formData.service,
+          message: formData.message,
+          website: formData.website,
+        },
+      });
+      setStatus('success');
+      setFormData(initialForm);
+    } catch (cause) {
+      setError(errorMessage(cause, 'Something went wrong. Please email us directly.'));
+      setStatus('error');
+    }
   };
 
   return (
@@ -134,8 +158,7 @@ export default function ContactForm() {
           className="rounded-md border border-emerald-400/20 bg-emerald-400/8 px-4 py-3 text-sm font-semibold text-emerald-200"
           role="status"
         >
-          Thanks. Your message is ready and the next step is to email The Byte Office directly if you want to send the
-          details now.
+          Thanks — your message is on its way. We usually reply {company.responseTime.toLowerCase()}.
         </p>
       ) : null}
 
@@ -144,13 +167,26 @@ export default function ContactForm() {
           className="rounded-md border border-rose-400/20 bg-rose-400/8 px-4 py-3 text-sm font-semibold text-rose-200"
           role="alert"
         >
-          Please add your name, email, and project details before submitting.
+          {error}
         </p>
       ) : null}
 
+      <div className="hidden" aria-hidden="true">
+        <label htmlFor="website">Leave this field empty</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={formData.website}
+          onChange={updateField}
+        />
+      </div>
+
       <div className="flex flex-col gap-3 sm:flex-row">
-        <button type="submit" className="button-base button-primary">
-          Send Message
+        <button type="submit" className="button-base button-primary" disabled={status === 'sending'}>
+          {status === 'sending' ? 'Sending…' : 'Send Message'}
         </button>
         <a href={mailtoHref} className="button-base button-secondary">
           Open Email Draft
