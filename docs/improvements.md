@@ -114,7 +114,7 @@ recipient address the practical risk is mailbox flooding and SMTP quota burn. Mo
 
 ## Tier 2 — Architecture
 
-### 9. Tool definitions exist three times and have already drifted — **open**
+### 9. Tool definitions exist three times and have already drifted — **done**
 
 The same eleven tools are declared in `src/lib/finance-agent/tools.ts` (hand-written JSON Schema for Groq),
 `src/mcp/modules/finance/tools.ts` (zod, for MCP) and `src/mcp/catalog.ts` (zod again, for the REST wrappers and
@@ -123,8 +123,14 @@ OpenAPI). Three name lists, three description sets, two schema languages — and
 
 They have already diverged on the most safety-relevant sentence in the system (see item 3).
 
-Collapse to one registry — zod schema, `write` flag, description — and derive the Groq JSON Schema with
-`z.toJSONSchema()`, which `src/mcp/openapi.ts` already proves works.
+Collapsed into `src/lib/agent/registry.ts`: one entry per tool carrying the zod schema, the `write` / `mcp` /
+`destructive` flags and both descriptions (writes really are proposals in chat and immediate over MCP, so that one
+difference is now explicit rather than accidental). The Groq JSON Schema is derived with `z.toJSONSchema()`, MCP
+registers in a loop, and the REST catalogue and OpenAPI document read the same list. `schemas.ts` is gone and
+`isWriteTool` is derived rather than hardcoded.
+
+The registry schemas are flat objects rather than discriminated unions: tool-calling models handle a flat object far
+better than `oneOf`, and the real per-type validation always happened downstream in `parsePortfolioItem`.
 
 ### 10. Circular dependency between `lib/agent` and `lib/finance-agent` — **open**
 
@@ -139,7 +145,7 @@ workspace conversations live in the `finance` Postgres schema, in a table called
 Promote the shared pieces to `lib/agent/` and leave `lib/finance-agent/` as one module beside `personal` and `tbo`. The
 three-module split in `SYSTEM_PROMPT` is the right shape; the directories just do not match it.
 
-### 11. Regex intent-routing in the chat route — **open**
+### 11. Regex intent-routing in the chat route — **done**
 
 `src/app/api/finance-agent/chat/route.ts` carries roughly 200 lines of keyword matching that force-selects a tool via
 `tool_choice`, regex that extracts payers, purposes and amounts from English prose, and a `parseToolArguments` with six
@@ -150,9 +156,14 @@ Both exist because `openai/gpt-oss-20b` is too small to reliably emit tool calls
 the cost is real: `/\bfor\s+(...)/` will set `category: "Groceries And Also"` on entries you did not intend, and the
 forced-tool logic means asking _how_ to add a ledger entry opens a write form.
 
-Move up a model tier — `openai/gpt-oss-120b` is already wired as the rate-limit fallback — and delete the heuristics.
-Keep one JSON-repair pass, not six. If cost is the reason to stay on the small model, say so in a comment; right now the
-layer reads as unexplained magic.
+Deleted. `writeIntentFor`, `requiredToolFor`, `monthFromMessage`, `draftMonthFromToolMessages`, `latestDraftMonth`,
+`openLedgerAddForm`, `ledgerAddPrefill` and `titleCase` are gone, along with the forced `tool_choice` and five of the
+six JSON-repair layers. `PRIMARY_MODEL` is now `openai/gpt-oss-120b`, with the 20b model kept as the rate-limit
+fallback. The route went from 596 lines to 257.
+
+This is a deliberate behaviour change: the assistant now relies on the model to call `ledger_entry_add` itself rather
+than being pushed into it by keyword matching, and there is no longer a fallback that force-opens the entry form. Worth
+exercising the ledger-entry flow in the UI before trusting it.
 
 ### 12. Chat history round-trips through the client — **open**
 
@@ -231,12 +242,11 @@ one-time migration that already ran in commit `24b03c1`. Move the dependency to 
 `FINANCE_PASSWORD` fallback is undocumented too. Add both, plus a line noting that the MCP surface is inert without the
 key.
 
-### 22. The streaming chat route has no runtime or duration config — **open**
+### 22. The streaming chat route has no runtime or duration config — **done**
 
-Unlike `/api/mcp`, `/api/finance-agent/chat` sets no `runtime` or `maxDuration`, yet its worst case is six rounds times
-a 45-second Groq timeout. It also never watches `request.signal`: if the client navigates away the loop keeps calling
-Groq, then `controller.enqueue` throws into the catch and persists a spurious error message to the conversation. Add
-`export const maxDuration` and abort on disconnect.
+Fixed while rewriting the route: it now exports `maxDuration = 300` and checks `request.signal.aborted` at the top of
+each tool round, so a client that navigates away stops the loop instead of burning Groq calls and persisting a spurious
+error message.
 
 ---
 
@@ -250,3 +260,55 @@ Groq, then `controller.enqueue` throws into the catch and persists a spurious er
 | 4     | Vitest over `lib/ledger.ts` and `finance-validation.ts`, plus CI (18)           | Everything below this line is safer to refactor once this exists     |
 | 5     | Unify the tool registry (9); break the `agent`/`finance-agent` cycle (10)       | The drift in item 3 was caused by item 9 and will recur              |
 | 6     | Fix `syncActionInMessages` (2); ledger concurrency control (14)                 | Scaling and multi-tab correctness                                    |
+
+---
+
+## Landed in the restructure
+
+Two changes beyond the numbered backlog.
+
+### Route groups
+
+`src/app` is split into `(site)` and `(workspace)`. Route groups do not affect URLs — all 38 routes resolve exactly as
+before — but the two halves now have their own layouts:
+
+- the root layout holds only the document shell, fonts, viewport and shared identity metadata;
+- `(site)` adds the marketing chrome: Navigation, Footer and the Organization/WebSite JSON-LD;
+- `(workspace)` keeps Navigation so you can move between finance, personal and the assistant, and drops the marketing
+  footer and structured data. Those pages are `noindex`, so the JSON-LD was never doing anything there.
+
+Supporting code moved out of `src/app` to make the boundary real: `src/components/Navigation.tsx` (shared),
+`src/components/site/` (marketing-only), `src/content/site.ts` (shared content — the TBO agent module and the inquiry
+email read it too) and `src/lib/seo.tsx`.
+
+### Shared plumbing
+
+- `src/lib/api.ts` — `apiRoute` wraps a handler with the try/catch, logging and error-to-status mapping every route
+  repeated by hand; `idResource` supplies GET/PUT/DELETE for a row addressed by `/{id}`. The two personal `[id]` routes
+  were 93 lines and are now 27.
+- `src/lib/client-api.ts` — `apiFetch` replaces the "fetch, parse, check `ok`, throw `body.error`" block at 22 call
+  sites, so a route that starts returning a useful message surfaces it everywhere.
+- `HoldingTypes/HoldingSection.tsx` — the local and remote bank sections were the same component with different fields
+  and are now one spec-driven component plus two ~25-line configs. `useFinanceHandlers` collapsed its eight
+  near-identical add/delete handlers onto a single `edit(mutate)` primitive.
+
+### Contact form — **fixed**
+
+The public form at `/contact` used to validate, set `status: 'success'` and clear the fields without sending anything.
+Visitors were told their message had been sent when nothing had. It now posts to a new `POST /api/contact`, which
+shares `parseInquiry` with the assistant's `tbo_send_inquiry` tool (both reach the same mailbox, so both get the same
+rules) and calls the existing `sendInquiryEmail`. The form shows a sending state, surfaces the server's error, and only
+claims success when the mail actually went out. The "Open Email Draft" `mailto:` button stays as a fallback.
+
+The endpoint is public, so it carries a honeypot field and a 30-second per-IP throttle. That throttle is per-instance
+and therefore a courtesy limit, exactly like the finance login one — item 8 covers moving both to a shared store.
+
+### Counting the code
+
+`scripts/count-lines.mjs` (`npm run lines`) reports source lines by extension and the largest files. It takes its file
+list from git, so build output and anything gitignored is excluded automatically, and it additionally skips the
+lockfile, Drizzle's generated migrations and snapshots, `public/` and the vendored `.agents/` skills. `--top N`,
+`--all` and `--json` are supported.
+
+A `.prettierignore` was added at the same time: `npm run format` runs `prettier --write .`, which would otherwise
+rewrite `package-lock.json` and Drizzle's generated snapshots.
