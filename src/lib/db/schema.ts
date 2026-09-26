@@ -236,6 +236,23 @@ export const financeAgentActions = finance.table(
   (table) => [index('finance_agent_actions_status_expiry_idx').on(table.status, table.expiresAt)]
 );
 
+/**
+ * Issued magic-link nonces, so a login link can only be redeemed once.
+ * Verification claims the row with `consumed_at IS NULL`, which makes a
+ * replayed link — from a forwarded email, a proxy log or browser history —
+ * fail even inside its validity window.
+ */
+export const magicLinks = finance.table(
+  'magic_links',
+  {
+    nonce: uuid('nonce').primaryKey(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true, mode: 'date' }),
+  },
+  (table) => [index('magic_links_expires_idx').on(table.expiresAt)]
+);
+
 export const agentConversations = finance.table(
   'agent_conversations',
   {

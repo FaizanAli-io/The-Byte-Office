@@ -1,27 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+// @next/env is CommonJS, so it has to come in through the default export.
+import nextEnv from '@next/env';
 import { fileURLToPath } from 'node:url';
 
-const projectRoot = fileURLToPath(new URL('..', import.meta.url));
-
-function loadEnvFile(path) {
-  if (!existsSync(path)) return;
-  for (const rawLine of readFileSync(path, 'utf8').split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    const separator = line.indexOf('=');
-    if (separator === -1) continue;
-    const key = line.slice(0, separator).trim();
-    let value = line.slice(separator + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    if (key && process.env[key] === undefined) process.env[key] = value;
-  }
-}
-
-loadEnvFile(resolve(projectRoot, '.env'));
-loadEnvFile(resolve(projectRoot, '.env.local'));
+nextEnv.loadEnvConfig(fileURLToPath(new URL('..', import.meta.url)));
 
 const baseUrl = process.env.MCP_BASE_URL || 'http://localhost:3000';
 const apiKey = process.env.MCP_API_KEY;

@@ -29,9 +29,13 @@ DATABASE_URL=
 DATABASE_URL_UNPOOLED=
 FINANCE_SESSION_SECRET=
 GROQ_API_KEY=
+MCP_API_KEY=
 SMTP_USER=
 SMTP_PASS=
 ```
+
+`MCP_API_KEY` is the bearer token for `/api/mcp` and `/api/mcp/tools/*`. Those
+endpoints return 401 for every request until it is set.
 
 3. Apply database migrations:
 
@@ -63,6 +67,9 @@ Notes:
 npm run dev          # Start development server
 npm run build        # Production build
 npm run start        # Start production server
+npm test             # Run the unit tests
+npm run lint         # ESLint
+npm run lines        # Source line counts and the largest files
 npm run db:migrate   # Apply Drizzle migrations
 ```
 

@@ -49,6 +49,9 @@ const EXCLUDED_PATHS = [
 /** Counted, but reported separately from application code. */
 const NON_CODE_EXTENSIONS = new Set(['.json', '.md']);
 
+/** Tests are source, but they are reported on their own line: growing them is good. */
+const TEST_PATH = /(^|\/)tests?\//;
+
 function trackedFiles() {
   try {
     const out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
@@ -117,7 +120,9 @@ const files = trackedFiles()
   .filter((file) => file.lines !== null)
   .sort((a, b) => b.lines - a.lines);
 
-const code = files.filter((file) => !NON_CODE_EXTENSIONS.has(file.ext));
+const source = files.filter((file) => !NON_CODE_EXTENSIONS.has(file.ext));
+const code = source.filter((file) => !TEST_PATH.test(file.path));
+const tests = source.filter((file) => TEST_PATH.test(file.path));
 const other = files.filter((file) => NON_CODE_EXTENSIONS.has(file.ext));
 const sum = (list) => list.reduce((total, file) => total + file.lines, 0);
 
@@ -125,7 +130,7 @@ if (asJson) {
   console.log(
     JSON.stringify(
       {
-        totals: { code: sum(code), docsAndConfig: sum(other), files: code.length },
+        totals: { code: sum(code), tests: sum(tests), docsAndConfig: sum(other), files: code.length },
         byExtension: Object.fromEntries(group(code, (file) => file.ext)),
         files: (showAll ? code : code.slice(0, topCount)).map(({ path, lines }) => ({ path, lines })),
       },
@@ -147,6 +152,14 @@ table(
   code.slice(0, topCount).map((file, index) => [`${index + 1}. ${file.path}`, file.lines.toLocaleString()]),
   ['file', 'lines']
 );
+
+if (tests.length) {
+  console.log(`\nTests  ${sum(tests).toLocaleString()} lines across ${tests.length} files\n`);
+  table(
+    tests.map((file) => [file.path, file.lines.toLocaleString()]),
+    ['file', 'lines']
+  );
+}
 
 if (other.length) {
   console.log(`\nDocs and config (excluded from the code total)  ${sum(other).toLocaleString()} lines\n`);

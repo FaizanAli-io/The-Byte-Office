@@ -1,7 +1,10 @@
-import { appOrigin, createMagicLinkToken, getSessionSecret } from '@/lib/finance-auth';
+import { appOrigin, getSessionSecret } from '@/lib/finance-auth';
+import { issueMagicLink } from '@/lib/finance-magic-link';
 import { FINANCE_LOGIN_EMAIL } from '@/lib/finance-constants';
 import { sendFinanceLoginEmail } from '@/lib/finance-email';
 import { ApiError, apiRoute, optionalJsonBody } from '@/lib/api';
+
+export const runtime = 'nodejs';
 
 // Per-instance only, so this is a courtesy throttle rather than a real limit.
 const lastSentAt = new Map<string, number>();
@@ -18,7 +21,7 @@ export const POST = apiRoute('POST /api/finance-auth/login', 'Unable to send log
   const nextPath = next?.startsWith('/finance') && !next.startsWith('//') ? next : '';
 
   const loginUrl = new URL('/finance/verify', appOrigin(request));
-  loginUrl.searchParams.set('token', await createMagicLinkToken());
+  loginUrl.searchParams.set('token', await issueMagicLink());
   if (nextPath) loginUrl.searchParams.set('next', nextPath);
 
   let emailed = false;

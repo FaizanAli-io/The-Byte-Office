@@ -1,11 +1,24 @@
+/**
+ * Session and magic-link signing. This module is imported by the edge
+ * middleware, so it stays free of the database driver; the magic-link nonce
+ * store lives in `finance-magic-link.ts`.
+ */
 export const FINANCE_SESSION_COOKIE = 'finance_session';
-export const FINANCE_SESSION_MAX_AGE = 3600 * 24 * 30;
+
+// Declared alongside the reader that uses it; re-exported so routes setting
+// both cookies only need one import.
+export { FINANCE_SIGNED_IN_COOKIE } from './finance-session-client';
+
+// Sessions are stateless, so this window is also how long a stolen token
+// stays usable. Kept short enough to bound that, long enough that a magic
+// link is not needed every few days.
+export const FINANCE_SESSION_MAX_AGE = 3600 * 24 * 14;
 export const FINANCE_MAGIC_LINK_MAX_AGE = 60 * 15;
 
 const encoder = new TextEncoder();
 
 export function getSessionSecret() {
-  return process.env.FINANCE_SESSION_SECRET || process.env.FINANCE_PASSWORD;
+  return process.env.FINANCE_SESSION_SECRET;
 }
 
 export async function createFinanceSession() {
@@ -31,30 +44,27 @@ export async function verifyFinanceSession(token?: string) {
   return constantTimeEqual(signature, expected);
 }
 
-export async function createMagicLinkToken() {
+export async function signMagicLink(nonce: string, expires: number) {
   const secret = getSessionSecret();
   if (!secret) throw new Error('FINANCE_SESSION_SECRET is not configured');
 
-  const expires = Date.now() + FINANCE_MAGIC_LINK_MAX_AGE * 1000;
-  const nonce = crypto.randomUUID();
   const signature = await sign(`magic:${expires}:${nonce}`, secret);
   return `magic.${expires}.${nonce}.${signature}`;
 }
 
-export async function verifyMagicLinkToken(token?: string) {
-  if (!token) return false;
+/** Returns the nonce for a well-formed, unexpired, correctly signed link. */
+export async function verifyMagicLinkSignature(token?: string) {
+  if (!token) return null;
   const [prefix, expiresValue, nonce, signature, ...extra] = token.split('.');
-  if (prefix !== 'magic' || !expiresValue || !nonce || !signature || extra.length) {
-    return false;
-  }
+  if (prefix !== 'magic' || !expiresValue || !nonce || !signature || extra.length) return null;
 
   const expires = Number(expiresValue);
-  if (!Number.isSafeInteger(expires) || expires <= Date.now()) return false;
+  if (!Number.isSafeInteger(expires) || expires <= Date.now()) return null;
 
   const secret = getSessionSecret();
-  if (!secret) return false;
+  if (!secret) return null;
   const expected = await sign(`magic:${expiresValue}:${nonce}`, secret);
-  return constantTimeEqual(signature, expected);
+  return constantTimeEqual(signature, expected) ? nonce : null;
 }
 
 export function appOrigin(request: Request) {
@@ -72,6 +82,11 @@ export function sessionCookieOptions(maxAge = FINANCE_SESSION_MAX_AGE) {
     maxAge,
     path: '/',
   };
+}
+
+/** Same lifetime, but readable by the client so the nav can reflect sign-in state. */
+export function signedInCookieOptions(maxAge = FINANCE_SESSION_MAX_AGE) {
+  return { ...sessionCookieOptions(maxAge), httpOnly: false };
 }
 
 async function sign(value: string, secret: string) {

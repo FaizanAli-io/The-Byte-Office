@@ -9,15 +9,29 @@ Status legend: **done** · **open**
 
 ## Start here
 
-The workspace has exactly one user, so the items whose only cost is scale are **not** the priority. Re-ranked on that
-basis, these four are what actually matter:
+The workspace has exactly one user, so items whose only cost is scale are **not** the priority.
 
-| Priority | Item                                                                                                                                                                                               | Why it is here                                                                                                                                                                                                                                                                     |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1**    | [6 — `/docs` is public and invites pasting the master API key](#6-docs-is-public-and-invites-pasting-the-master-api-key--open)                                                                     | A public, indexable page that loads a third-party script from unpkg onto your origin and asks you to paste `MCP_API_KEY`, which it then stores in `localStorage`. That key writes to your ledger without confirmation. Cheapest fix on the list.                                   |
-| **2**    | [4 — magic links are replayable](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--open) + [5 — session token in `localStorage`](#5-a-30-day-session-token-sits-in-localstorage--open) | One user means one account and no second line of defence. A link that leaks from email or a proxy log works repeatedly for 15 minutes, the session it mints lasts 30 days, and logout cannot revoke it. Item 5 hands an equivalent token to any XSS in order to toggle a nav item. |
-| **3**    | [18 — no tests and no CI](#18-no-tests-and-no-ci--open)                                                                                                                                            | Independent of user count. `accountMovement`, `expectedBalance`, `accountStats`, `ledgerSummary` and `variancePct` are the arithmetic your reconciliation depends on, they are pure and dependency-free, and they have never been executed by anything but the UI.                 |
-| **4**    | [15 — money is JavaScript floats](#15-money-is-javascript-floats--open)                                                                                                                            | Also independent of user count. Drift accumulates through `expectedBalance` and surfaces as a phantom reconciliation variance. Bigger job than the others, which is why it is fourth rather than first.                                                                            |
+The first three priorities are now done: the API docs page is locked down, magic links are single-use and the session
+token is out of `localStorage`, and the ledger arithmetic has tests. What remains at the top:
+
+| Priority | Item                                                                                                            | Why it is here                                                                                                                                                                                                                                                                                                                            |
+| -------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1**    | [15 — money is JavaScript floats](#15-money-is-javascript-floats--open)                                         | Independent of user count, and the last of the original four. Drift accumulates through `expectedBalance` and shows up as a phantom reconciliation variance. Now that the arithmetic has tests, this is finally safe to attempt — but it needs a decision first: `numeric` in string mode with a decimal library, or integer minor units. |
+| **2**    | [4 — server-side session revocation](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--mostly-done) | The replay hole is closed and the token is no longer reachable from JavaScript, so what is left is revocation. Deliberately deferred: doing it properly means a database read in the middleware on every protected request.                                                                                                               |
+| **3**    | [19 — no security headers](#19-no-security-headers--open)                                                       | `next.config.ts` is still an empty object. A CSP is the cheapest remaining hardening and complements the work already done on `/docs`.                                                                                                                                                                                                    |
+| **4**    | [17 — non-UUID path parameters return 500](#17-non-uuid-path-parameters-return-500--open)                       | Small and self-contained. A bad id should be a 400 or 404, not a stack trace and a generic server error.                                                                                                                                                                                                                                  |
+
+**Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan), item 8
+(per-instance login throttle), item 14 (ledger write concurrency).
+
+Item 3 (MCP writes bypass the confirmation model) is documented rather than surprising, and with one key holder it is
+a deliberate choice. It becomes urgent the moment a second person or a shared agent gets that key.
+
+-------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | [6 — `/docs` is public and invites pasting the master API key](#6-docs-is-public-and-invites-pasting-the-master-api-key--open) | A public, indexable page that loads a third-party script from unpkg onto your origin and asks you to paste `MCP_API_KEY`, which it then stores in `localStorage`. That key writes to your ledger without confirmation. Cheapest fix on the list. |
+| **2** | [4 — magic links are replayable](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--open) + [5 — session token in `localStorage`](#5-a-30-day-session-token-sits-in-localstorage--open) | One user means one account and no second line of defence. A link that leaks from email or a proxy log works repeatedly for 15 minutes, the session it mints lasts 30 days, and logout cannot revoke it. Item 5 hands an equivalent token to any XSS in order to toggle a nav item. |
+| **3** | [18 — no tests and no CI](#18-no-tests-and-no-ci--open) | Independent of user count. `accountMovement`, `expectedBalance`, `accountStats`, `ledgerSummary` and `variancePct` are the arithmetic your reconciliation depends on, they are pure and dependency-free, and they have never been executed by anything but the UI. |
+| **4** | [15 — money is JavaScript floats](#15-money-is-javascript-floats--open) | Also independent of user count. Drift accumulates through `expectedBalance` and surfaces as a phantom reconciliation variance. Bigger job than the others, which is why it is fourth rather than first. |
 
 **Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan — degrades
 with message volume, and you are one person), item 8 (per-instance login throttle — a real limit needs a shared store,
@@ -93,7 +107,7 @@ only one of them was documented. Decide explicitly, then either document the spl
 pending-action flow. `verifyMcpRequest` already returns a `scopes` array that nothing reads; splitting the key into
 read-only and read-write is cheap.
 
-### 4. Magic links are replayable and sessions cannot be revoked — **open**
+### 4. Magic links are replayable and sessions cannot be revoked — **mostly done**
 
 In `src/lib/finance-auth.ts`:
 
@@ -104,27 +118,39 @@ In `src/lib/finance-auth.ts`:
   valid for 30 days. Rotating `FINANCE_SESSION_SECRET` is the only revocation and it kills every session.
 - `getSessionSecret()` silently falls back to an undocumented `FINANCE_PASSWORD`.
 
-Persist consumed nonces in a small TTL-cleaned table, and add a session version (or a sessions table) so logout means
-something.
+Done: magic links are now single-use. `finance.magic_links` records each issued nonce and verification claims it with
+`UPDATE ... WHERE consumed_at IS NULL RETURNING`, so a replayed link fails even inside its window; expired rows are
+cleaned opportunistically on the next issue. The nonce store lives in `finance-magic-link.ts` rather than
+`finance-auth.ts`, because the latter is imported by the edge middleware and must stay free of the driver. The
+undocumented `FINANCE_PASSWORD` fallback is gone, and the session window dropped from 30 days to 14.
 
-### 5. A 30-day session token sits in `localStorage` — **open**
+**Still open: server-side revocation.** Sessions remain stateless, so signing out clears the cookies on that browser
+but cannot invalidate a token that has already been copied. Fixing it properly means a sessions table and a database
+read in the middleware on every protected request. That is a real latency cost on every page and API call for a
+single-user workspace, so it was left as a deliberate trade rather than done badly. Rotating
+`FINANCE_SESSION_SECRET` remains the break-glass option, and it invalidates everything at once.
+
+### 5. A 30-day session token sits in `localStorage` — **done**
 
 `src/app/finance/verify/page.tsx` writes the session token to `localStorage` via `persistFinanceToken`. Its only
 consumer is `src/app/components/Navigation.tsx`, deciding whether to show one menu item.
 
-The cookie is correctly `httpOnly`, and then an identical bearer token is handed to any XSS on the page in order to
-style a nav bar. Replace with a non-sensitive `finance_signed_in=1` cookie or a session-check endpoint, and delete the
-token storage in `src/lib/finance-session-client.ts`.
+Fixed. The verify endpoint no longer returns the token in its response body at all; it sets the httpOnly session
+cookie plus a `finance_signed_in=1` flag cookie that carries no secret. `finance-session-client.ts` is down to
+`isFinanceSignedIn()`, which reads that flag. There is no longer any copy of the session token reachable from
+JavaScript.
 
-### 6. `/docs` is public and invites pasting the master API key — **open**
+### 6. `/docs` is public and invites pasting the master API key — **done**
 
 `src/app/docs/page.tsx` is in neither the middleware matcher nor the `robots.ts` disallow list, so it is public and
 indexable. It loads `swagger-ui-bundle.js` from unpkg with no SRI on a floating major version, sets
 `persistAuthorization: true` (which stores whatever key is typed into `localStorage`), and documents the private finance
 API via the equally public `/api/openapi`.
 
-Put `/docs` and `/api/openapi` behind the finance session, add `/docs` to the robots disallow list, and self-host or
-pin-and-SRI the Swagger assets.
+Fixed: `/docs` and `/api/openapi` are in the middleware matcher, `/docs` replaced `/finance/snapshots` in the robots
+disallow list (which was redundant under `/finance` anyway), the Swagger assets are pinned to `5.17.14` with
+subresource integrity instead of floating on `@5`, and `persistAuthorization` is off so the key is never written to
+`localStorage`.
 
 ### 8. The login rate limiter does nothing in production — **open**
 
@@ -193,12 +219,12 @@ The client POSTs the full `messages` array, which `sanitizeHistory` then validat
 every message in `financeAgentMessages` and the request carries a `chatId`. Loading history server-side removes a
 tamperable input, a redundant payload and a second source of truth.
 
-### 13. Two validation systems — **open**
+### 13. Two validation systems — **partly done**
 
-`finance-validation.ts` and `personal-validation.ts` are hand-rolled predicates returning `string | null`, while zod 4
-is already a dependency used throughout `src/mcp/`. The hand-rolled path is where the gaps are: `parseLedgerEntry` does
-not verify that `accountId` belongs to the ledger and relies on `validateLedger` catching it downstream, which works
-only by call ordering.
+`personal-validation.ts` is now zod, shared by the REST routes and the assistant's tools. `finance-validation.ts` is
+still hand-rolled predicates returning `string | null`. It is well covered by tests now, so converting it is lower
+risk than it was, but also lower value: `validateLedger` does cross-field work (currency matching, account membership,
+finalize preconditions) that reads clearly as imperative code and would need several `superRefine` blocks in zod.
 
 ---
 
@@ -233,7 +259,7 @@ Same for `getPortfolioItem` and `getConversation`. Validate UUIDs at the boundar
 
 ## Tier 4 — Engineering hygiene
 
-### 18. No tests and no CI — **open**
+### 18. No tests and no CI — **done**
 
 There is no test runner and no `.github/`. The pure functions in `src/lib/ledger.ts` — `accountMovement`,
 `expectedBalance`, `accountStats`, `ledgerSummary`, `variancePct` — are the financial correctness core, are
@@ -258,12 +284,11 @@ MongoDB stays in `src/content/site.ts` and `public/llms-full.txt`, which is mark
 Still open: `drizzle.config.ts` imports `@next/env`, which is not declared in `package.json` and resolves only as a
 transitive of `next`.
 
-### 21. Setup docs guarantee a broken first run — **open**
+### 21. Setup docs guarantee a broken first run — **done**
 
-`MCP_API_KEY` appears in seven files but is in neither `example.env` nor the README. `verifyMcpRequest` returns
-`undefined` when it is unset, so anyone following the README gets a 401 on every MCP call with no hint why. The
-`FINANCE_PASSWORD` fallback is undocumented too. Add both, plus a line noting that the MCP surface is inert without the
-key.
+Fixed. `MCP_API_KEY` is in `example.env` and the README, both noting that the MCP endpoints return 401 until it is
+set. The undocumented `FINANCE_PASSWORD` fallback was removed rather than documented, so there is one way to configure
+the signing secret. `@next/env` is now a declared devDependency instead of relying on it being a transitive of `next`.
 
 ### 22. The streaming chat route has no runtime or duration config — **done**
 

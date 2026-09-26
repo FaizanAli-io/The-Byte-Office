@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { company, navItems } from '@/content/site';
-import { FINANCE_AUTH_EVENT, readFinanceToken } from '@/lib/finance-session-client';
+import { FINANCE_AUTH_EVENT, isFinanceSignedIn } from '@/lib/finance-session-client';
 
 const otherItems = [
   { name: 'Finance', href: '/finance' },
@@ -130,7 +130,7 @@ export default function Navigation() {
   const [showOther, setShowOther] = useState(false);
 
   useEffect(() => {
-    const syncAuth = () => setShowOther(Boolean(readFinanceToken()));
+    const syncAuth = () => setShowOther(isFinanceSignedIn());
     syncAuth();
     window.addEventListener('storage', syncAuth);
     window.addEventListener(FINANCE_AUTH_EVENT, syncAuth);

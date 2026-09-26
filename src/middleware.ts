@@ -38,5 +38,8 @@ export const config = {
     '/api/health-tracking',
     '/api/health-tracking/:path*',
     '/api/agent/:path*',
+    // The API docs describe a private surface and solicit MCP_API_KEY.
+    '/docs',
+    '/api/openapi',
   ],
 };

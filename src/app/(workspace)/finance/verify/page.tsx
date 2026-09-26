@@ -1,7 +1,7 @@
 'use client';
 
 import { apiFetch, errorMessage } from '@/lib/client-api';
-import { persistFinanceToken } from '@/lib/finance-session-client';
+import { announceFinanceAuthChange } from '@/lib/finance-session-client';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -29,9 +29,9 @@ function VerifySession() {
     let cancelled = false;
     (async () => {
       try {
-        const result = await apiFetch<{ token: string }>('/api/finance-auth/verify', { body: { token } });
+        await apiFetch('/api/finance-auth/verify', { body: { token } });
         if (cancelled) return;
-        persistFinanceToken(result.token);
+        announceFinanceAuthChange();
         const destination = next?.startsWith('/finance') && !next.startsWith('//') ? next : '/finance';
         router.replace(destination);
       } catch (cause) {
