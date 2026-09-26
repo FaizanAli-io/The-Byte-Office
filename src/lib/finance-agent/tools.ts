@@ -1,7 +1,7 @@
-import { listLedgerSummaries, loadLedger } from '@/lib/db/queries';
+import { getSnapshot, listLedgerSummaries, listSnapshotSummaries, loadHoldings, loadLedger } from '@/lib/db/queries';
+import { holdingTotals } from '@/lib/finance';
 import { agentToolRegistry, type GroqTool } from '@/lib/agent/registry';
 import { proposeAgentAction } from './actions';
-import { getAgentSnapshot, listAgentSnapshots, loadAgentPortfolio } from './repository';
 import type { AgentActionType, PendingAgentAction } from './types';
 
 export type { GroqTool };
@@ -13,19 +13,14 @@ export async function executeFinanceTool(
   const input = asObject(args);
 
   if (name === 'portfolio_get') {
-    const portfolio = await loadAgentPortfolio();
-    const grandTotalPkr =
-      portfolio.localBanks.reduce((sum, item) => sum + item.amountPkr, 0) +
-      portfolio.remoteBanks.reduce((sum, item) => sum + item.amountUsd * item.exchangeRate, 0) +
-      portfolio.mutualFunds.reduce((sum, item) => sum + item.value, 0);
-    return { output: { ...portfolio, grandTotalPkr } };
+    const portfolio = await loadHoldings();
+    return { output: { ...portfolio, grandTotalPkr: holdingTotals(portfolio).grandTotal } };
   }
   if (name === 'snapshots_list') {
-    return { output: await listAgentSnapshots() };
+    return { output: await listSnapshotSummaries() };
   }
   if (name === 'snapshot_get') {
-    const id = requireArg(input, 'id');
-    const snapshot = await getAgentSnapshot(id);
+    const snapshot = await getSnapshot(requireArg(input, 'id'));
     if (!snapshot) throw new Error('Snapshot not found');
     return { output: snapshot };
   }

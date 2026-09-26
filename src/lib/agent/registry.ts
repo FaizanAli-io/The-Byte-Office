@@ -51,8 +51,10 @@ const entrySerial = z
   .string()
   .regex(/^\d{4,}$/, 'Use a ledger serial such as 0001')
   .describe('Zero-padded serial from ledger_get, such as 0001');
-const itemType = z.enum(['local_bank', 'remote_bank', 'mutual_fund']);
-const entryType = z.enum(['income', 'expense', 'transfer', 'fund_contribution', 'fund_withdrawal']);
+export const itemTypeSchema = z.enum(['local_bank', 'remote_bank', 'mutual_fund']);
+const itemType = itemTypeSchema;
+export const entryTypeSchema = z.enum(['income', 'expense', 'transfer', 'fund_contribution', 'fund_withdrawal']);
+const entryType = entryTypeSchema;
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)

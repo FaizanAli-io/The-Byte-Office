@@ -1,39 +1,10 @@
-import type { Namaaz } from '@/lib/db/schema';
+import type { healthTracking, prayers } from '@/lib/db/schema';
 
-export type { Namaaz };
+export type { Namaaz } from '@/lib/db/schema';
 
-export type Prayer = {
-  id: string;
-  namaaz: Namaaz;
-  missed: number;
-  updatedAt: Date;
-};
+// Row shapes come straight from the Drizzle schema so they cannot drift from
+// the tables; the input shapes come from the zod schemas that validate them.
+export type Prayer = typeof prayers.$inferSelect;
+export type HealthTracking = typeof healthTracking.$inferSelect;
 
-export type PrayerInput = {
-  namaaz: Namaaz;
-  missed?: number;
-};
-
-export type PrayerUpdate = {
-  namaaz?: Namaaz;
-  missed?: number;
-};
-
-export type HealthTracking = {
-  id: string;
-  metric: string;
-  value: number;
-  createdAt: Date;
-};
-
-export type HealthTrackingInput = {
-  metric: string;
-  value: number;
-  createdAt?: Date;
-};
-
-export type HealthTrackingUpdate = {
-  metric?: string;
-  value?: number;
-  createdAt?: Date;
-};
+export type { HealthTrackingInput, HealthTrackingUpdate, PrayerInput, PrayerUpdate } from '@/lib/personal-validation';

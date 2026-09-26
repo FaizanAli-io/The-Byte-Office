@@ -1,5 +1,5 @@
 import { deletePrayer, getPrayer, isUniqueViolation, updatePrayer } from '@/lib/db/personal';
-import { validatePrayerUpdate } from '@/lib/personal-validation';
+import { prayerUpdateSchema } from '@/lib/personal-validation';
 import { ApiError, idResource } from '@/lib/api';
 
 export const { GET, PUT, DELETE } = idResource({
@@ -9,6 +9,6 @@ export const { GET, PUT, DELETE } = idResource({
   get: getPrayer,
   update: updatePrayer,
   remove: deletePrayer,
-  parseUpdate: validatePrayerUpdate,
+  schema: prayerUpdateSchema,
   mapError: (cause) => (isUniqueViolation(cause) ? new ApiError('That namaaz already exists', 409) : null),
 });

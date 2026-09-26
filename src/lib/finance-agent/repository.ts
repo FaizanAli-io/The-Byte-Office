@@ -6,7 +6,6 @@ import {
   financeAgentActions,
   financeAgentMessages,
   financeAgentToolLogs,
-  financeSnapshots,
   localBanks,
   mutualFunds,
   remoteBanks,
@@ -26,143 +25,55 @@ import {
 
 const ACTION_TTL_MS = 15 * 60 * 1000;
 
-export async function loadAgentPortfolio() {
-  const db = getDb();
-  const [local, remote, funds] = await Promise.all([
-    db.select().from(localBanks).orderBy(asc(localBanks.sortOrder)),
-    db.select().from(remoteBanks).orderBy(asc(remoteBanks.sortOrder)),
-    db.select().from(mutualFunds).orderBy(asc(mutualFunds.sortOrder)),
-  ]);
-  return {
-    localBanks: local,
-    remoteBanks: remote,
-    mutualFunds: funds,
-  };
+/**
+ * Each holding type is its own table, and every operation below used to repeat
+ * the same three-way branch. The map collapses that to one lookup; the casts
+ * are the price of addressing three differently-shaped tables through one
+ * code path, and the column sets are already validated upstream by
+ * `parsePortfolioItem` / `parsePortfolioUpdate`.
+ */
+const HOLDING_TABLES = {
+  local_bank: localBanks,
+  remote_bank: remoteBanks,
+  mutual_fund: mutualFunds,
+} as const;
+
+type HoldingTable = (typeof HOLDING_TABLES)[PortfolioItemType];
+
+function holdingTable(itemType: PortfolioItemType): HoldingTable {
+  return HOLDING_TABLES[itemType];
 }
 
 export async function getPortfolioItem(itemType: PortfolioItemType, id: string) {
-  const db = getDb();
-  if (itemType === 'local_bank') {
-    return (await db.select().from(localBanks).where(eq(localBanks.id, id)).limit(1))[0] ?? null;
-  }
-  if (itemType === 'remote_bank') {
-    return (await db.select().from(remoteBanks).where(eq(remoteBanks.id, id)).limit(1))[0] ?? null;
-  }
-  return (await db.select().from(mutualFunds).where(eq(mutualFunds.id, id)).limit(1))[0] ?? null;
+  const table = holdingTable(itemType);
+  return (await getDb().select().from(table).where(eq(table.id, id)).limit(1))[0] ?? null;
 }
 
 export async function addPortfolioItem(item: PortfolioItemInput) {
   const db = getDb();
-  if (item.itemType === 'local_bank') {
-    const [order] = await db.select({ value: max(localBanks.sortOrder) }).from(localBanks);
-    const [created] = await db
-      .insert(localBanks)
-      .values({
-        name: item.name,
-        amountPkr: item.amountPkr,
-        sortOrder: (order.value ?? -1) + 1,
-      })
-      .returning();
-    return created;
-  }
-  if (item.itemType === 'remote_bank') {
-    const [order] = await db.select({ value: max(remoteBanks.sortOrder) }).from(remoteBanks);
-    const [created] = await db
-      .insert(remoteBanks)
-      .values({
-        name: item.name,
-        amountUsd: item.amountUsd,
-        exchangeRate: item.exchangeRate,
-        sortOrder: (order.value ?? -1) + 1,
-      })
-      .returning();
-    return created;
-  }
-
-  const [order] = await db.select({ value: max(mutualFunds.sortOrder) }).from(mutualFunds);
+  const { itemType, ...values } = item;
+  const table = holdingTable(itemType);
+  const [order] = await db.select({ value: max(table.sortOrder) }).from(table);
   const [created] = await db
-    .insert(mutualFunds)
-    .values({
-      bankName: item.bankName,
-      fundName: item.fundName,
-      value: item.value,
-      sortOrder: (order.value ?? -1) + 1,
-    })
+    .insert(table)
+    .values({ ...values, sortOrder: (order.value ?? -1) + 1 } as never)
     .returning();
   return created;
 }
 
 export async function updatePortfolioItem(itemType: PortfolioItemType, id: string, changes: Record<string, unknown>) {
-  const db = getDb();
-  const updatedAt = new Date();
-  if (itemType === 'local_bank') {
-    return (
-      (
-        await db
-          .update(localBanks)
-          .set({
-            name: changes.name as string,
-            amountPkr: changes.amountPkr as number,
-            updatedAt,
-          })
-          .where(eq(localBanks.id, id))
-          .returning()
-      )[0] ?? null
-    );
-  }
-  if (itemType === 'remote_bank') {
-    return (
-      (
-        await db
-          .update(remoteBanks)
-          .set({
-            name: changes.name as string,
-            amountUsd: changes.amountUsd as number,
-            exchangeRate: changes.exchangeRate as number,
-            updatedAt,
-          })
-          .where(eq(remoteBanks.id, id))
-          .returning()
-      )[0] ?? null
-    );
-  }
-  return (
-    (
-      await db
-        .update(mutualFunds)
-        .set({
-          bankName: changes.bankName as string,
-          fundName: changes.fundName as string,
-          value: changes.value as number,
-          updatedAt,
-        })
-        .where(eq(mutualFunds.id, id))
-        .returning()
-    )[0] ?? null
-  );
+  const table = holdingTable(itemType);
+  const [row] = await getDb()
+    .update(table)
+    .set({ ...changes, updatedAt: new Date() } as never)
+    .where(eq(table.id, id))
+    .returning();
+  return row ?? null;
 }
 
 export async function removePortfolioItem(itemType: PortfolioItemType, id: string) {
-  const db = getDb();
-  if (itemType === 'local_bank') {
-    return db.delete(localBanks).where(eq(localBanks.id, id)).returning({ id: localBanks.id });
-  }
-  if (itemType === 'remote_bank') {
-    return db.delete(remoteBanks).where(eq(remoteBanks.id, id)).returning({ id: remoteBanks.id });
-  }
-  return db.delete(mutualFunds).where(eq(mutualFunds.id, id)).returning({ id: mutualFunds.id });
-}
-
-export async function listAgentSnapshots() {
-  return getDb()
-    .select({
-      id: financeSnapshots.id,
-      timestamp: financeSnapshots.timestamp,
-      grandTotal: financeSnapshots.grandTotal,
-    })
-    .from(financeSnapshots)
-    .orderBy(desc(financeSnapshots.timestamp))
-    .limit(50);
+  const table = holdingTable(itemType);
+  return getDb().delete(table).where(eq(table.id, id)).returning({ id: table.id });
 }
 
 export async function logAgentToolCall(input: {
@@ -197,10 +108,6 @@ export async function listAgentToolLogs(limit = 200) {
     .limit(Math.min(Math.max(limit, 1), 500));
 }
 
-export async function getAgentSnapshot(id: string) {
-  return (await getDb().select().from(financeSnapshots).where(eq(financeSnapshots.id, id)).limit(1))[0] ?? null;
-}
-
 export async function createAgentAction(input: {
   actionType: AgentActionType;
   payload: AgentActionPayload;
@@ -224,52 +131,42 @@ export async function getAgentAction(id: string) {
   return (await getDb().select().from(financeAgentActions).where(eq(financeAgentActions.id, id)).limit(1))[0] ?? null;
 }
 
-export async function claimAgentAction(id: string) {
-  return (
-    (
-      await getDb()
-        .update(financeAgentActions)
-        .set({ status: 'executing', error: null })
-        .where(
-          and(
-            eq(financeAgentActions.id, id),
-            eq(financeAgentActions.status, 'pending'),
-            gt(financeAgentActions.expiresAt, new Date())
-          )
-        )
-        .returning()
-    )[0] ?? null
-  );
-}
+/** Status transitions are all "update if the row is still in the expected state". */
+async function setActionStatus(
+  id: string,
+  status: 'executing' | 'cancelled' | 'completed' | 'failed',
+  options: { from?: 'pending' | 'executing'; notExpired?: boolean; error?: string | null; executed?: boolean } = {}
+) {
+  const conditions = [eq(financeAgentActions.id, id)];
+  if (options.from) conditions.push(eq(financeAgentActions.status, options.from));
+  if (options.notExpired) conditions.push(gt(financeAgentActions.expiresAt, new Date()));
 
-export async function cancelAgentAction(id: string) {
-  return (
-    (
-      await getDb()
-        .update(financeAgentActions)
-        .set({ status: 'cancelled' })
-        .where(and(eq(financeAgentActions.id, id), eq(financeAgentActions.status, 'pending')))
-        .returning()
-    )[0] ?? null
-  );
-}
-
-export async function completeAgentAction(id: string) {
   const [action] = await getDb()
     .update(financeAgentActions)
-    .set({ status: 'completed', executedAt: new Date(), error: null })
-    .where(and(eq(financeAgentActions.id, id), eq(financeAgentActions.status, 'executing')))
+    .set({
+      status,
+      ...(options.error !== undefined ? { error: options.error } : {}),
+      ...(options.executed ? { executedAt: new Date() } : {}),
+    })
+    .where(and(...conditions))
     .returning();
   return action ?? null;
 }
 
-export async function failAgentAction(id: string, error: string) {
-  const [action] = await getDb()
-    .update(financeAgentActions)
-    .set({ status: 'failed', error: error.slice(0, 500) })
-    .where(eq(financeAgentActions.id, id))
-    .returning();
-  return action ?? null;
+export function claimAgentAction(id: string) {
+  return setActionStatus(id, 'executing', { from: 'pending', notExpired: true, error: null });
+}
+
+export function cancelAgentAction(id: string) {
+  return setActionStatus(id, 'cancelled', { from: 'pending' });
+}
+
+export function completeAgentAction(id: string) {
+  return setActionStatus(id, 'completed', { from: 'executing', error: null, executed: true });
+}
+
+export function failAgentAction(id: string, error: string) {
+  return setActionStatus(id, 'failed', { error: error.slice(0, 500) });
 }
 
 export async function listConversations(workspace?: AgentWorkspace): Promise<AgentConversation[]> {

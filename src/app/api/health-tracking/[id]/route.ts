@@ -1,5 +1,5 @@
 import { deleteHealthTracking, getHealthTracking, updateHealthTracking } from '@/lib/db/personal';
-import { validateHealthTrackingUpdate } from '@/lib/personal-validation';
+import { healthUpdateSchema } from '@/lib/personal-validation';
 import { idResource } from '@/lib/api';
 
 export const { GET, PUT, DELETE } = idResource({
@@ -9,5 +9,5 @@ export const { GET, PUT, DELETE } = idResource({
   get: getHealthTracking,
   update: updateHealthTracking,
   remove: deleteHealthTracking,
-  parseUpdate: validateHealthTrackingUpdate,
+  schema: healthUpdateSchema,
 });

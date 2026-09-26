@@ -15,8 +15,8 @@ import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
 import { createAgentAction, fingerprint } from '@/lib/finance-agent/repository';
 import { toolNamesForModule } from '@/lib/agent/registry';
 import type { AgentActionPayload, PendingAgentAction } from '@/lib/finance-agent/types';
-import { isNamaaz, parseTimestamp, validInteger } from '@/lib/personal-validation';
-import { isRecord, validName } from '@/lib/finance-validation';
+import { healthInputSchema, healthUpdateSchema, prayerSetSchema } from '@/lib/personal-validation';
+import { parseWith } from '@/lib/api';
 
 export const personalToolNames = toolNamesForModule('personal');
 
@@ -56,18 +56,16 @@ async function proposePersonalAction(
   args: Record<string, unknown>
 ) {
   if (actionType === 'prayer_set') {
-    if (!isNamaaz(args.namaaz)) throw new AgentActionError('Invalid namaaz');
-    if (!validInteger(args.missed) || args.missed < 0)
-      throw new AgentActionError('Missed must be a non-negative integer');
-    const current = await getPrayerByNamaaz(args.namaaz);
+    const { namaaz, missed } = parseWith(prayerSetSchema, args);
+    const current = await getPrayerByNamaaz(namaaz);
     return toPublicAction(
       await createAgentAction({
         actionType,
-        payload: { actionType, namaaz: args.namaaz, missed: args.missed },
+        payload: { actionType, namaaz, missed },
         preview: {
-          title: `Set ${args.namaaz} missed count`,
+          title: `Set ${namaaz} missed count`,
           before: current,
-          after: { namaaz: args.namaaz, missed: args.missed },
+          after: { namaaz, missed },
         },
         sourceFingerprint: current ? fingerprint(current) : null,
       })
@@ -89,7 +87,7 @@ async function proposePersonalAction(
   }
 
   if (actionType === 'health_add') {
-    const entry = parseHealthInput(args);
+    const entry = toStoredHealth(parseWith(healthInputSchema, args));
     return toPublicAction(
       await createAgentAction({
         actionType,
@@ -114,7 +112,7 @@ async function proposePersonalAction(
     );
   }
 
-  const changes = parseHealthUpdate(args);
+  const changes = toStoredHealth(parseWith(healthUpdateSchema, args));
   return toPublicAction(
     await createAgentAction({
       actionType,
@@ -181,37 +179,17 @@ export async function executePersonalPayload(
   });
 }
 
-function parseHealthInput(args: Record<string, unknown>) {
-  if (!validName(args.metric)) throw new AgentActionError('Metric is required');
-  if (!validInteger(args.value)) throw new AgentActionError('Value must be an integer');
-  const createdAt = args.createdAt === undefined ? undefined : parseTimestamp(args.createdAt);
-  if (args.createdAt !== undefined && !createdAt) throw new AgentActionError('createdAt must be a valid date');
-  return {
-    metric: args.metric.trim(),
-    value: args.value,
-    createdAt: createdAt?.toISOString(),
-  };
-}
-
-function parseHealthUpdate(args: Record<string, unknown>) {
-  const changes: { metric?: string; value?: number; createdAt?: string } = {};
-  if (args.metric !== undefined) {
-    if (!validName(args.metric)) throw new AgentActionError('Metric is required');
-    changes.metric = args.metric.trim();
+/**
+ * Payloads are stored as JSONB, so dates travel as ISO strings. Undefined keys
+ * are dropped rather than passed through: the update preview spreads these over
+ * the current row, and an explicit `createdAt: undefined` would blank it.
+ */
+function toStoredHealth<T extends { createdAt?: Date }>(value: T) {
+  const stored: Record<string, unknown> = { ...value, createdAt: value.createdAt?.toISOString() };
+  for (const key of Object.keys(stored)) {
+    if (stored[key] === undefined) delete stored[key];
   }
-  if (args.value !== undefined) {
-    if (!validInteger(args.value)) throw new AgentActionError('Value must be an integer');
-    changes.value = args.value;
-  }
-  if (args.createdAt !== undefined) {
-    const createdAt = parseTimestamp(args.createdAt);
-    if (!createdAt) throw new AgentActionError('createdAt must be a valid date');
-    changes.createdAt = createdAt.toISOString();
-  }
-  if (!isRecord(changes) || Object.keys(changes).length === 0) {
-    throw new AgentActionError('Provide metric, value, or createdAt to update');
-  }
-  return changes;
+  return stored as Omit<T, 'createdAt'> & { createdAt?: string };
 }
 
 function requireId(value: unknown) {

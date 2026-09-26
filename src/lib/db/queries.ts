@@ -44,13 +44,26 @@ export function groupMutualFunds(
   return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([, group]) => ({ [group.bankName]: group.funds }));
 }
 
-export async function loadFinanceDoc(): Promise<FinanceDoc> {
+/**
+ * The three holding tables as raw rows, in display order.
+ *
+ * Both shapes the app needs are derived from this: `loadFinanceDoc` groups it
+ * for the editor and the snapshot format, while the assistant's
+ * `portfolio_get` serves the flat rows. They used to be two separate reads of
+ * the same three tables in two different modules.
+ */
+export async function loadHoldings() {
   const db = getDb();
-  const [local, remote, funds] = await Promise.all([
+  const [localBankRows, remoteBankRows, mutualFundRows] = await Promise.all([
     db.select().from(localBanks).orderBy(asc(localBanks.sortOrder)),
     db.select().from(remoteBanks).orderBy(asc(remoteBanks.sortOrder)),
     db.select().from(mutualFunds).orderBy(asc(mutualFunds.sortOrder)),
   ]);
+  return { localBanks: localBankRows, remoteBanks: remoteBankRows, mutualFunds: mutualFundRows };
+}
+
+export async function loadFinanceDoc(): Promise<FinanceDoc> {
+  const { localBanks: local, remoteBanks: remote, mutualFunds: funds } = await loadHoldings();
 
   return {
     name: 'finance',
@@ -295,6 +308,16 @@ export async function listSnapshots(): Promise<FinanceSnapshot[]> {
     grandTotal: row.grandTotal,
     data: row.data,
   }));
+}
+
+/** The same list without the holdings blob, which the assistant does not need. */
+export async function listSnapshotSummaries() {
+  const rows = await listSnapshots();
+  return rows.map(({ _id, timestamp, grandTotal }) => ({ id: _id, timestamp, grandTotal }));
+}
+
+export async function getSnapshot(id: string) {
+  return (await getDb().select().from(financeSnapshots).where(eq(financeSnapshots.id, id)).limit(1))[0] ?? null;
 }
 
 export async function createSnapshot(data: SnapshotHoldings, grandTotal: number) {

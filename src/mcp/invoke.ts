@@ -1,14 +1,14 @@
 import { applyFinanceAction, type FinanceWriteAction } from '@/lib/finance-agent/actions';
 import { executeFinanceTool } from '@/lib/finance-agent/tools';
-import { financeToolByName, inputSchemaForTool } from './catalog';
+import { mcpToolByName } from '@/lib/agent/registry';
 
 export async function invokeFinanceTool(name: string, args: unknown = {}) {
-  const tool = financeToolByName.get(name);
+  const tool = mcpToolByName.get(name);
   if (!tool) {
     throw new Error(`Unknown tool: ${name}`);
   }
 
-  const parsed = inputSchemaForTool(tool).parse(args);
+  const parsed = tool.schema.parse(args);
 
   if (tool.write) {
     return applyFinanceAction(name as FinanceWriteAction, parsed);

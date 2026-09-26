@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { z } from 'zod/v4';
 
 /**
  * Shared plumbing for the route handlers.
@@ -76,12 +77,11 @@ export function created(body: unknown) {
   return NextResponse.json(body, { status: 201 });
 }
 
-type Validated<T> = { data: T; error?: undefined } | { error: string };
-
-/** Unwraps the `{ data } | { error }` shape the validators return. */
-export function unwrap<T>(result: Validated<T>): T {
-  if ('error' in result && result.error) throw new ApiError(result.error);
-  return (result as { data: T }).data;
+/** Validates against a zod schema, surfacing the first issue as a 400. */
+export function parseWith<T>(schema: z.ZodType<T>, value: unknown): T {
+  const result = schema.safeParse(value);
+  if (!result.success) throw new ApiError(result.error.issues[0]?.message ?? 'Invalid request');
+  return result.data;
 }
 
 export function found<T>(value: T | null | undefined, message: string): T {
@@ -101,7 +101,7 @@ export function idResource<Row, Update>(config: {
   get: (id: string) => Promise<Row | null>;
   update: (id: string, data: Update) => Promise<Row | null>;
   remove: (id: string) => Promise<boolean>;
-  parseUpdate: (value: unknown) => Validated<Update>;
+  schema: z.ZodType<Update>;
   /** Turns a driver-level failure into a friendlier status, e.g. a unique violation. */
   mapError?: (cause: unknown) => ApiError | null;
 }) {
@@ -117,7 +117,7 @@ export function idResource<Row, Update>(config: {
     ),
     PUT: apiRoute(`PUT ${config.path}`, `Failed to update ${config.noun}`, async (req: Request, ctx: Context) => {
       const { id } = await ctx.params;
-      const data = unwrap(config.parseUpdate(await jsonBody(req)));
+      const data = parseWith(config.schema, await jsonBody(req));
       const row = await config.update(id, data).catch(rethrow);
       return found(row, config.notFound);
     }),

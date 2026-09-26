@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
+import { entryTypeSchema, itemTypeSchema } from '@/lib/agent/registry';
 import { executePersonalPayload } from '@/lib/agent/modules/personal';
 import { executeTboInquiry } from '@/lib/agent/modules/tbo-actions';
 import { loadLedger, saveLedger } from '@/lib/db/queries';
@@ -408,29 +409,29 @@ function assertLedgerStructure(ledger: MonthlyLedger, sourceFingerprint: string 
   }
 }
 
+/**
+ * One field spec per holding type serves both the create and the update path:
+ * an update simply falls back to the stored row for anything the caller left
+ * out, so the two used to be the same list written twice.
+ */
+const HOLDING_FIELDS = {
+  local_bank: { name: requireName, amountPkr: requireMoney },
+  remote_bank: { name: requireName, amountUsd: requireMoney, exchangeRate: requirePositive },
+  mutual_fund: { bankName: requireName, fundName: requireName, value: requireMoney },
+} as const;
+
+function parseHolding(
+  itemType: PortfolioItemType,
+  args: Record<string, unknown>,
+  current: Record<string, unknown> = {}
+) {
+  const fields: Record<string, (value: unknown, key: string) => string | number> = HOLDING_FIELDS[itemType];
+  return Object.fromEntries(Object.entries(fields).map(([key, check]) => [key, check(args[key] ?? current[key], key)]));
+}
+
 function parsePortfolioItem(args: Record<string, unknown>): PortfolioItemInput {
   const itemType = parseItemType(args.itemType);
-  if (itemType === 'local_bank') {
-    return {
-      itemType,
-      name: requireName(args.name, 'name'),
-      amountPkr: requireMoney(args.amountPkr, 'amountPkr'),
-    };
-  }
-  if (itemType === 'remote_bank') {
-    return {
-      itemType,
-      name: requireName(args.name, 'name'),
-      amountUsd: requireMoney(args.amountUsd, 'amountUsd'),
-      exchangeRate: requirePositive(args.exchangeRate, 'exchangeRate'),
-    };
-  }
-  return {
-    itemType,
-    bankName: requireName(args.bankName, 'bankName'),
-    fundName: requireName(args.fundName, 'fundName'),
-    value: requireMoney(args.value, 'value'),
-  };
+  return { itemType, ...parseHolding(itemType, args) } as PortfolioItemInput;
 }
 
 function parsePortfolioUpdate(
@@ -438,24 +439,7 @@ function parsePortfolioUpdate(
   args: Record<string, unknown>,
   current: Record<string, unknown>
 ) {
-  if (itemType === 'local_bank') {
-    return {
-      name: requireName(args.name ?? current.name, 'name'),
-      amountPkr: requireMoney(args.amountPkr ?? current.amountPkr, 'amountPkr'),
-    };
-  }
-  if (itemType === 'remote_bank') {
-    return {
-      name: requireName(args.name ?? current.name, 'name'),
-      amountUsd: requireMoney(args.amountUsd ?? current.amountUsd, 'amountUsd'),
-      exchangeRate: requirePositive(args.exchangeRate ?? current.exchangeRate, 'exchangeRate'),
-    };
-  }
-  return {
-    bankName: requireName(args.bankName ?? current.bankName, 'bankName'),
-    fundName: requireName(args.fundName ?? current.fundName, 'fundName'),
-    value: requireMoney(args.value ?? current.value, 'value'),
-  };
+  return parseHolding(itemType, args, current);
 }
 
 function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
@@ -485,23 +469,15 @@ function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEnt
 }
 
 function parseItemType(value: unknown): PortfolioItemType {
-  if (value === 'local_bank' || value === 'remote_bank' || value === 'mutual_fund') {
-    return value;
-  }
-  throw new AgentActionError('Invalid itemType');
+  const parsed = itemTypeSchema.safeParse(value);
+  if (!parsed.success) throw new AgentActionError('Invalid itemType');
+  return parsed.data;
 }
 
 function requireEntryType(value: unknown): LedgerEntry['type'] {
-  if (
-    value === 'income' ||
-    value === 'expense' ||
-    value === 'transfer' ||
-    value === 'fund_contribution' ||
-    value === 'fund_withdrawal'
-  ) {
-    return value;
-  }
-  throw new AgentActionError('Invalid ledger entry type');
+  const parsed = entryTypeSchema.safeParse(value);
+  if (!parsed.success) throw new AgentActionError('Invalid ledger entry type');
+  return parsed.data;
 }
 
 function requireRecord(value: unknown) {
@@ -597,13 +573,7 @@ function defaultEntryDate(month: string, requested?: string) {
 }
 
 function isEntryType(value: unknown): value is LedgerEntry['type'] {
-  return (
-    value === 'income' ||
-    value === 'expense' ||
-    value === 'transfer' ||
-    value === 'fund_contribution' ||
-    value === 'fund_withdrawal'
-  );
+  return entryTypeSchema.safeParse(value).success;
 }
 
 function firstAccountId(accounts: Pick<LedgerAccount, 'id' | 'type'>[], type: LedgerEntry['type']) {

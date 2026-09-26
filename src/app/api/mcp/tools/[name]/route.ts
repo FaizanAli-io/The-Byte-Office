@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { financeToolByName, httpMethodFor } from '@/mcp/catalog';
+import { httpMethodFor, mcpToolByName } from '@/lib/agent/registry';
 import { invokeFinanceTool } from '@/mcp/invoke';
 import { unauthorizedResponse, verifyMcpRequest } from '@/mcp/auth';
 
@@ -14,7 +14,7 @@ export async function GET(request: Request, context: RouteContext) {
   if (!authInfo) return unauthorizedResponse();
 
   const { name } = await context.params;
-  const tool = financeToolByName.get(name);
+  const tool = mcpToolByName.get(name);
   if (!tool) {
     return NextResponse.json({ error: `Unknown tool: ${name}` }, { status: 404 });
   }
@@ -36,7 +36,7 @@ export async function POST(request: Request, context: RouteContext) {
   if (!authInfo) return unauthorizedResponse();
 
   const { name } = await context.params;
-  const tool = financeToolByName.get(name);
+  const tool = mcpToolByName.get(name);
   if (!tool) {
     return NextResponse.json({ error: `Unknown tool: ${name}` }, { status: 404 });
   }

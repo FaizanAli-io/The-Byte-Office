@@ -5,6 +5,7 @@ import type { LedgerAccount, LedgerEntry, LedgerEntryType } from '@/types/ledger
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 import { Field } from './LedgerAccounts';
+import { draftIncomplete, emptyDraft, EntryFields } from './EntryFields';
 
 export function LedgerEntries({
   month,
@@ -84,12 +85,6 @@ export function LedgerEntries({
   const filtersActive = !isDefaultFilters(filters);
   const showRunning = filters.accountId !== 'all' && filters.sortBy === 'date' && filters.sortDir === 'asc';
   const sourceAccount = accounts.find((account) => account.id === draft.accountId);
-  const destinationAccount = accounts.find((account) => account.id === draft.destinationAccountId);
-  const requiresDestinationAmount =
-    draft.type === 'transfer' &&
-    sourceAccount &&
-    destinationAccount &&
-    sourceAccount.currency !== destinationAccount.currency;
 
   function addEntry() {
     const amount = Number(draft.amount);
@@ -154,131 +149,11 @@ export function LedgerEntries({
           />
           {addOpen ? (
             <div className="grid gap-3 border-t border-white/6 p-4 md:grid-cols-2 xl:grid-cols-4">
-              <Field label="Date">
-                <input
-                  className={financeStyles.input}
-                  type="date"
-                  min={bounds.min}
-                  max={bounds.max}
-                  value={draft.date}
-                  onChange={(event) => setDraft({ ...draft, date: event.target.value })}
-                />
-              </Field>
-              <Field label="Type">
-                <select
-                  className={financeStyles.input}
-                  value={draft.type}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      type: event.target.value as LedgerEntryType,
-                    })
-                  }
-                >
-                  {Object.entries(ENTRY_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={draft.type === 'transfer' ? 'From account' : 'Account'}>
-                <select
-                  className={financeStyles.input}
-                  value={draft.accountId}
-                  onChange={(event) => setDraft({ ...draft, accountId: event.target.value })}
-                >
-                  <option value="">Select account</option>
-                  {eligibleAccounts(accounts, draft.type).map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name} · {account.currency}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Amount">
-                <input
-                  className={financeStyles.input}
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={draft.amount}
-                  onChange={(event) => setDraft({ ...draft, amount: event.target.value })}
-                  placeholder="0"
-                />
-              </Field>
-              {draft.type === 'transfer' ? (
-                <>
-                  <Field label="To account">
-                    <select
-                      className={financeStyles.input}
-                      value={draft.destinationAccountId}
-                      onChange={(event) =>
-                        setDraft({
-                          ...draft,
-                          destinationAccountId: event.target.value,
-                        })
-                      }
-                    >
-                      <option value="">Select destination</option>
-                      {accounts
-                        .filter((account) => account.id !== draft.accountId)
-                        .map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.name} · {account.currency}
-                          </option>
-                        ))}
-                    </select>
-                  </Field>
-                  <Field
-                    label={
-                      requiresDestinationAmount
-                        ? `Amount received (${destinationAccount?.currency})`
-                        : 'Destination amount (optional)'
-                    }
-                  >
-                    <input
-                      className={financeStyles.input}
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={draft.destinationAmount}
-                      onChange={(event) =>
-                        setDraft({
-                          ...draft,
-                          destinationAmount: event.target.value,
-                        })
-                      }
-                      placeholder="For currency conversion"
-                    />
-                  </Field>
-                </>
-              ) : null}
-              <Field label="Category (optional)">
-                <input
-                  className={financeStyles.input}
-                  value={draft.category}
-                  onChange={(event) => setDraft({ ...draft, category: event.target.value })}
-                  placeholder="Salary, bills, food…"
-                />
-              </Field>
-              <Field label="Note (optional)">
-                <input
-                  className={financeStyles.input}
-                  value={draft.note}
-                  onChange={(event) => setDraft({ ...draft, note: event.target.value })}
-                  placeholder="Short description"
-                />
-              </Field>
+              <EntryFields draft={draft} setDraft={setDraft} accounts={accounts} bounds={bounds} placeholders />
               <button
                 type="button"
                 className={`${financeStyles.primary} self-end`}
-                disabled={
-                  !draft.accountId ||
-                  !draft.amount ||
-                  (draft.type === 'transfer' && !draft.destinationAccountId) ||
-                  (requiresDestinationAmount && !draft.destinationAmount)
-                }
+                disabled={draftIncomplete(draft, accounts)}
                 onClick={addEntry}
               >
                 {editingId ? 'Update transaction' : 'Add transaction'}
@@ -550,13 +425,6 @@ export function LedgerEntries({
   );
 }
 
-function eligibleAccounts(accounts: LedgerAccount[], type: LedgerEntryType) {
-  if (type === 'fund_contribution' || type === 'fund_withdrawal') {
-    return accounts.filter((account) => account.type === 'fund');
-  }
-  return accounts;
-}
-
 function runningBalance(accountId: string, entries: LedgerEntry[], accounts: LedgerAccount[]) {
   const account = accounts.find((item) => item.id === accountId);
   if (!account) return 0;
@@ -655,17 +523,4 @@ function CollapseToggle({
       </div>
     </div>
   );
-}
-
-function emptyDraft(date: string) {
-  return {
-    date,
-    type: 'expense' as LedgerEntryType,
-    accountId: '',
-    destinationAccountId: '',
-    amount: '',
-    destinationAmount: '',
-    category: '',
-    note: '',
-  };
 }

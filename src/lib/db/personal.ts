@@ -3,6 +3,14 @@ import type { HealthTrackingInput, HealthTrackingUpdate, PrayerInput, PrayerUpda
 import { getDb } from './index';
 import { healthTracking, prayers } from './schema';
 
+/**
+ * Drizzle writes an explicit `undefined` as a column value, so partial updates
+ * have to drop absent keys rather than pass them through.
+ */
+function defined<T extends object>(input: T) {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as T;
+}
+
 export async function listPrayers() {
   return getDb().select().from(prayers).orderBy(asc(prayers.namaaz));
 }
@@ -31,11 +39,7 @@ export async function createPrayer(input: PrayerInput) {
 export async function updatePrayer(id: string, input: PrayerUpdate) {
   const [row] = await getDb()
     .update(prayers)
-    .set({
-      ...(input.namaaz !== undefined ? { namaaz: input.namaaz } : {}),
-      ...(input.missed !== undefined ? { missed: input.missed } : {}),
-      updatedAt: new Date(),
-    })
+    .set({ ...defined(input), updatedAt: new Date() })
     .where(eq(prayers.id, id))
     .returning();
   return row ?? null;
@@ -60,27 +64,12 @@ export async function getHealthTracking(id: string) {
 }
 
 export async function createHealthTracking(input: HealthTrackingInput) {
-  const [row] = await getDb()
-    .insert(healthTracking)
-    .values({
-      metric: input.metric,
-      value: input.value,
-      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
-    })
-    .returning();
+  const [row] = await getDb().insert(healthTracking).values(defined(input)).returning();
   return row;
 }
 
 export async function updateHealthTracking(id: string, input: HealthTrackingUpdate) {
-  const [row] = await getDb()
-    .update(healthTracking)
-    .set({
-      ...(input.metric !== undefined ? { metric: input.metric } : {}),
-      ...(input.value !== undefined ? { value: input.value } : {}),
-      ...(input.createdAt !== undefined ? { createdAt: input.createdAt } : {}),
-    })
-    .where(eq(healthTracking.id, id))
-    .returning();
+  const [row] = await getDb().update(healthTracking).set(defined(input)).where(eq(healthTracking.id, id)).returning();
   return row ?? null;
 }
 

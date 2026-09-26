@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { financeToolCatalog, httpMethodFor, inputSchemaForTool } from './catalog';
+import { httpMethodFor, mcpToolRegistry } from '@/lib/agent/registry';
 import { MCP_SERVER_NAME, MCP_SERVER_VERSION } from './server';
 
 type OpenApiDocument = Record<string, unknown>;
@@ -41,7 +41,7 @@ export function buildOpenApiDocument(origin: string): OpenApiDocument {
     },
   };
 
-  for (const tool of financeToolCatalog) {
+  for (const tool of mcpToolRegistry) {
     const operation = {
       tags: [tool.write ? 'Finance Write' : 'Finance Read'],
       summary: tool.title,
@@ -76,7 +76,7 @@ export function buildOpenApiDocument(origin: string): OpenApiDocument {
           required: true,
           content: {
             'application/json': {
-              schema: z.toJSONSchema(inputSchemaForTool(tool)),
+              schema: z.toJSONSchema(tool.schema),
             },
           },
         },
