@@ -58,9 +58,14 @@ assistant uses a tool. Conversation history is stored in
 conversation. The server limits message size, history size, reasoning rounds,
 tool calls, output size, and request duration.
 
-The agent cannot run SQL, edit ledger accounts, finalize ledgers, or bypass
-confirmation. The existing finance session protects the page and all agent API
-routes.
+The agent cannot run SQL, edit ledger accounts, or finalize ledgers. The
+existing finance session protects the page and all agent API routes.
+
+The confirmation flow described above covers the **chat** surface only. The MCP
+surface (`/api/mcp` and `/api/mcp/tools/{name}`) calls `applyFinanceAction`,
+which proposes and immediately executes in one step, so a client holding
+`MCP_API_KEY` writes without confirmation. That key is therefore as sensitive as
+the finance session itself. See item 3 in [`improvements.md`](./improvements.md).
 
 ## Troubleshooting
 

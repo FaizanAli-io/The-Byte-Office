@@ -83,7 +83,12 @@ export default function FinanceEditor() {
           <button type="button" onClick={handleSnapshot} disabled={snapshotLoading} className={financeStyles.secondary}>
             {snapshotLoading ? 'Saving snapshot…' : 'Take snapshot'}
           </button>
-          <button type="button" onClick={handleSave} disabled={saving} className={financeStyles.primary}>
+          <button
+            type="button"
+            onClick={async () => setToast(await handleSave())}
+            disabled={saving}
+            className={financeStyles.primary}
+          >
             {saving ? 'Saving…' : 'Save portfolio'}
           </button>
         </>

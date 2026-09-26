@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { and, asc, desc, eq, lt } from 'drizzle-orm';
-import type { FinanceDoc, FinanceSnapshot } from '@/types/finance';
+import type { FinanceDoc, FinanceFund, FinanceSnapshot } from '@/types/finance';
 import type { LedgerAccount, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 import { getDb, getSql } from './index';
 import {
@@ -20,6 +20,7 @@ export function flattenMutualFunds(groups: FinanceDoc['mutualFunds']) {
   return groups.flatMap((group, groupIndex) => {
     const bankName = Object.keys(group)[0] ?? '';
     return (group[bankName] ?? []).map((fund, fundIndex) => ({
+      id: fund.id,
       bankName,
       fundName: fund.fund,
       value: fund.value,
@@ -29,14 +30,14 @@ export function flattenMutualFunds(groups: FinanceDoc['mutualFunds']) {
 }
 
 export function groupMutualFunds(
-  rows: { bankName: string; fundName: string; value: number; sortOrder: number }[]
+  rows: { id?: string; bankName: string; fundName: string; value: number; sortOrder: number }[]
 ): FinanceDoc['mutualFunds'] {
-  const groups = new Map<number, { bankName: string; funds: { fund: string; value: number }[] }>();
+  const groups = new Map<number, { bankName: string; funds: FinanceFund[] }>();
 
   for (const row of [...rows].sort((a, b) => a.sortOrder - b.sortOrder)) {
     const groupIndex = Math.floor(row.sortOrder / MUTUAL_FUND_GROUP_STRIDE);
     const group = groups.get(groupIndex) ?? { bankName: row.bankName, funds: [] };
-    group.funds.push({ fund: row.fundName, value: row.value });
+    group.funds.push({ id: row.id, fund: row.fundName, value: row.value });
     groups.set(groupIndex, group);
   }
 
@@ -54,10 +55,12 @@ export async function loadFinanceDoc(): Promise<FinanceDoc> {
   return {
     name: 'finance',
     localBanks: local.map((bank) => ({
+      id: bank.id,
       name: bank.name,
       amountPkr: bank.amountPkr,
     })),
     remoteBanks: remote.map((bank) => ({
+      id: bank.id,
       name: bank.name,
       amountUsd: bank.amountUsd,
       exchangeRate: bank.exchangeRate,
@@ -66,31 +69,91 @@ export async function loadFinanceDoc(): Promise<FinanceDoc> {
   };
 }
 
-export async function saveFinanceDoc(doc: Omit<FinanceDoc, '_id'>) {
+/**
+ * Saves the portfolio as a diff against the current rows rather than replacing
+ * the table.
+ *
+ * Holding IDs are the stable handles the finance agent proposes actions
+ * against (`portfolio_item_update` / `portfolio_item_remove` look items up by
+ * ID and compare a content fingerprint). Truncating and reinserting rotated
+ * every UUID on every save, so any proposal created before a save failed on
+ * confirmation. Rows that arrive with a known ID are updated in place, rows
+ * without one are inserted, and rows the editor dropped are deleted.
+ *
+ * An unrecognised ID is treated as an insert instead of an error so that a
+ * stale editor tab degrades to creating a duplicate rather than failing the
+ * whole save.
+ */
+export async function saveFinanceDoc(doc: Omit<FinanceDoc, '_id'>): Promise<FinanceDoc> {
   const sql = getSql();
-  const statements = [
-    sql`DELETE FROM finance.local_banks`,
-    sql`DELETE FROM finance.remote_banks`,
-    sql`DELETE FROM finance.mutual_funds`,
-  ];
+  const db = getDb();
+
+  const [existingLocal, existingRemote, existingFunds] = await Promise.all([
+    db.select({ id: localBanks.id }).from(localBanks),
+    db.select({ id: remoteBanks.id }).from(remoteBanks),
+    db.select({ id: mutualFunds.id }).from(mutualFunds),
+  ]);
+
+  const localIds = new Set(existingLocal.map((row) => row.id));
+  const remoteIds = new Set(existingRemote.map((row) => row.id));
+  const fundIds = new Set(existingFunds.map((row) => row.id));
+
+  const keptLocal = new Set<string>();
+  const keptRemote = new Set<string>();
+  const keptFunds = new Set<string>();
+  const statements: ReturnType<typeof sql>[] = [];
 
   doc.localBanks.forEach((bank, index) => {
+    if (bank.id && localIds.has(bank.id)) {
+      keptLocal.add(bank.id);
+      statements.push(
+        sql`UPDATE finance.local_banks SET name = ${bank.name}, amount_pkr = ${bank.amountPkr}, sort_order = ${index}, updated_at = now() WHERE id = ${bank.id}`
+      );
+      return;
+    }
     statements.push(
       sql`INSERT INTO finance.local_banks (name, amount_pkr, sort_order) VALUES (${bank.name}, ${bank.amountPkr}, ${index})`
     );
   });
+
   doc.remoteBanks.forEach((bank, index) => {
+    if (bank.id && remoteIds.has(bank.id)) {
+      keptRemote.add(bank.id);
+      statements.push(
+        sql`UPDATE finance.remote_banks SET name = ${bank.name}, amount_usd = ${bank.amountUsd}, exchange_rate = ${bank.exchangeRate}, sort_order = ${index}, updated_at = now() WHERE id = ${bank.id}`
+      );
+      return;
+    }
     statements.push(
       sql`INSERT INTO finance.remote_banks (name, amount_usd, exchange_rate, sort_order) VALUES (${bank.name}, ${bank.amountUsd}, ${bank.exchangeRate}, ${index})`
     );
   });
+
   flattenMutualFunds(doc.mutualFunds).forEach((fund) => {
+    if (fund.id && fundIds.has(fund.id)) {
+      keptFunds.add(fund.id);
+      statements.push(
+        sql`UPDATE finance.mutual_funds SET bank_name = ${fund.bankName}, fund_name = ${fund.fundName}, value = ${fund.value}, sort_order = ${fund.sortOrder}, updated_at = now() WHERE id = ${fund.id}`
+      );
+      return;
+    }
     statements.push(
       sql`INSERT INTO finance.mutual_funds (bank_name, fund_name, value, sort_order) VALUES (${fund.bankName}, ${fund.fundName}, ${fund.value}, ${fund.sortOrder})`
     );
   });
 
-  await sql.transaction(statements);
+  for (const id of localIds) {
+    if (!keptLocal.has(id)) statements.push(sql`DELETE FROM finance.local_banks WHERE id = ${id}`);
+  }
+  for (const id of remoteIds) {
+    if (!keptRemote.has(id)) statements.push(sql`DELETE FROM finance.remote_banks WHERE id = ${id}`);
+  }
+  for (const id of fundIds) {
+    if (!keptFunds.has(id)) statements.push(sql`DELETE FROM finance.mutual_funds WHERE id = ${id}`);
+  }
+
+  if (statements.length) await sql.transaction(statements);
+  return loadFinanceDoc();
 }
 
 function toAccount(row: typeof ledgerAccounts.$inferSelect): LedgerAccount {

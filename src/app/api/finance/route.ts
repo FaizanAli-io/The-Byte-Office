@@ -18,8 +18,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid finance data' }, { status: 400 });
     }
     if ('_id' in body) delete body._id;
-    await saveFinanceDoc(body);
-    return NextResponse.json({ success: true });
+    // Return the saved document so the editor can adopt the IDs Postgres
+    // assigned to newly inserted holdings. Without this the client would still
+    // hold ID-less rows and the next save would insert them a second time.
+    return NextResponse.json({ success: true, data: await saveFinanceDoc(body) });
   } catch (err) {
     console.error('POST /api/finance error:', err);
     return NextResponse.json({ error: 'Failed to update finance data' }, { status: 500 });

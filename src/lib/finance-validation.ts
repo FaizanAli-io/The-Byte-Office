@@ -8,12 +8,23 @@ export function validateFinanceDoc(value: unknown): value is Omit<FinanceDoc, '_
     return false;
   }
 
+  // Holding IDs are optional (a row the editor just added has none) but must be
+  // unique within their table: two rows sharing one ID would both resolve to the
+  // same UPDATE in saveFinanceDoc and one of the edits would be lost silently.
+  const localIds = new Set<string>();
+  const remoteIds = new Set<string>();
+  const fundIds = new Set<string>();
+
   const localValid = value.localBanks.every(
-    (item) => isRecord(item) && validName(item.name) && validMoney(item.amountPkr)
+    (item) => isRecord(item) && validHoldingId(item.id, localIds) && validName(item.name) && validMoney(item.amountPkr)
   );
   const remoteValid = value.remoteBanks.every(
     (item) =>
-      isRecord(item) && validName(item.name) && validMoney(item.amountUsd) && validPositiveNumber(item.exchangeRate)
+      isRecord(item) &&
+      validHoldingId(item.id, remoteIds) &&
+      validName(item.name) &&
+      validMoney(item.amountUsd) &&
+      validPositiveNumber(item.exchangeRate)
   );
   const fundsValid = value.mutualFunds.every((group) => {
     if (!isRecord(group)) return false;
@@ -21,11 +32,20 @@ export function validateFinanceDoc(value: unknown): value is Omit<FinanceDoc, '_
     if (entries.length !== 1 || !validName(entries[0][0])) return false;
     return (
       Array.isArray(entries[0][1]) &&
-      entries[0][1].every((fund) => isRecord(fund) && validName(fund.fund) && validMoney(fund.value))
+      entries[0][1].every(
+        (fund) => isRecord(fund) && validHoldingId(fund.id, fundIds) && validName(fund.fund) && validMoney(fund.value)
+      )
     );
   });
 
   return localValid && remoteValid && fundsValid;
+}
+
+function validHoldingId(value: unknown, seen: Set<string>) {
+  if (value === undefined || value === null) return true;
+  if (typeof value !== 'string' || !value.trim() || seen.has(value)) return false;
+  seen.add(value);
+  return true;
 }
 
 export function validateSnapshotInput(value: unknown) {

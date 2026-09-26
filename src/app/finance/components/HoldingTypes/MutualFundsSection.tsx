@@ -57,7 +57,7 @@ export function MutualFundsSection({
             <div className="space-y-4">
               {funds.map((fund, fundIndex) => (
                 <div
-                  key={fundIndex}
+                  key={fund.id ?? `new-${fundIndex}`}
                   className="grid gap-3 rounded-lg border border-white/6 bg-white/[0.025] p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
                 >
                   <div>

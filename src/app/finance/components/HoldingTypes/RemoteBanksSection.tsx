@@ -32,7 +32,7 @@ export function RemoteBanksSection({
       <div className="space-y-3">
         {data.remoteBanks.map((bank, i) => (
           <div
-            key={i}
+            key={bank.id ?? `new-${i}`}
             className="grid gap-3 rounded-xl border border-white/7 bg-slate-950/45 p-4 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto] xl:items-end"
           >
             <div>

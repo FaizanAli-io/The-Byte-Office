@@ -1,6 +1,7 @@
 'use client';
 
 import { SectionMap } from './helpers';
+import type { FinanceToastState } from './FinanceToast';
 import { FinanceDoc } from '@/types/finance';
 import { useState, useEffect } from 'react';
 
@@ -225,15 +226,38 @@ export function useFinanceHandlers() {
   }
 
   // ------------------ save ------------------
-  async function handleSave() {
-    if (!data) return;
+  async function handleSave(): Promise<FinanceToastState> {
+    if (!data || saving) return null;
     setSaving(true);
-    await fetch('/api/finance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    setSaving(false);
+    try {
+      const res = await fetch('/api/finance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        data?: FinanceDoc;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        throw new Error(json.error || `Save failed (${res.status})`);
+      }
+
+      // Adopt the server's copy so holdings added in this session pick up the
+      // IDs Postgres just assigned. Skipping this would make the next save
+      // insert them again as new rows.
+      if (json.data) setData(json.data);
+      setError('');
+      return { tone: 'success', message: 'Portfolio saved.' };
+    } catch (err) {
+      console.error('Failed to save /api/finance:', err);
+      const message = err instanceof Error ? err.message : 'Failed to save portfolio';
+      setError(message);
+      return { tone: 'error', message };
+    } finally {
+      setSaving(false);
+    }
   }
 
   return {
