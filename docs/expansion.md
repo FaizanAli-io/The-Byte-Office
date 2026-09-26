@@ -1,8 +1,10 @@
 # Expansion ideas
 
 Things worth building, as opposed to [`improvements.md`](./improvements.md), which is about fixing what is already
-here. Nothing on this list is scheduled — it is a place to keep ideas with enough detail that picking one up later
-does not mean rediscovering the design.
+here. It is a place to keep ideas with enough detail that picking one up later does not mean rediscovering the
+design.
+
+**Queued next: items 7, 8 and 9.** Everything above them is unscheduled.
 
 ---
 
@@ -69,7 +71,7 @@ Not needed today — the workspace has one user. If that changes, the shape of t
 
 - holdings, ledgers, prayers and health all need an owner column and every query needs scoping
 - the session becomes a real identity rather than a signed timestamp (see improvements item 4)
-- `MCP_API_KEY` becomes a per-user token
+- OAuth clients gain an owner, so a token names a person as well as a client
 - the per-instance throttles become a shared store (improvements item 8)
 
 Worth doing in that order, and not before there is a second person.
@@ -96,3 +98,90 @@ the mapping step is the real work.
 
 Snapshots are taken manually, so the history has gaps. A scheduled job that snapshots on the first of each month would
 make the allocation history continuous and give the assistant something to reason about over time.
+
+---
+
+## 7. Health metrics over time
+
+**The idea.** The health page is a list of readings. The point of tracking weight or glucose is the trend, which a
+list does not show. A line chart over time, with filters, makes the page worth opening.
+
+`recharts` is already a dependency and `AllocationChart` on the snapshots page is the working precedent. The data
+needs no change: `health_tracking` now holds `numeric(10, 3)` values with a `created_at`, and
+`GET /api/health-tracking?metric=` already filters server-side, as does the `health_list` tool.
+
+**One metric at a time.** This is the design decision to make first. Metrics are free-text and carry different units
+and magnitudes — plotting `weight_kg` at 80 against `body_fat_pct` at 18 on a shared axis is meaningless, and a dual
+axis invites the same misreading more subtly. A metric selector showing one series is honest and simpler. Comparing
+two metrics can come later as small multiples rather than one overlaid chart.
+
+**Filters worth having**, in order of value:
+
+| Filter      | Notes                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------- |
+| Metric      | Required, since a chart only makes sense within one unit. Populate from distinct rows |
+| Date range  | Last 30 / 90 / 365 days / all, as buttons rather than a date picker                   |
+| Aggregation | Raw points versus a weekly average, once there are enough readings to be noisy        |
+
+**Loose ends.** The metric list needs a `select distinct metric` query, which nothing does yet. Free-text metrics
+also mean typos become separate series — `weight_kg` and `weight-kg` would plot apart. That is the same problem item
+8 solves for ledger categories, and the two could share an approach if it is worth it.
+
+---
+
+## 8. A categories table for the ledger
+
+**The idea.** `ledger_entries.category` is a free-text column with nothing behind it. There is no canonical list, so
+the UI cannot offer a picker, the assistant cannot be told what is valid, and a typo silently creates a new
+category. A `finance.categories` table fixes all three.
+
+**Reference or copy.** The decision that shapes everything else. A foreign key gives one canonical name and makes a
+rename propagate; free text keeps historical entries readable if a category is later removed. The middle path is a
+foreign key with `on delete restrict` plus an `archived` flag, so a category can leave the picker without
+rewriting history. That is probably right, and it matches how ledger accounts already behave.
+
+**Shape.** `id`, `name` (unique), `kind` (`income` / `expense` / `both`), `sort_order`, `archived_at`. `kind` is
+what lets the entry form show only sensible options once a type is chosen, which is most of the value of having the
+table at all.
+
+**Migration.** Back-fill from `select distinct category from finance.ledger_entries where category is not null`,
+then add `category_id` and map. Keep the text column until the mapping is verified, then drop it.
+
+**Surfaces.** Three, and one of them already has the pattern:
+
+- the ledger entry form gets a select instead of a text input
+- the agent takes a category name and resolves it, exactly as `resolveAccountId` in
+  [`action-parsing.ts`](../src/lib/finance-agent/action-parsing.ts) already resolves an account from a fuzzy name
+- a `categories_list` tool under `finance:read`, so the model can see valid values before proposing an entry
+
+**Loose end.** Deciding whether the assistant may create a category, or only choose one. Only choosing is safer and
+keeps the list from growing a long tail; creating is more convenient. Probably only choosing, with a clear error
+naming the closest matches.
+
+---
+
+## 9. Held funds: money in an account that is not yours
+
+**The idea.** Some of the balance in an account is money being held for someone else. It is really there — the bank
+says so and reconciliation must agree — but it is not part of net worth. Today the portfolio total silently counts
+it, which overstates what you actually have.
+
+**Two totals, not one.** This is the whole design. Gross is what the accounts hold; net is gross minus what is owed
+back. Reconciliation keeps using **gross**, because the cash is physically present and
+`expectedBalance` must still match the statement. Only the portfolio and snapshot figures gain a net line.
+`holdingTotals` in [`finance.ts`](../src/lib/finance.ts) is the single place that changes, since everything already
+derives from it.
+
+**Shape.** A `finance.held_funds` table rather than a column on the account, because who and why matter and a
+single number loses both: `id`, `account_id`, `counterparty`, `amount`, `currency`, `note`, `created_at`,
+`settled_at`. Outstanding means `settled_at is null`. A row is not a ledger entry — a hold persists across months
+while the ledger is monthly — but settling one usually accompanies a real transfer out, and the two should be
+recorded together rather than one implying the other.
+
+**What it touches.** `holdingTotals` gains `held` and `net`; the portfolio stat tiles gain a net figure; snapshots
+should record both so historical comparisons stay meaningful; `portfolio_get` reports both so the assistant stops
+quoting a number that is too large. Ledger arithmetic is untouched, which is the point.
+
+**Open question.** This is the first liability in the model. If credit card balances or loans follow, a general
+`obligations` table would serve all of them and `held_funds` would become one `kind`. Worth a moment's thought
+before building, but not worth generalising for cases that may never arrive — start specific.
