@@ -12,8 +12,8 @@ Status legend: **done** · **open**
 The workspace has exactly one user, so items whose only cost is scale are **not** the priority.
 
 All four original priorities are now done: the API docs page is locked down, magic links are single-use and the
-session token is out of `localStorage`, the ledger arithmetic has tests, and money is integer minor units. What is
-left, in order:
+session token is out of `localStorage`, the ledger arithmetic has tests, and money is one consistent unit end to end.
+What is left, in order:
 
 | Priority | Item                                                                                                            | Why it is here                                                                                                                                                                                                        |
 | -------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -29,10 +29,9 @@ Item 3 (MCP writes bypass the confirmation model) is documented rather than surp
 a deliberate choice. It becomes urgent the moment a second person or a shared agent gets that key.
 
 -------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | [15 — money is JavaScript floats](#15-money-is-javascript-floats--open) | Independent of user count, and the last of the original four. Drift accumulates through `expectedBalance` and shows up as a phantom reconciliation variance. Now that the arithmetic has tests, this is finally safe to attempt — but it needs a decision first: `numeric` in string mode with a decimal library, or integer minor units. |
-| **2** | [4 — server-side session revocation](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--mostly-done) | The replay hole is closed and the token is no longer reachable from JavaScript, so what is left is revocation. Deliberately deferred: doing it properly means a database read in the middleware on every protected request. |
-| **3** | [19 — no security headers](#19-no-security-headers--open) | `next.config.ts` is still an empty object. A CSP is the cheapest remaining hardening and complements the work already done on `/docs`. |
-| **4** | [17 — non-UUID path parameters return 500](#17-non-uuid-path-parameters-return-500--open) | Small and self-contained. A bad id should be a 400 or 404, not a stack trace and a generic server error. |
+| **1** | [4 — server-side session revocation](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--mostly-done) | The replay hole is closed and the token is no longer reachable from JavaScript, so what is left is revocation. Deliberately deferred: doing it properly means a database read in the middleware on every protected request. |
+| **2** | [19 — no security headers](#19-no-security-headers--open) | `next.config.ts` is still an empty object. A CSP is the cheapest remaining hardening and complements the work already done on `/docs`. |
+| **3** | [17 — non-UUID path parameters return 500](#17-non-uuid-path-parameters-return-500--open) | Small and self-contained. A bad id should be a 400 or 404, not a stack trace and a generic server error. |
 
 **Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan), item 8
 (per-instance login throttle), item 14 (ledger write concurrency).
@@ -44,7 +43,7 @@ a deliberate choice. It becomes urgent the moment a second person or a shared ag
 | **1** | [6 — `/docs` is public and invites pasting the master API key](#6-docs-is-public-and-invites-pasting-the-master-api-key--open) | A public, indexable page that loads a third-party script from unpkg onto your origin and asks you to paste `MCP_API_KEY`, which it then stores in `localStorage`. That key writes to your ledger without confirmation. Cheapest fix on the list. |
 | **2** | [4 — magic links are replayable](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--open) + [5 — session token in `localStorage`](#5-a-30-day-session-token-sits-in-localstorage--open) | One user means one account and no second line of defence. A link that leaks from email or a proxy log works repeatedly for 15 minutes, the session it mints lasts 30 days, and logout cannot revoke it. Item 5 hands an equivalent token to any XSS in order to toggle a nav item. |
 | **3** | [18 — no tests and no CI](#18-no-tests-and-no-ci--open) | Independent of user count. `accountMovement`, `expectedBalance`, `accountStats`, `ledgerSummary` and `variancePct` are the arithmetic your reconciliation depends on, they are pure and dependency-free, and they have never been executed by anything but the UI. |
-| **4** | [15 — money is JavaScript floats](#15-money-is-javascript-floats--open) | Also independent of user count. Drift accumulates through `expectedBalance` and surfaces as a phantom reconciliation variance. Bigger job than the others, which is why it is fourth rather than first. |
+| **4** | [15 — money is JavaScript floats](#15-money-is-javascript-floats--closed-by-decision) | Also independent of user count. Drift accumulates through `expectedBalance` and surfaces as a phantom reconciliation variance. Bigger job than the others, which is why it is fourth rather than first. |
 
 **Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan — degrades
 with message volume, and you are one person), item 8 (per-instance login throttle — a real limit needs a shared store,
@@ -249,31 +248,26 @@ It deletes all entries and accounts for a month and rewrites them. The agent pat
 fingerprint in `executeLedgerPayload`, but `PUT /api/ledger` — used by the ledger UI — has no such check. Two open tabs
 means silent last-write-wins on a whole month's books. Add an `updated_at` precondition to the `UPDATE`.
 
-### 15. Money is JavaScript floats — **done**
+### 15. Money is JavaScript floats — **closed, by decision**
 
-Done, as integer minor units — paisa and cents — held in `src/lib/money.ts`.
+Closed deliberately rather than fixed, and the reasoning is worth keeping.
 
-The columns did not change. Postgres `numeric` is exact and never was the problem; the error came from
-`mode: 'number'` handing the application a float. Money columns are read in string mode and `parseMinor` converts the
-digits without going through a float, so **no data migration was required** and values written before the change read
-back identically. That was verified against the live database.
+This was first implemented as integer minor units: paisa and cents, held in a `src/lib/money.ts` that converted at
+every boundary. That representation is exact, but it put two units in the codebase at once, and the second one leaked.
+Read paths returned paisa while write paths accepted rupees, so `portfolio_get` reported a balance a hundred times too
+large and any agent that read a value and wrote it back would have inflated it.
 
-Exchange rates stay decimal, because they are ratios rather than amounts. A conversion rounds once, explicitly, at the
-multiplication — `convertMinor` — so sums stay exact and only the currency conversion can move by a single minor unit.
+The decision was to have **one unit everywhere** — rupees, the major unit — across the database, the internal values,
+the `/api/*` bodies, the MCP tools and the UI. Nothing converts, so nothing can convert inconsistently. `money.ts` is
+gone, along with every call site that used it.
 
-Exactly two places convert, and both say so in a comment:
+The cost is that decimal sums drift in binary floating point. That drift is around 1e-10 on a portfolio of this size,
+roughly eight orders of magnitude below the two decimal places anything is ever displayed at. It is handled in the one
+place it can be observed: `variancePct` treats an expected balance below half a paisa as zero. `tests/ledger.test.ts`
+covers exactly that, reconciling a thousand one-paisa entries and asserting the result reads as balanced.
 
-- the UI, where a person types and reads rupees: the holding editor's `Field`, the ledger's `MoneyInput`, and the
-  entry drafts in `LedgerEntries` and `LedgerEntryChatForm`
-- the assistant and MCP, so the model keeps talking in rupees: `argsToMinor` on the way in, `previewToMajor` so the
-  confirmation card a person approves still reads in rupees
-
-Snapshots keep their JSONB holdings in major units and convert at the boundary, which keeps the twelve existing
-snapshots readable and the stored document human-inspectable.
-
-`variancePct` no longer needs its `0.0001` epsilon: a zero expected balance is now genuinely zero. `tests/money.test.ts`
-covers the conversions, and `tests/ledger.test.ts` has a case that reconciles a thousand one-paisa entries to exactly
-zero and asserts the same arithmetic in rupees does not.
+No data migration was needed in either direction. The columns have been `numeric(18, 2)` throughout — Postgres numeric
+is exact and was never the problem — and only the Drizzle read mode changed.
 
 ### 16. The mutual-funds shape works against the code — **open**
 

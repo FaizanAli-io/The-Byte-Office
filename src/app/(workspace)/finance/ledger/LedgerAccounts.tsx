@@ -1,7 +1,6 @@
 'use client';
 
 import { accountStats, formatMoney, formatVariancePct, reconcileDate, variancePct } from '@/lib/ledger';
-import { toMajor, toMinor } from '@/lib/money';
 import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
 import { useState, type ReactNode } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
@@ -274,7 +273,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 /**
- * Shows rupees, reports minor units. One of the two places the app converts.
+ * A rupee amount that may be left blank, which is different from zero.
  */
 function MoneyInput({
   value,
@@ -294,9 +293,9 @@ function MoneyInput({
       min="0"
       disabled={disabled}
       step="0.01"
-      value={value === undefined ? '' : toMajor(value)}
+      value={value ?? ''}
       placeholder={placeholder}
-      onChange={(event) => onChange(event.target.value === '' ? undefined : toMinor(Number(event.target.value)))}
+      onChange={(event) => onChange(event.target.value === '' ? undefined : Number(event.target.value))}
     />
   );
 }

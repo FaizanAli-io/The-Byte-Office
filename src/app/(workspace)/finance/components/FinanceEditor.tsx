@@ -1,7 +1,6 @@
 'use client';
 
 import { apiFetch } from '@/lib/client-api';
-import { toMajor } from '@/lib/money';
 import { portfolioTotals } from '@/lib/finance';
 import { useState } from 'react';
 import { LocalBanksSection, MutualFundsSection, RemoteBanksSection } from './HoldingTypes';
@@ -89,16 +88,12 @@ export default function FinanceEditor() {
       }
     >
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Local banks" value={`${Math.round(toMajor(totals.local)).toLocaleString()} PKR`} />
-        <StatCard label="Remote banks" value={`${Math.round(toMajor(totals.remote)).toLocaleString()} PKR`} />
-        <StatCard
-          label="Mutual funds"
-          value={`${Math.round(toMajor(totals.mutual)).toLocaleString()} PKR`}
-          tone="amber"
-        />
+        <StatCard label="Local banks" value={`${Math.round(totals.local).toLocaleString()} PKR`} />
+        <StatCard label="Remote banks" value={`${Math.round(totals.remote).toLocaleString()} PKR`} />
+        <StatCard label="Mutual funds" value={`${Math.round(totals.mutual).toLocaleString()} PKR`} tone="amber" />
         <StatCard
           label="Portfolio total"
-          value={`${Math.round(toMajor(totals.grandTotal)).toLocaleString()} PKR`}
+          value={`${Math.round(totals.grandTotal).toLocaleString()} PKR`}
           tone="emerald"
         />
       </div>

@@ -9,7 +9,7 @@ export type HoldingField<T> = {
   label: string;
   /** A plain number, such as an exchange rate. */
   numeric?: boolean;
-  /** An amount: displayed in rupees, stored in minor units. */
+  /** A money amount, in rupees, shown with two decimal places. */
   money?: boolean;
   placeholder?: string;
 };

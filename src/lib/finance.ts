@@ -1,4 +1,3 @@
-import { convertMinor, sumMinor, type Minor } from '@/lib/money';
 import type { FinanceDoc, FinanceFund } from '@/types/finance';
 
 /**
@@ -8,16 +7,18 @@ import type { FinanceDoc, FinanceFund } from '@/types/finance';
  * had its own copy of the arithmetic.
  */
 export type HoldingRows = {
-  localBanks: { amountPkr: Minor }[];
-  remoteBanks: { amountUsd: Minor; exchangeRate: number }[];
-  mutualFunds: { value: Minor }[];
+  localBanks: { amountPkr: number }[];
+  remoteBanks: { amountUsd: number; exchangeRate: number }[];
+  mutualFunds: { value: number }[];
 };
 
-/** All amounts are minor units, so only the USD conversion rounds. */
+const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+
+/** Every total is in PKR; remote banks are converted at their own rate. */
 export function holdingTotals(rows: HoldingRows) {
-  const local = sumMinor(rows.localBanks.map((bank) => bank.amountPkr));
-  const remote = sumMinor(rows.remoteBanks.map((bank) => convertMinor(bank.amountUsd, bank.exchangeRate)));
-  const mutual = sumMinor(rows.mutualFunds.map((fund) => fund.value));
+  const local = sum(rows.localBanks.map((bank) => bank.amountPkr));
+  const remote = sum(rows.remoteBanks.map((bank) => bank.amountUsd * bank.exchangeRate));
+  const mutual = sum(rows.mutualFunds.map((fund) => fund.value));
   return { local, remote, mutual, grandTotal: local + remote + mutual };
 }
 
@@ -45,7 +46,7 @@ export function portfolioAllocations(data: FinanceDoc) {
 export function bankFundAllocations(data: FinanceDoc) {
   return fundGroups(data).map(({ bank, funds }) => ({
     name: bank,
-    value: sumMinor(funds.map((fund) => fund.value)),
+    value: sum(funds.map((fund) => fund.value)),
   }));
 }
 

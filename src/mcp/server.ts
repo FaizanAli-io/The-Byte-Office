@@ -8,6 +8,7 @@ const INSTRUCTIONS = [
   'Private tools for The Byte Office.',
   'This server currently exposes the finance module: live portfolio, snapshots, and monthly ledgers.',
   'Read before mutating. Never invent IDs or balances.',
+  'Every amount is in its major unit: rupees for PKR and dollars for USD, never paisa or cents.',
   'Use ledger entry serials such as 0001, not UUIDs.',
   'Finalized ledgers are read-only.',
   'Write tools apply immediately after the host confirms the tool call.',

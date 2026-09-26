@@ -1,10 +1,6 @@
-import { convertMinor, formatMinor, sumMinor, type Minor } from '@/lib/money';
 import type { LedgerAccount, LedgerEntry, MonthlyLedger } from '@/types/ledger';
 
-/**
- * Every amount below is an integer number of minor units, so the reductions
- * are exact. Only `toPkr` multiplies, and it rounds there.
- */
+/** Every amount below is a major-unit amount: rupees for PKR, dollars for USD. */
 
 export const ENTRY_LABELS: Record<LedgerEntry['type'], string> = {
   income: 'Income',
@@ -32,8 +28,13 @@ export function monthBounds(month: string) {
   };
 }
 
-export function formatMoney(value: Minor, currency: string) {
-  return formatMinor(Number.isFinite(value) ? value : 0, currency);
+/** PKR is shown whole; USD keeps its cents. */
+export function formatMoney(value: number, currency: string) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: currency === 'PKR' ? 0 : 2,
+  }).format(Number.isFinite(value) ? value : 0);
 }
 
 export function accountMovement(accountId: string, entry: LedgerEntry) {
@@ -52,8 +53,8 @@ export function accountMovement(accountId: string, entry: LedgerEntry) {
   return -entry.amount;
 }
 
-export function expectedBalance(account: LedgerAccount, entries: LedgerEntry[]): Minor {
-  return account.openingBalance + sumMinor(entries.map((entry) => accountMovement(account.id, entry)));
+export function expectedBalance(account: LedgerAccount, entries: LedgerEntry[]) {
+  return entries.reduce((balance, entry) => balance + accountMovement(account.id, entry), account.openingBalance);
 }
 
 export function reconcileDate(month: string) {
@@ -65,8 +66,9 @@ export function reconcileDate(month: string) {
 
 export function variancePct(difference: number | undefined, expected: number) {
   if (difference === undefined) return undefined;
-  // Exact integers, so a zero expected balance is genuinely zero.
-  if (expected === 0) return difference === 0 ? 0 : null;
+  // Sums of decimal amounts drift a little in binary floating point, so treat
+  // anything below a hundredth of a unit as the zero it was meant to be.
+  if (Math.abs(expected) < 0.005) return Math.abs(difference) < 0.005 ? 0 : null;
   return (difference / expected) * 100;
 }
 
@@ -130,7 +132,7 @@ export function ledgerSummary(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'
   return { income, expenses, netCashFlow: income - expenses, fundFlow };
 }
 
-function toPkr(amount: Minor, accountId: string, accounts: LedgerAccount[], exchangeRate?: number): Minor {
+function toPkr(amount: number, accountId: string, accounts: LedgerAccount[], exchangeRate?: number) {
   const account = accounts.find((item) => item.id === accountId);
-  return account?.currency === 'USD' ? convertMinor(amount, exchangeRate ?? account.exchangeRate) : amount;
+  return account?.currency === 'USD' ? amount * (exchangeRate ?? account.exchangeRate) : amount;
 }

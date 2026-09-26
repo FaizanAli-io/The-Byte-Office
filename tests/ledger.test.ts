@@ -12,7 +12,7 @@ import {
 } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
 
-// Every amount below is an integer count of minor units: 1000 is ten rupees.
+// Every amount below is in rupees, the unit the whole application uses.
 
 const bank = (over: Partial<LedgerAccount> = {}): LedgerAccount => ({
   id: 'bank',
@@ -253,45 +253,40 @@ describe('ledgerSummary', () => {
   });
 });
 
-describe('exactness in minor units', () => {
-  it('reconciles to zero over many small entries, where floats would drift', () => {
-    // 1000 entries of one paisa against an opening balance of ten rupees.
-    const entries = Array.from({ length: 1000 }, (_, index) => entry({ id: `e${index}`, type: 'expense', amount: 1 }));
-    const account = bank({ openingBalance: 1000, actualClosingBalance: 0 });
+describe('decimal amounts', () => {
+  it('treats an accumulated rounding error as the zero it was meant to be', () => {
+    // A thousand one-paisa expenses against ten rupees. Summing decimals in
+    // binary floating point leaves a residue far below what is ever displayed,
+    // so reconciliation has to read it as balanced rather than as a variance.
+    const entries = Array.from({ length: 1000 }, (_, index) =>
+      entry({ id: `e${index}`, type: 'expense', amount: 0.01 })
+    );
+    const stats = accountStats(bank({ openingBalance: 10, actualClosingBalance: 0 }), entries);
 
-    expect(expectedBalance(account, entries)).toBe(0);
-    expect(accountStats(account, entries).difference).toBe(0);
-    expect(variancePct(0, 0)).toBe(0);
-
-    // The same arithmetic in rupees does not land on zero.
-    const asFloats = entries.reduce((balance) => balance - 0.01, 10);
-    expect(asFloats).not.toBe(0);
-    expect(Math.abs(asFloats)).toBeGreaterThan(0);
-  });
-
-  it('keeps a balanced month reporting no variance', () => {
-    const account = bank({ openingBalance: 0, actualClosingBalance: 0 });
-    const entries = [
-      entry({ id: 'a', type: 'income', amount: 1999 }),
-      entry({ id: 'b', type: 'income', amount: 2999 }),
-      entry({ id: 'c', type: 'expense', amount: 4998 }),
-    ];
-    const stats = accountStats(account, entries);
-    expect(stats.expected).toBe(0);
-    expect(stats.difference).toBe(0);
+    expect(stats.expected).toBeCloseTo(0, 6);
+    expect(stats.difference).toBeCloseTo(0, 6);
     expect(formatVariancePct(variancePct(stats.difference, stats.expected))).toBe('0.00%');
   });
 
-  it('rounds a cross-currency transfer once, to a whole minor unit', () => {
-    const accounts = [
-      bank({ id: 'usd', currency: 'USD', exchangeRate: 283.456789 }),
-      bank({ id: 'pkr', currency: 'PKR' }),
-    ];
+  it('still reports a real variance against a zero expected balance', () => {
+    expect(variancePct(10, 0)).toBeNull();
+  });
+
+  it('keeps a balanced month reporting no variance', () => {
+    const stats = accountStats(bank({ openingBalance: 0, actualClosingBalance: 0 }), [
+      entry({ id: 'a', type: 'income', amount: 19.99 }),
+      entry({ id: 'b', type: 'income', amount: 29.99 }),
+      entry({ id: 'c', type: 'expense', amount: 49.98 }),
+    ]);
+    expect(stats.expected).toBeCloseTo(0, 6);
+    expect(formatVariancePct(variancePct(stats.difference, stats.expected))).toBe('0.00%');
+  });
+
+  it('converts a foreign-currency entry at the full rate, without rounding', () => {
     const summary = ledgerSummary({
-      accounts,
-      entries: [entry({ id: 'i', accountId: 'usd', type: 'income', amount: 12_345 })],
+      accounts: [bank({ id: 'usd', currency: 'USD', exchangeRate: 283.456789 }), bank({ id: 'pkr' })],
+      entries: [entry({ id: 'i', accountId: 'usd', type: 'income', amount: 123.45 })],
     });
-    expect(Number.isInteger(summary.income)).toBe(true);
-    expect(summary.income).toBe(Math.round(12_345 * 283.456789));
+    expect(summary.income).toBeCloseTo(123.45 * 283.456789, 6);
   });
 });
