@@ -2,10 +2,11 @@
 
 import { accountMovement, ENTRY_LABELS, formatMoney, monthBounds } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntry, LedgerEntryType } from '@/types/ledger';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
-import { Field } from './LedgerAccounts';
+import { CollapseToggle } from './LedgerAccounts';
 import { draftIncomplete, emptyDraft, EntryFields } from './EntryFields';
+import { emptyFilters, EntryFiltersPanel, type EntryFilters } from './EntryFiltersPanel';
 
 export function LedgerEntries({
   month,
@@ -82,7 +83,6 @@ export function LedgerEntries({
       return compare * direction;
     });
   }, [accounts, entries, filters]);
-  const filtersActive = !isDefaultFilters(filters);
   const showRunning = filters.accountId !== 'all' && filters.sortBy === 'date' && filters.sortDir === 'asc';
   const sourceAccount = accounts.find((account) => account.id === draft.accountId);
 
@@ -175,118 +175,17 @@ export function LedgerEntries({
         </div>
       ) : null}
 
-      <div className={`${financeStyles.inset} mb-6`}>
-        <CollapseToggle
-          open={filtersOpen}
-          title="Filter & sort"
-          subtitle={`Showing ${visibleEntries.length} of ${entries.length} transaction${entries.length === 1 ? '' : 's'}${filtersActive ? ' · filtered' : ''}`}
-          onToggle={() => setFiltersOpen((value) => !value)}
-          action={
-            filtersActive ? (
-              <button type="button" className={financeStyles.secondary} onClick={() => setFilters(emptyFilters)}>
-                Clear
-              </button>
-            ) : null
-          }
-        />
-        {filtersOpen ? (
-          <div className="grid gap-3 border-t border-white/6 p-4 md:grid-cols-2 xl:grid-cols-4">
-            <Field label="Account">
-              <select
-                className={financeStyles.input}
-                value={filters.accountId}
-                onChange={(event) => setFilters({ ...filters, accountId: event.target.value })}
-              >
-                <option value="all">All accounts</option>
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Type">
-              <select
-                className={financeStyles.input}
-                value={filters.type}
-                onChange={(event) => setFilters({ ...filters, type: event.target.value })}
-              >
-                <option value="all">All types</option>
-                {Object.entries(ENTRY_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Category">
-              <select
-                className={financeStyles.input}
-                value={filters.category}
-                onChange={(event) => setFilters({ ...filters, category: event.target.value })}
-              >
-                <option value="all">All categories</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Search">
-              <input
-                className={financeStyles.input}
-                value={filters.query}
-                onChange={(event) => setFilters({ ...filters, query: event.target.value })}
-                placeholder="Note, category, account…"
-              />
-            </Field>
-            <Field label="From date">
-              <input
-                className={financeStyles.input}
-                type="date"
-                min={bounds.min}
-                max={bounds.max}
-                value={filters.dateFrom}
-                onChange={(event) => setFilters({ ...filters, dateFrom: event.target.value })}
-              />
-            </Field>
-            <Field label="To date">
-              <input
-                className={financeStyles.input}
-                type="date"
-                min={bounds.min}
-                max={bounds.max}
-                value={filters.dateTo}
-                onChange={(event) => setFilters({ ...filters, dateTo: event.target.value })}
-              />
-            </Field>
-            <Field label="Sort by">
-              <select
-                className={financeStyles.input}
-                value={filters.sortBy}
-                onChange={(event) => setFilters({ ...filters, sortBy: event.target.value as EntrySortKey })}
-              >
-                <option value="date">Date</option>
-                <option value="amount">Amount</option>
-                <option value="type">Type</option>
-                <option value="account">Account</option>
-                <option value="category">Category</option>
-              </select>
-            </Field>
-            <Field label="Order">
-              <select
-                className={financeStyles.input}
-                value={filters.sortDir}
-                onChange={(event) => setFilters({ ...filters, sortDir: event.target.value as EntrySortDir })}
-              >
-                <option value="asc">{sortOrderLabel(filters.sortBy, 'asc')}</option>
-                <option value="desc">{sortOrderLabel(filters.sortBy, 'desc')}</option>
-              </select>
-            </Field>
-          </div>
-        ) : null}
-      </div>
+      <EntryFiltersPanel
+        filters={filters}
+        setFilters={setFilters}
+        accounts={accounts}
+        categories={categories}
+        bounds={bounds}
+        open={filtersOpen}
+        onToggle={() => setFiltersOpen((value) => !value)}
+        shownCount={visibleEntries.length}
+        totalCount={entries.length}
+      />
 
       <div className="space-y-3 md:hidden">
         {visibleEntries.map((entry, index) => {
@@ -431,50 +330,6 @@ function runningBalance(accountId: string, entries: LedgerEntry[], accounts: Led
   return entries.reduce((balance, entry) => balance + accountMovement(accountId, entry), account.openingBalance);
 }
 
-type EntrySortKey = 'date' | 'amount' | 'type' | 'account' | 'category';
-type EntrySortDir = 'asc' | 'desc';
-
-type EntryFilters = {
-  accountId: string;
-  type: string;
-  category: string;
-  query: string;
-  dateFrom: string;
-  dateTo: string;
-  sortBy: EntrySortKey;
-  sortDir: EntrySortDir;
-};
-
-const emptyFilters: EntryFilters = {
-  accountId: 'all',
-  type: 'all',
-  category: 'all',
-  query: '',
-  dateFrom: '',
-  dateTo: '',
-  sortBy: 'date',
-  sortDir: 'asc',
-};
-
-function sortOrderLabel(sortBy: EntrySortKey, direction: EntrySortDir) {
-  if (sortBy === 'amount') return direction === 'asc' ? 'Low to high' : 'High to low';
-  if (sortBy === 'date') return direction === 'asc' ? 'Oldest first' : 'Newest first';
-  return direction === 'asc' ? 'A to Z' : 'Z to A';
-}
-
-function isDefaultFilters(filters: EntryFilters) {
-  return (
-    filters.accountId === emptyFilters.accountId &&
-    filters.type === emptyFilters.type &&
-    filters.category === emptyFilters.category &&
-    filters.query === emptyFilters.query &&
-    filters.dateFrom === emptyFilters.dateFrom &&
-    filters.dateTo === emptyFilters.dateTo &&
-    filters.sortBy === emptyFilters.sortBy &&
-    filters.sortDir === emptyFilters.sortDir
-  );
-}
-
 const TYPE_BADGE: Record<LedgerEntryType, string> = {
   income: 'border-emerald-400/25 bg-emerald-400/12 text-emerald-300',
   expense: 'border-rose-400/25 bg-rose-400/12 text-rose-300',
@@ -488,39 +343,5 @@ function TypeBadge({ type }: { type: LedgerEntryType }) {
     <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${TYPE_BADGE[type]}`}>
       {ENTRY_LABELS[type]}
     </span>
-  );
-}
-
-function CollapseToggle({
-  open,
-  title,
-  subtitle,
-  onToggle,
-  action,
-}: {
-  open: boolean;
-  title: string;
-  subtitle: string;
-  onToggle: () => void;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-3 p-4">
-      <button type="button" className="min-w-0 flex-1 text-left" aria-expanded={open} onClick={onToggle}>
-        <h3 className="text-sm font-bold text-slate-100">{title}</h3>
-        <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
-      </button>
-      <div className="flex shrink-0 items-center gap-2">
-        {action}
-        <button
-          type="button"
-          className="text-xs font-semibold text-slate-500 hover:text-slate-300"
-          aria-expanded={open}
-          onClick={onToggle}
-        >
-          {open ? 'Hide' : 'Show'}
-        </button>
-      </div>
-    </div>
   );
 }

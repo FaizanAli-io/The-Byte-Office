@@ -2,7 +2,7 @@
 
 import { accountStats, formatMoney, formatVariancePct, reconcileDate, variancePct } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 
 export function LedgerAccounts({
@@ -316,4 +316,38 @@ function Metric({ label, value, positive }: { label: string; value: string; posi
 
 function Empty({ message }: { message: string }) {
   return <div className={`${financeStyles.inset} p-8 text-center text-sm text-slate-500`}>{message}</div>;
+}
+
+export function CollapseToggle({
+  open,
+  title,
+  subtitle,
+  onToggle,
+  action,
+}: {
+  open: boolean;
+  title: string;
+  subtitle: string;
+  onToggle: () => void;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3 p-4">
+      <button type="button" className="min-w-0 flex-1 text-left" aria-expanded={open} onClick={onToggle}>
+        <h3 className="text-sm font-bold text-slate-100">{title}</h3>
+        <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+      </button>
+      <div className="flex shrink-0 items-center gap-2">
+        {action}
+        <button
+          type="button"
+          className="text-xs font-semibold text-slate-500 hover:text-slate-300"
+          aria-expanded={open}
+          onClick={onToggle}
+        >
+          {open ? 'Hide' : 'Show'}
+        </button>
+      </div>
+    </div>
+  );
 }

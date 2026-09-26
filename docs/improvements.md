@@ -7,6 +7,28 @@ Status legend: **done** · **open**
 
 ---
 
+## Start here
+
+The workspace has exactly one user, so the items whose only cost is scale are **not** the priority. Re-ranked on that
+basis, these four are what actually matter:
+
+| Priority | Item                                                                                                                                                                                               | Why it is here                                                                                                                                                                                                                                                                     |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1**    | [6 — `/docs` is public and invites pasting the master API key](#6-docs-is-public-and-invites-pasting-the-master-api-key--open)                                                                     | A public, indexable page that loads a third-party script from unpkg onto your origin and asks you to paste `MCP_API_KEY`, which it then stores in `localStorage`. That key writes to your ledger without confirmation. Cheapest fix on the list.                                   |
+| **2**    | [4 — magic links are replayable](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--open) + [5 — session token in `localStorage`](#5-a-30-day-session-token-sits-in-localstorage--open) | One user means one account and no second line of defence. A link that leaks from email or a proxy log works repeatedly for 15 minutes, the session it mints lasts 30 days, and logout cannot revoke it. Item 5 hands an equivalent token to any XSS in order to toggle a nav item. |
+| **3**    | [18 — no tests and no CI](#18-no-tests-and-no-ci--open)                                                                                                                                            | Independent of user count. `accountMovement`, `expectedBalance`, `accountStats`, `ledgerSummary` and `variancePct` are the arithmetic your reconciliation depends on, they are pure and dependency-free, and they have never been executed by anything but the UI.                 |
+| **4**    | [15 — money is JavaScript floats](#15-money-is-javascript-floats--open)                                                                                                                            | Also independent of user count. Drift accumulates through `expectedBalance` and surfaces as a phantom reconciliation variance. Bigger job than the others, which is why it is fourth rather than first.                                                                            |
+
+**Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan — degrades
+with message volume, and you are one person), item 8 (per-instance login throttle — a real limit needs a shared store,
+which is multi-instance work), and item 14 (ledger write concurrency — only bites with two tabs open at once).
+
+Item 3 (MCP writes bypass the confirmation model) sits outside this ranking: it is now documented rather than
+surprising, and with one key holder it is a deliberate choice rather than a hole. It becomes urgent the moment a second
+person or a shared agent gets that key.
+
+---
+
 ## Tier 1 — Correctness and exposure
 
 ### 1. Portfolio holding IDs must stay stable across saves — **done**
@@ -230,10 +252,11 @@ Removed: `instructions.md` (a spent one-shot design prompt), `public/llms.md` (u
 `public/browserconfig.xml` (nothing references it — there is no `msapplication-config` meta tag) and the five unused
 Create Next App SVGs.
 
-Still open: `mongodb@^6.20.0` is a production dependency used only by `scripts/migrate-mongo-to-postgres.mjs`, a
-one-time migration that already ran in commit `24b03c1`. Move the dependency to `devDependencies` or delete both.
-`drizzle.config.ts` imports `@next/env`, which is not declared in `package.json` and resolves only as a transitive of
-`next`.
+Also removed: `mongodb` and `scripts/migrate-mongo-to-postgres.mjs`, a one-time migration that ran in `24b03c1`.
+MongoDB stays in `src/content/site.ts` and `public/llms-full.txt`, which is marketing copy rather than a dependency.
+
+Still open: `drizzle.config.ts` imports `@next/env`, which is not declared in `package.json` and resolves only as a
+transitive of `next`.
 
 ### 21. Setup docs guarantee a broken first run — **open**
 
@@ -312,3 +335,20 @@ lockfile, Drizzle's generated migrations and snapshots, `public/` and the vendor
 
 A `.prettierignore` was added at the same time: `npm run format` runs `prettier --write .`, which would otherwise
 rewrite `package-lock.json` and Drizzle's generated snapshots.
+
+---
+
+## File size
+
+Every file in the repository is kept under 500 lines. `npm run lines -- --top 10` shows the current largest; the
+counter reads its file list from git, so build output and generated files are excluded.
+
+Three files crossed the limit and were split along real seams rather than arbitrarily:
+
+- `FinanceAgentChat.tsx` (668) → container plus `ChatMessage.tsx`, which holds the pure presentational pieces
+- `actions.ts` (586) → orchestration plus `action-parsing.ts`, the argument parsing and fingerprint helpers that
+  never touch the database
+- `LedgerEntries.tsx` (527) → the table plus `EntryFiltersPanel.tsx`; `CollapseToggle` moved next to `Field` in
+  `LedgerAccounts.tsx` since both files now use it
+
+Feature ideas, as opposed to fixes, live in [`expansion.md`](./expansion.md).
