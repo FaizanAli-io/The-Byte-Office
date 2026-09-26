@@ -9,72 +9,46 @@ import {
   listLedgerSummaries,
   saveLedger,
 } from '@/lib/db/queries';
+import { ApiError, apiRoute, created, found, jsonBody, searchParam } from '@/lib/api';
 import type { FinanceDoc } from '@/types/finance';
 import type { LedgerAccount, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
-import { NextResponse } from 'next/server';
 
-export async function GET(req: Request) {
-  try {
-    const month = new URL(req.url).searchParams.get('month');
+export const GET = apiRoute('GET /api/ledger', 'Failed to load ledger', async (req: Request) => {
+  const month = searchParam(req, 'month');
+  if (!month) return listLedgerSummaries();
+  if (!isMonth(month)) throw new ApiError('Invalid month');
+  return found(await loadLedger(month), 'Ledger not found');
+});
 
-    if (!month) {
-      return NextResponse.json(await listLedgerSummaries());
-    }
+export const POST = apiRoute('POST /api/ledger', 'Failed to create ledger', async (req: Request) => {
+  const { month, importFinance = false } = await jsonBody<{ month?: string; importFinance?: boolean }>(req);
+  if (!month || !isMonth(month)) throw new ApiError('Invalid month');
 
-    if (!isMonth(month)) return error('Invalid month', 400);
-    const ledger = await loadLedger(month);
-    return ledger ? NextResponse.json(ledger) : error('Ledger not found', 404);
-  } catch (cause) {
-    console.error('GET /api/ledger error:', cause);
-    return error('Failed to load ledger', 500);
+  const existing = await loadLedger(month);
+  if (existing) return existing;
+
+  let accounts: LedgerAccount[] = [];
+  if (importFinance) {
+    accounts = accountsFromFinance(await loadFinanceDoc());
+  } else {
+    const previous = await loadPreviousFinalizedLedger(month);
+    if (previous) accounts = carryAccounts(previous);
   }
-}
 
-export async function POST(req: Request) {
-  try {
-    const { month, importFinance = false } = (await req.json()) as {
-      month?: string;
-      importFinance?: boolean;
-    };
-    if (!month || !isMonth(month)) return error('Invalid month', 400);
+  return created(await createLedger({ month, accounts }));
+});
 
-    const existing = await loadLedger(month);
-    if (existing) return NextResponse.json(existing);
+export const PUT = apiRoute('PUT /api/ledger', 'Failed to save ledger', async (req: Request) => {
+  const body = await jsonBody<MonthlyLedgerPayload>(req);
+  const validationError = validateLedger(body);
+  if (validationError) throw new ApiError(validationError);
 
-    let accounts: LedgerAccount[] = [];
-    if (importFinance) {
-      accounts = accountsFromFinance(await loadFinanceDoc());
-    } else {
-      const previous = await loadPreviousFinalizedLedger(month);
-      if (previous) accounts = carryAccounts(previous);
-    }
-
-    const ledger = await createLedger({ month, accounts });
-    return NextResponse.json(ledger, { status: 201 });
-  } catch (cause) {
-    console.error('POST /api/ledger error:', cause);
-    return error('Failed to create ledger', 500);
+  const existing = found(await loadLedger(body.month), 'Ledger not found');
+  if (existing.status === 'finalized' && body.status === 'finalized') {
+    throw new ApiError('Reopen this month before editing it', 409);
   }
-}
-
-export async function PUT(req: Request) {
-  try {
-    const body = (await req.json()) as MonthlyLedgerPayload;
-    const validationError = validateLedger(body);
-    if (validationError) return error(validationError, 400);
-
-    const existing = await loadLedger(body.month);
-    if (!existing) return error('Ledger not found', 404);
-    if (existing.status === 'finalized' && body.status === 'finalized') {
-      return error('Reopen this month before editing it', 409);
-    }
-
-    return NextResponse.json(await saveLedger(existing, body));
-  } catch (cause) {
-    console.error('PUT /api/ledger error:', cause);
-    return error('Failed to save ledger', 500);
-  }
-}
+  return saveLedger(existing, body);
+});
 
 function accountsFromFinance(finance: FinanceDoc): LedgerAccount[] {
   const local: LedgerAccount[] = finance.localBanks.map((bank) => ({
@@ -115,8 +89,4 @@ function carryAccounts(ledger: MonthlyLedger): LedgerAccount[] {
     openingCostBasis: account.type === 'fund' ? accountStats(account, ledger.entries).netInvested : undefined,
     actualClosingBalance: undefined,
   }));
-}
-
-function error(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status });
 }

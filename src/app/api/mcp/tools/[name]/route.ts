@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { financeToolByName } from '@/mcp/catalog';
+import { financeToolByName, httpMethodFor } from '@/mcp/catalog';
 import { invokeFinanceTool } from '@/mcp/invoke';
 import { unauthorizedResponse, verifyMcpRequest } from '@/mcp/auth';
 
@@ -18,7 +18,7 @@ export async function GET(request: Request, context: RouteContext) {
   if (!tool) {
     return NextResponse.json({ error: `Unknown tool: ${name}` }, { status: 404 });
   }
-  if (tool.method !== 'get') {
+  if (httpMethodFor(tool) !== 'get') {
     return NextResponse.json({ error: `${name} expects POST with a JSON body` }, { status: 405 });
   }
 
@@ -42,7 +42,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   let body: unknown = {};
-  if (tool.method === 'post') {
+  if (httpMethodFor(tool) === 'post') {
     try {
       body = await request.json();
     } catch {

@@ -1,12 +1,6 @@
 import { listAgentToolLogs } from '@/lib/finance-agent/repository';
-import { NextResponse } from 'next/server';
+import { apiRoute, searchParam } from '@/lib/api';
 
-export async function GET(request: Request) {
-  try {
-    const limit = Number(new URL(request.url).searchParams.get('limit') || 200);
-    return NextResponse.json({ logs: await listAgentToolLogs(limit) });
-  } catch (cause) {
-    console.error('GET /api/finance-agent/logs error:', cause);
-    return NextResponse.json({ error: 'Failed to load assistant logs' }, { status: 500 });
-  }
-}
+export const GET = apiRoute('GET /api/finance-agent/logs', 'Failed to load assistant logs', async (req: Request) => ({
+  logs: await listAgentToolLogs(Number(searchParam(req, 'limit') || 200)),
+}));

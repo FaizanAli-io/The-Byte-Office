@@ -11,116 +11,14 @@ import {
   updatePrayer,
   createPrayer,
 } from '@/lib/db/personal';
-import { NAMAAZ_VALUES } from '@/lib/db/schema';
 import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
 import { createAgentAction, fingerprint } from '@/lib/finance-agent/repository';
-import type { GroqTool } from '@/lib/finance-agent/tools';
+import { toolNamesForModule } from '@/lib/agent/registry';
 import type { AgentActionPayload, PendingAgentAction } from '@/lib/finance-agent/types';
 import { isNamaaz, parseTimestamp, validInteger } from '@/lib/personal-validation';
 import { isRecord, validName } from '@/lib/finance-validation';
 
-export const personalTools: GroqTool[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'prayers_list',
-      description: 'List missed-prayer counts for fajr, zuhr, asar, maghreb, and isha.',
-      parameters: { type: 'object', properties: {}, additionalProperties: false },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'prayer_set',
-      description:
-        'Create a confirmation proposal to set the missed count for one namaaz. Never claim the change was saved.',
-      parameters: {
-        type: 'object',
-        properties: {
-          namaaz: { type: 'string', enum: [...NAMAAZ_VALUES] },
-          missed: { type: 'integer', minimum: 0 },
-        },
-        required: ['namaaz', 'missed'],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'prayer_remove',
-      description: 'Create a confirmation proposal to delete one prayer row by id.',
-      parameters: {
-        type: 'object',
-        properties: { id: { type: 'string' } },
-        required: ['id'],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'health_list',
-      description: 'List health tracking entries, newest first. Optionally filter by metric name.',
-      parameters: {
-        type: 'object',
-        properties: { metric: { type: 'string' } },
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'health_add',
-      description: 'Create a confirmation proposal to add a health metric reading. createdAt is optional.',
-      parameters: {
-        type: 'object',
-        properties: {
-          metric: { type: 'string' },
-          value: { type: 'integer' },
-          createdAt: { type: 'string' },
-        },
-        required: ['metric', 'value'],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'health_update',
-      description: 'Create a confirmation proposal to update one health tracking entry by id.',
-      parameters: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          metric: { type: 'string' },
-          value: { type: 'integer' },
-          createdAt: { type: 'string' },
-        },
-        required: ['id'],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'health_remove',
-      description: 'Create a confirmation proposal to delete one health tracking entry by id.',
-      parameters: {
-        type: 'object',
-        properties: { id: { type: 'string' } },
-        required: ['id'],
-        additionalProperties: false,
-      },
-    },
-  },
-];
-
-export const personalToolNames = new Set(personalTools.map((tool) => tool.function.name));
+export const personalToolNames = toolNamesForModule('personal');
 
 export async function executePersonalTool(
   name: string,
@@ -133,7 +31,13 @@ export async function executePersonalTool(
     const metric = typeof args.metric === 'string' && args.metric.trim() ? args.metric.trim() : undefined;
     return { output: await listHealthTracking(metric) };
   }
-  if (name === 'prayer_set' || name === 'prayer_remove' || name === 'health_add' || name === 'health_update' || name === 'health_remove') {
+  if (
+    name === 'prayer_set' ||
+    name === 'prayer_remove' ||
+    name === 'health_add' ||
+    name === 'health_update' ||
+    name === 'health_remove'
+  ) {
     const pendingAction = await proposePersonalAction(name, args);
     return {
       output: {
@@ -153,7 +57,8 @@ async function proposePersonalAction(
 ) {
   if (actionType === 'prayer_set') {
     if (!isNamaaz(args.namaaz)) throw new AgentActionError('Invalid namaaz');
-    if (!validInteger(args.missed) || args.missed < 0) throw new AgentActionError('Missed must be a non-negative integer');
+    if (!validInteger(args.missed) || args.missed < 0)
+      throw new AgentActionError('Missed must be a non-negative integer');
     const current = await getPrayerByNamaaz(args.namaaz);
     return toPublicAction(
       await createAgentAction({

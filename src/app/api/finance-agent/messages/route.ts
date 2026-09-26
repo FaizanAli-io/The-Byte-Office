@@ -1,51 +1,38 @@
-import { clearAgentMessages, getConversation, listAgentMessages, saveAgentMessage } from '@/lib/finance-agent/repository';
+import {
+  clearAgentMessages,
+  getConversation,
+  listAgentMessages,
+  saveAgentMessage,
+} from '@/lib/finance-agent/repository';
 import type { FinanceChatMessage } from '@/lib/finance-agent/types';
-import { NextResponse } from 'next/server';
+import { ApiError, apiRoute, found, jsonBody, searchParam } from '@/lib/api';
 
-export async function GET(request: Request) {
-  try {
-    const chatId = new URL(request.url).searchParams.get('chatId');
-    if (!chatId || !(await getConversation(chatId))) {
-      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
-    }
-    return NextResponse.json({ messages: await listAgentMessages(chatId) });
-  } catch (cause) {
-    console.error('GET /api/finance-agent/messages error:', cause);
-    return NextResponse.json({ error: 'Failed to load conversation' }, { status: 500 });
-  }
+async function requireChat(id: string | null | undefined) {
+  if (!id) throw new ApiError('Chat not found', 404);
+  found(await getConversation(id), 'Chat not found');
+  return id;
 }
 
-export async function POST(request: Request) {
-  try {
-    const body = (await request.json()) as { chatId?: unknown; message?: unknown };
-    const chatId = typeof body.chatId === 'string' ? body.chatId : '';
-    if (!chatId || !(await getConversation(chatId))) {
-      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
-    }
-    const message = parseMessage(body.message);
-    await saveAgentMessage(chatId, message);
-    return NextResponse.json({ message });
-  } catch (cause) {
-    console.error('POST /api/finance-agent/messages error:', cause);
-    const status = cause instanceof MessageValidationError ? cause.status : 500;
-    const message = cause instanceof Error ? cause.message : 'Failed to save message';
-    return NextResponse.json({ error: message }, { status });
-  }
-}
+export const GET = apiRoute('GET /api/finance-agent/messages', 'Failed to load conversation', async (req: Request) => ({
+  messages: await listAgentMessages(await requireChat(searchParam(req, 'chatId'))),
+}));
 
-export async function DELETE(request: Request) {
-  try {
-    const chatId = new URL(request.url).searchParams.get('chatId');
-    if (!chatId || !(await getConversation(chatId))) {
-      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
-    }
-    await clearAgentMessages(chatId);
-    return NextResponse.json({ ok: true });
-  } catch (cause) {
-    console.error('DELETE /api/finance-agent/messages error:', cause);
-    return NextResponse.json({ error: 'Failed to clear conversation' }, { status: 500 });
+export const POST = apiRoute('POST /api/finance-agent/messages', 'Failed to save message', async (req: Request) => {
+  const body = await jsonBody<{ chatId?: unknown; message?: unknown }>(req);
+  const chatId = await requireChat(typeof body.chatId === 'string' ? body.chatId : null);
+  const message = parseMessage(body.message);
+  await saveAgentMessage(chatId, message);
+  return { message };
+});
+
+export const DELETE = apiRoute(
+  'DELETE /api/finance-agent/messages',
+  'Failed to clear conversation',
+  async (req: Request) => {
+    await clearAgentMessages(await requireChat(searchParam(req, 'chatId')));
+    return { ok: true };
   }
-}
+);
 
 function parseMessage(value: unknown): FinanceChatMessage {
   if (
@@ -60,7 +47,7 @@ function parseMessage(value: unknown): FinanceChatMessage {
     typeof value.content !== 'string' ||
     typeof value.createdAt !== 'string'
   ) {
-    throw new MessageValidationError('Invalid chat message');
+    throw new ApiError('Invalid chat message');
   }
   return {
     id: value.id,
@@ -70,13 +57,4 @@ function parseMessage(value: unknown): FinanceChatMessage {
     actions: 'actions' in value && Array.isArray(value.actions) ? value.actions : undefined,
     isError: 'isError' in value && value.isError === true ? true : undefined,
   };
-}
-
-class MessageValidationError extends Error {
-  constructor(
-    message: string,
-    public status = 400
-  ) {
-    super(message);
-  }
 }

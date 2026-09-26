@@ -24,11 +24,6 @@ export type GroqToolCall = {
   };
 };
 
-export type GroqToolChoice = {
-  type: 'function';
-  function: { name: string };
-};
-
 export type GroqAssistantMessage = {
   role: 'assistant';
   content: string | null;
@@ -36,8 +31,9 @@ export type GroqAssistantMessage = {
 };
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-export const PRIMARY_MODEL = 'openai/gpt-oss-20b';
-export const FALLBACK_MODEL = 'openai/gpt-oss-120b';
+export const PRIMARY_MODEL = 'openai/gpt-oss-120b';
+// Degraded but working service when the primary model is rate limited.
+export const FALLBACK_MODEL = 'openai/gpt-oss-20b';
 
 export class GroqError extends Error {
   constructor(
@@ -67,7 +63,6 @@ export async function requestGroq(input: {
   messages: GroqMessage[];
   tools: GroqTool[];
   onText?: (text: string) => void;
-  toolChoice?: 'auto' | 'required' | GroqToolChoice;
 }) {
   let streamed = false;
   const onText = (text: string) => {
@@ -104,7 +99,6 @@ async function requestModel(input: {
   messages: GroqMessage[];
   tools: GroqTool[];
   onText?: (text: string) => void;
-  toolChoice?: 'auto' | 'required' | GroqToolChoice;
 }): Promise<{ message: GroqAssistantMessage; model: string }> {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) {
@@ -122,7 +116,7 @@ async function requestModel(input: {
       messages: input.messages,
       tools: input.tools,
       stream: true,
-      tool_choice: input.toolChoice || 'auto',
+      tool_choice: 'auto',
       temperature: 0.25,
       max_tokens: 4096,
     }),

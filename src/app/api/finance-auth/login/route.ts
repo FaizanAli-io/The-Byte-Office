@@ -1,50 +1,41 @@
 import { appOrigin, createMagicLinkToken, getSessionSecret } from '@/lib/finance-auth';
 import { FINANCE_LOGIN_EMAIL } from '@/lib/finance-constants';
 import { sendFinanceLoginEmail } from '@/lib/finance-email';
-import { NextResponse } from 'next/server';
+import { ApiError, apiRoute, optionalJsonBody } from '@/lib/api';
 
+// Per-instance only, so this is a courtesy throttle rather than a real limit.
 const lastSentAt = new Map<string, number>();
 
-export async function POST(request: Request) {
-  try {
-    if (!getSessionSecret()) {
-      return NextResponse.json({ error: 'Finance authentication is not configured' }, { status: 503 });
-    }
+export const POST = apiRoute('POST /api/finance-auth/login', 'Unable to send login link', async (request: Request) => {
+  if (!getSessionSecret()) throw new ApiError('Finance authentication is not configured', 503);
 
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
-    const previous = lastSentAt.get(ip) ?? 0;
-    if (Date.now() - previous < 30_000) {
-      return NextResponse.json({ error: 'Please wait a moment before requesting another link' }, { status: 429 });
-    }
-
-    const body = (await request.json().catch(() => ({}))) as { next?: string };
-    const nextPath = body.next?.startsWith('/finance') && !body.next.startsWith('//') ? body.next : '';
-
-    const token = await createMagicLinkToken();
-    const loginUrl = new URL('/finance/verify', appOrigin(request));
-    loginUrl.searchParams.set('token', token);
-    if (nextPath) loginUrl.searchParams.set('next', nextPath);
-
-    let emailed = false;
-    try {
-      emailed = await sendFinanceLoginEmail(loginUrl.toString());
-    } catch (cause) {
-      console.error('Finance login email failed:', cause);
-    }
-    lastSentAt.set(ip, Date.now());
-
-    if (!emailed && process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'Email delivery is not configured' }, { status: 503 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      emailed,
-      email: FINANCE_LOGIN_EMAIL,
-      ...(process.env.NODE_ENV === 'production' ? {} : { loginLink: loginUrl.toString() }),
-    });
-  } catch (cause) {
-    console.error('POST /api/finance-auth/login error:', cause);
-    return NextResponse.json({ error: 'Unable to send login link' }, { status: 500 });
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
+  if (Date.now() - (lastSentAt.get(ip) ?? 0) < 30_000) {
+    throw new ApiError('Please wait a moment before requesting another link', 429);
   }
-}
+
+  const { next } = await optionalJsonBody<{ next?: string }>(request);
+  const nextPath = next?.startsWith('/finance') && !next.startsWith('//') ? next : '';
+
+  const loginUrl = new URL('/finance/verify', appOrigin(request));
+  loginUrl.searchParams.set('token', await createMagicLinkToken());
+  if (nextPath) loginUrl.searchParams.set('next', nextPath);
+
+  let emailed = false;
+  try {
+    emailed = await sendFinanceLoginEmail(loginUrl.toString());
+  } catch (cause) {
+    console.error('Finance login email failed:', cause);
+  }
+  lastSentAt.set(ip, Date.now());
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (!emailed && isProduction) throw new ApiError('Email delivery is not configured', 503);
+
+  return {
+    success: true,
+    emailed,
+    email: FINANCE_LOGIN_EMAIL,
+    ...(isProduction ? {} : { loginLink: loginUrl.toString() }),
+  };
+});

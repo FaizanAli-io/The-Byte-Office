@@ -1,10 +1,7 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
 import type { Metadata, Viewport } from 'next';
-import Footer from './components/Footer';
-import Navigation from './components/Navigation';
-import { company, siteUrl } from './data/site';
-import { jsonLd, organizationSchema, websiteSchema } from './lib/seo';
+import { company, siteUrl } from '@/content/site';
 
 // Work around Node runtimes that expose a malformed global localStorage object.
 if (typeof window === 'undefined') {
@@ -40,6 +37,11 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
+/**
+ * Only what both halves of the app share: the document shell, fonts and
+ * identity. Marketing chrome and SEO live in `(site)`; the private workspace
+ * supplies its own in `(workspace)`.
+ */
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
@@ -52,31 +54,10 @@ export const metadata: Metadata = {
   authors: [{ name: company.name }],
   creator: company.name,
   publisher: company.name,
-  alternates: {
-    canonical: siteUrl,
-  },
   icons: {
     icon: '/favicon.ico',
   },
   manifest: '/site.webmanifest',
-  openGraph: {
-    title: 'The Byte Office | Software Development and AI Solutions',
-    description:
-      'Production-grade software, AI applications, automations, and full-stack platforms for businesses that need reliable delivery.',
-    url: siteUrl,
-    siteName: company.name,
-    type: 'website',
-    locale: 'en_US',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'The Byte Office | Software Development and AI Solutions',
-    description: 'Custom software development, AI agents, RAG systems, automation, and full-stack web applications.',
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
 };
 
 export const viewport: Viewport = {
@@ -88,13 +69,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} scroll-smooth`}>
-      <body className={inter.className}>
-        {jsonLd(organizationSchema)}
-        {jsonLd(websiteSchema)}
-        <Navigation />
-        <main className="min-h-screen">{children}</main>
-        <Footer />
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }

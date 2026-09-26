@@ -1,26 +1,15 @@
 import { createConversation, listConversations } from '@/lib/finance-agent/repository';
 import { parseAgentWorkspace } from '@/lib/finance-agent/types';
-import { NextResponse } from 'next/server';
+import { apiRoute, created, optionalJsonBody, searchParam } from '@/lib/api';
 
-export async function GET(request: Request) {
-  try {
-    const raw = new URL(request.url).searchParams.get('workspace');
-    const workspace = raw === 'finance' || raw === 'personal' ? raw : undefined;
-    return NextResponse.json({ chats: await listConversations(workspace) });
-  } catch (cause) {
-    console.error('GET /api/agent/chats error:', cause);
-    return NextResponse.json({ error: 'Failed to load chats' }, { status: 500 });
-  }
-}
+export const GET = apiRoute('GET /api/agent/chats', 'Failed to load chats', async (req: Request) => {
+  const raw = searchParam(req, 'workspace');
+  const workspace = raw === 'finance' || raw === 'personal' ? raw : undefined;
+  return { chats: await listConversations(workspace) };
+});
 
-export async function POST(request: Request) {
-  try {
-    const body = (await request.json().catch(() => ({}))) as { title?: unknown; workspace?: unknown };
-    const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim().slice(0, 80) : 'New chat';
-    const workspace = parseAgentWorkspace(body.workspace);
-    return NextResponse.json({ chat: await createConversation(title, workspace) }, { status: 201 });
-  } catch (cause) {
-    console.error('POST /api/agent/chats error:', cause);
-    return NextResponse.json({ error: 'Failed to create chat' }, { status: 500 });
-  }
-}
+export const POST = apiRoute('POST /api/agent/chats', 'Failed to create chat', async (req: Request) => {
+  const body = await optionalJsonBody<{ title?: unknown; workspace?: unknown }>(req);
+  const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim().slice(0, 80) : 'New chat';
+  return created({ chat: await createConversation(title, parseAgentWorkspace(body.workspace)) });
+});

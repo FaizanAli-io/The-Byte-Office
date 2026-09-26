@@ -1,43 +1,33 @@
 import { deleteConversation, getConversation, renameConversation } from '@/lib/finance-agent/repository';
-import { NextResponse } from 'next/server';
+import { ApiError, apiRoute, found, jsonBody } from '@/lib/api';
 
-type RouteContext = { params: Promise<{ id: string }> };
+type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: RouteContext) {
-  try {
-    const { id } = await params;
-    const chat = await getConversation(id);
-    return chat ? NextResponse.json({ chat }) : NextResponse.json({ error: 'Chat not found' }, { status: 404 });
-  } catch (cause) {
-    console.error('GET /api/agent/chats/[id] error:', cause);
-    return NextResponse.json({ error: 'Failed to load chat' }, { status: 500 });
+export const GET = apiRoute(
+  'GET /api/agent/chats/[id]',
+  'Failed to load chat',
+  async (_req: Request, ctx: Context) => ({
+    chat: found(await getConversation((await ctx.params).id), 'Chat not found'),
+  })
+);
+
+export const PATCH = apiRoute(
+  'PATCH /api/agent/chats/[id]',
+  'Failed to rename chat',
+  async (req: Request, ctx: Context) => {
+    const { title } = await jsonBody<{ title?: unknown }>(req);
+    if (typeof title !== 'string' || !title.trim()) throw new ApiError('Title is required');
+    return {
+      chat: found(await renameConversation((await ctx.params).id, title.trim().slice(0, 80)), 'Chat not found'),
+    };
   }
-}
+);
 
-export async function PATCH(request: Request, { params }: RouteContext) {
-  try {
-    const { id } = await params;
-    const body = (await request.json()) as { title?: unknown };
-    if (typeof body.title !== 'string' || !body.title.trim()) {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
-    }
-    const chat = await renameConversation(id, body.title.trim().slice(0, 80));
-    return chat ? NextResponse.json({ chat }) : NextResponse.json({ error: 'Chat not found' }, { status: 404 });
-  } catch (cause) {
-    console.error('PATCH /api/agent/chats/[id] error:', cause);
-    return NextResponse.json({ error: 'Failed to rename chat' }, { status: 500 });
+export const DELETE = apiRoute(
+  'DELETE /api/agent/chats/[id]',
+  'Failed to delete chat',
+  async (_req: Request, ctx: Context) => {
+    found((await deleteConversation((await ctx.params).id)) || null, 'Chat not found');
+    return { success: true };
   }
-}
-
-export async function DELETE(_request: Request, { params }: RouteContext) {
-  try {
-    const { id } = await params;
-    const deleted = await deleteConversation(id);
-    return deleted
-      ? NextResponse.json({ success: true })
-      : NextResponse.json({ error: 'Chat not found' }, { status: 404 });
-  } catch (cause) {
-    console.error('DELETE /api/agent/chats/[id] error:', cause);
-    return NextResponse.json({ error: 'Failed to delete chat' }, { status: 500 });
-  }
-}
+);

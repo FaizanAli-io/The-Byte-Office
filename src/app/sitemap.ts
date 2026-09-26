@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { siteUrl } from './data/site';
+import { siteUrl } from '@/content/site';
 
 const routes = ['', '/services', '/projects', '/about', '/contact'];
 

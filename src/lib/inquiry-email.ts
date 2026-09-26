@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { company } from '@/app/data/site';
+import { company } from '@/content/site';
 
 export async function sendInquiryEmail(input: {
   name: string;

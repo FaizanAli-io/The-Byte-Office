@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { financeToolCatalog, inputSchemaForTool } from './catalog';
+import { financeToolCatalog, httpMethodFor, inputSchemaForTool } from './catalog';
 import { MCP_SERVER_NAME, MCP_SERVER_VERSION } from './server';
 
 type OpenApiDocument = Record<string, unknown>;
@@ -64,7 +64,7 @@ export function buildOpenApiDocument(origin: string): OpenApiDocument {
     };
 
     const path = `/api/mcp/tools/${tool.name}`;
-    if (tool.method === 'get') {
+    if (httpMethodFor(tool) === 'get') {
       paths[path] = { get: operation };
       continue;
     }

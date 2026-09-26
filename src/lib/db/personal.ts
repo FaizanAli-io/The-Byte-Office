@@ -1,10 +1,5 @@
 import { asc, desc, eq } from 'drizzle-orm';
-import type {
-  HealthTrackingInput,
-  HealthTrackingUpdate,
-  PrayerInput,
-  PrayerUpdate,
-} from '@/types/personal';
+import type { HealthTrackingInput, HealthTrackingUpdate, PrayerInput, PrayerUpdate } from '@/types/personal';
 import { getDb } from './index';
 import { healthTracking, prayers } from './schema';
 

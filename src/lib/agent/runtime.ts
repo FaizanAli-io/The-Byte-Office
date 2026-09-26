@@ -1,9 +1,10 @@
-import { executePersonalTool, personalToolNames, personalTools } from '@/lib/agent/modules/personal';
-import { executeTboTool, tboToolNames, tboTools } from '@/lib/agent/modules/tbo';
-import { executeFinanceTool, financeAgentTools } from '@/lib/finance-agent/tools';
+import { executePersonalTool, personalToolNames } from '@/lib/agent/modules/personal';
+import { executeTboTool, tboToolNames } from '@/lib/agent/modules/tbo';
+import { executeFinanceTool } from '@/lib/finance-agent/tools';
+import { groqTools } from '@/lib/agent/registry';
 import type { PendingAgentAction } from '@/lib/finance-agent/types';
 
-export const agentTools = [...tboTools, ...financeAgentTools, ...personalTools];
+export const agentTools = groqTools;
 
 export const SYSTEM_PROMPT = `You are the private assistant for The Byte Office.
 You have three cleanly separate modules. Use only the module that matches the user's request.
@@ -39,7 +40,8 @@ export async function executeAgentTool(
   name: string,
   args: unknown
 ): Promise<{ output: unknown; pendingAction?: PendingAgentAction }> {
-  const input = typeof args === 'object' && args !== null && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
+  const input =
+    typeof args === 'object' && args !== null && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
   if (tboToolNames.has(name)) return executeTboTool(name, input);
   if (personalToolNames.has(name)) return executePersonalTool(name, input);
   return executeFinanceTool(name, args);
