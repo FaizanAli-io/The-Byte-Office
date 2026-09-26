@@ -15,16 +15,13 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /**
- * Maps the Mongo `finance` database to Postgres.
+ * Two schemas: `finance` holds the portfolio, ledgers, snapshots and the
+ * assistant's conversations and pending actions; `personal` holds prayers and
+ * health tracking.
  *
- *   Mongo collection `data`        → finance.local_banks, remote_banks, mutual_funds
- *   Mongo collection `ledgers`     → finance.ledgers, ledger_accounts, ledger_entries
- *   Mongo collection `snapshots`   → finance.finance_snapshots (JSONB copy of holdings)
- *
- * Holding tables replace the single finance document. Array order is kept in
- * `sort_order`. Ledger account/entry UUIDs from Mongo are preserved.
- *
- * `personal` holds prayers and health tracking.
+ * Holdings are one row per item rather than a single document, and array order
+ * is kept in `sort_order`. Mutual fund rows encode their group as
+ * `floor(sort_order / 1000)`.
  */
 
 export const finance = pgSchema('finance');

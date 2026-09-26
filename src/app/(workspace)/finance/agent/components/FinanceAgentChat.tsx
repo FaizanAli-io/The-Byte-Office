@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, Fragment, useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import Markdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type {
   AgentConversation,
   FinanceAgentResponse,
@@ -514,135 +515,41 @@ function Message({
   );
 }
 
+/**
+ * Assistant replies are Markdown. `react-markdown` parses it and `remark-gfm`
+ * adds the table syntax the assistant is told to use; the component map below
+ * is the only thing this app needs to own, replacing a hand-rolled parser that
+ * reimplemented tables, headings, lists and inline formatting.
+ */
+const MARKDOWN_COMPONENTS: Components = {
+  h1: (props) => <p className="mb-2 text-sm font-bold text-white" {...props} />,
+  h2: (props) => <p className="mb-2 text-sm font-bold text-white" {...props} />,
+  h3: (props) => <p className="mb-2 text-sm font-bold text-white" {...props} />,
+  p: (props) => <p className="mb-3 last:mb-0" {...props} />,
+  ul: (props) => <ul className="mb-3 list-disc space-y-1 pl-5" {...props} />,
+  ol: (props) => <ol className="mb-3 list-decimal space-y-1 pl-5" {...props} />,
+  strong: (props) => <strong className="font-bold text-white" {...props} />,
+  em: (props) => <em className="italic" {...props} />,
+  code: (props) => <code className="rounded bg-black/30 px-1.5 py-0.5 text-[12px] text-cyan-200" {...props} />,
+  a: (props) => <a className="text-cyan-300 underline" target="_blank" rel="noopener noreferrer" {...props} />,
+  table: (props) => (
+    <div className="my-3 overflow-x-auto">
+      <table className="min-w-full border-collapse text-left text-xs" {...props} />
+    </div>
+  ),
+  th: (props) => <th className="border-b border-white/15 px-3 py-2 font-bold text-cyan-200" {...props} />,
+  td: (props) => <td className="border-b border-white/8 px-3 py-2 text-slate-300" {...props} />,
+  tr: (props) => <tr className="even:bg-white/[0.03]" {...props} />,
+};
+
 function MarkdownMessage({ content }: { content: string }) {
-  const lines = content.split(/\r?\n/);
-  const blocks: ReactNode[] = [];
-  let index = 0;
-  while (index < lines.length) {
-    const line = lines[index];
-    if (!line.trim()) {
-      index += 1;
-      continue;
-    }
-    if (
-      index + 1 < lines.length &&
-      line.includes('|') &&
-      /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[index + 1])
-    ) {
-      const headers = tableCells(line);
-      const rows: string[][] = [];
-      index += 2;
-      while (index < lines.length && lines[index].includes('|') && lines[index].trim()) {
-        rows.push(tableCells(lines[index]));
-        index += 1;
-      }
-      blocks.push(
-        <div key={`table-${index}`} className="my-3 overflow-x-auto">
-          <table className="min-w-full border-collapse text-left text-xs">
-            <thead>
-              <tr>
-                {headers.map((header, cellIndex) => (
-                  <th key={cellIndex} className="border-b border-white/15 px-3 py-2 font-bold text-cyan-200">
-                    <InlineMarkdown text={header} />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, rowIndex) => (
-                <tr key={rowIndex} className="even:bg-white/[0.03]">
-                  {headers.map((_, cellIndex) => (
-                    <td key={cellIndex} className="border-b border-white/8 px-3 py-2 text-slate-300">
-                      <InlineMarkdown text={row[cellIndex] || ''} />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-      continue;
-    }
-    const heading = line.match(/^(#{1,3})\s+(.+)$/);
-    if (heading) {
-      blocks.push(
-        <p key={index} className="mb-2 text-sm font-bold text-white">
-          <InlineMarkdown text={heading[2]} />
-        </p>
-      );
-      index += 1;
-      continue;
-    }
-    if (/^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line)) {
-      const ordered = /^\d+\.\s+/.test(line);
-      const items: string[] = [];
-      while (index < lines.length && (ordered ? /^\d+\.\s+/.test(lines[index]) : /^[-*]\s+/.test(lines[index]))) {
-        items.push(lines[index].replace(ordered ? /^\d+\.\s+/ : /^[-*]\s+/, ''));
-        index += 1;
-      }
-      const List = ordered ? 'ol' : 'ul';
-      blocks.push(
-        <List key={`list-${index}`} className={`${ordered ? 'list-decimal' : 'list-disc'} mb-3 space-y-1 pl-5`}>
-          {items.map((item, itemIndex) => (
-            <li key={itemIndex}>
-              <InlineMarkdown text={item} />
-            </li>
-          ))}
-        </List>
-      );
-      continue;
-    }
-    const paragraph: string[] = [line];
-    index += 1;
-    while (index < lines.length && lines[index].trim() && !/^(#{1,3})\s|^[-*]\s+|^\d+\.\s+/.test(lines[index])) {
-      paragraph.push(lines[index]);
-      index += 1;
-    }
-    blocks.push(
-      <p key={`paragraph-${index}`} className="mb-3 last:mb-0">
-        <InlineMarkdown text={paragraph.join(' ')} />
-      </p>
-    );
-  }
-  return <div className="break-words">{blocks}</div>;
-}
-
-function InlineMarkdown({ text }: { text: string }) {
-  const pattern = /(\[[^\]]+\]\(https?:\/\/[^)\s]+\)|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_)/g;
-  return text.split(pattern).map((part, index) => {
-    const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/);
-    if (link) {
-      return (
-        <a key={index} href={link[2]} target="_blank" rel="noreferrer" className="text-cyan-300 underline">
-          {link[1]}
-        </a>
-      );
-    }
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return (
-        <code key={index} className="rounded bg-black/25 px-1 py-0.5 text-cyan-200">
-          {part.slice(1, -1)}
-        </code>
-      );
-    }
-    if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
-      return <strong key={index}>{part.slice(2, -2)}</strong>;
-    }
-    if ((part.startsWith('*') && part.endsWith('*')) || (part.startsWith('_') && part.endsWith('_'))) {
-      return <em key={index}>{part.slice(1, -1)}</em>;
-    }
-    return <Fragment key={index}>{part}</Fragment>;
-  });
-}
-
-function tableCells(line: string) {
-  return line
-    .trim()
-    .replace(/^\|/, '')
-    .replace(/\|$/, '')
-    .split('|')
-    .map((cell) => cell.trim());
+  return (
+    <div className="whitespace-normal">
+      <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+        {content}
+      </Markdown>
+    </div>
+  );
 }
 
 function ActionCard({
