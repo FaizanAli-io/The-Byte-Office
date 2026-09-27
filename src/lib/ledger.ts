@@ -231,21 +231,28 @@ export type HoldMovement = {
  * mistake worth seeing rather than hiding.
  */
 export function heldFunds(movements: HoldMovement[]) {
-  const byCounterparty = new Map<string, number>();
+  const byCounterparty = new Map<string, { received: number; returned: number }>();
   let total = 0;
 
   for (const movement of movements) {
     if (!isHoldType(movement.type)) continue;
-    const signed = movement.type === 'hold_received' ? movement.amountPkr : -movement.amountPkr;
+    const isReceipt = movement.type === 'hold_received';
     const who = movement.counterparty?.trim() || UNATTRIBUTED_HOLD;
-    total += signed;
-    byCounterparty.set(who, (byCounterparty.get(who) ?? 0) + signed);
+    const running = byCounterparty.get(who) ?? { received: 0, returned: 0 };
+
+    // Both directions are kept, not just the net: "still owe 30,000" and
+    // "took 50,000 and gave back 20,000" are different things to know.
+    if (isReceipt) running.received += movement.amountPkr;
+    else running.returned += movement.amountPkr;
+
+    byCounterparty.set(who, running);
+    total += isReceipt ? movement.amountPkr : -movement.amountPkr;
   }
 
   return {
     total,
     byCounterparty: [...byCounterparty]
-      .map(([counterparty, amount]) => ({ counterparty, amount }))
+      .map(([counterparty, running]) => ({ counterparty, ...running, amount: running.received - running.returned }))
       .filter((row) => Math.abs(row.amount) >= 0.005)
       .sort((a, b) => b.amount - a.amount),
   };

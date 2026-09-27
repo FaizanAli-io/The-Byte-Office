@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 import { CollapseToggle } from './LedgerAccounts';
 import { draftIncomplete, emptyDraft, EntryFields } from './EntryFields';
+import { HeldFundsModal } from './HeldFundsModal';
 import {
   emptyFilters,
   EntryFiltersPanel,
@@ -44,6 +45,7 @@ export function LedgerEntries({
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
+  const [holdingsOpen, setHoldingsOpen] = useState(false);
 
   // Refs rather than dependencies: restoring must happen when the month
   // changes, not every time an account is added or an entry is edited.
@@ -200,7 +202,13 @@ export function LedgerEntries({
     <FinanceCard
       title="Transactions"
       description="Transfers stay outside income and expense totals and update both accounts."
+      action={
+        <button type="button" className={financeStyles.secondary} onClick={() => setHoldingsOpen(true)}>
+          View holdings
+        </button>
+      }
     >
+      <HeldFundsModal open={holdingsOpen} onClose={() => setHoldingsOpen(false)} />
       {!readOnly ? (
         <div className={`${financeStyles.inset} mb-6`}>
           <CollapseToggle

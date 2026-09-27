@@ -329,15 +329,12 @@ describe('heldFunds', () => {
   it('is what came in minus what went back', () => {
     const held = heldFunds([movement('hold_received', 50_000, 'Ali'), movement('hold_returned', 20_000, 'Ali')]);
     expect(held.total).toBe(30_000);
-    expect(held.byCounterparty).toEqual([{ counterparty: 'Ali', amount: 30_000 }]);
+    expect(held.byCounterparty).toEqual([{ counterparty: 'Ali', received: 50_000, returned: 20_000, amount: 30_000 }]);
   });
 
   it('keeps counterparties apart and sorts by what is owed', () => {
     const held = heldFunds([movement('hold_received', 10_000, 'Ali'), movement('hold_received', 40_000, 'Sara')]);
-    expect(held.byCounterparty).toEqual([
-      { counterparty: 'Sara', amount: 40_000 },
-      { counterparty: 'Ali', amount: 10_000 },
-    ]);
+    expect(held.byCounterparty.map((row) => row.counterparty)).toEqual(['Sara', 'Ali']);
   });
 
   it('drops a counterparty who has been paid back in full', () => {
@@ -348,12 +345,12 @@ describe('heldFunds', () => {
 
   it('still shows a counterparty who was over-repaid, since that is a mistake', () => {
     const held = heldFunds([movement('hold_received', 1000, 'Ali'), movement('hold_returned', 1500, 'Ali')]);
-    expect(held.byCounterparty).toEqual([{ counterparty: 'Ali', amount: -500 }]);
+    expect(held.byCounterparty).toEqual([{ counterparty: 'Ali', received: 1000, returned: 1500, amount: -500 }]);
   });
 
   it('groups holds with no name under one heading', () => {
     const held = heldFunds([movement('hold_received', 100), movement('hold_received', 200, '  ')]);
-    expect(held.byCounterparty).toEqual([{ counterparty: UNATTRIBUTED_HOLD, amount: 300 }]);
+    expect(held.byCounterparty).toEqual([{ counterparty: UNATTRIBUTED_HOLD, received: 300, returned: 0, amount: 300 }]);
   });
 
   it('ignores every other entry type', () => {

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory } from '@/types/ledger';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
+import { CollapseToggle } from './LedgerAccounts';
 
 /**
  * The canonical category list, managed where categories are used.
@@ -14,6 +15,9 @@ import { FinanceCard, financeStyles } from '../components/FinanceUI';
  * Archiving, not deleting, is the ordinary way to retire a category: entries
  * that used it keep their label. Deleting is only for a category nothing
  * points at, and the API refuses the rest with a count.
+ *
+ * Collapsed by default, because the list is picked from far more often than
+ * it is edited and it sits above the transactions people came for.
  */
 
 const KIND_LABELS: Record<CategoryKind, string> = {
@@ -37,16 +41,17 @@ export function LedgerCategories({
   onSave: (input: SaveInput) => void;
   onRemove: (id: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<CategoryKind>('both');
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   // Active first, then archived, so the list people actually pick from is at
-  // the top and retired names stay visible without being in the way.
-  const ordered = [
-    ...categories.filter((category) => !category.archivedAt),
-    ...categories.filter((category) => category.archivedAt),
-  ];
+  // the top and retired names stay visible without being in the way. The two
+  // counts also make up the collapsed summary.
+  const active = categories.filter((category) => !category.archivedAt);
+  const archived = categories.filter((category) => category.archivedAt);
+  const ordered = [...active, ...archived];
 
   function add() {
     if (!name.trim()) return;
@@ -57,70 +62,82 @@ export function LedgerCategories({
 
   return (
     <FinanceCard title="Categories" description="One canonical list, shared by every month and by the assistant.">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-[0.12em] text-slate-600">
-              <th className="border-b border-white/8 px-3 py-3 font-semibold">Name</th>
-              <th className="border-b border-white/8 px-3 py-3 font-semibold">Applies to</th>
-              <th className="border-b border-white/8 px-3 py-3 font-semibold">Status</th>
-              <th className="border-b border-white/8 px-3 py-3 text-right font-semibold" />
-            </tr>
-          </thead>
-          <tbody>
-            {ordered.map((category) => (
-              <CategoryRow
-                key={category.id}
-                category={category}
-                saving={saving}
-                readOnly={readOnly}
-                confirmingDelete={pendingDelete === category.id}
-                onSave={onSave}
-                onDelete={() => {
-                  if (pendingDelete !== category.id) {
-                    setPendingDelete(category.id);
-                    return;
-                  }
-                  setPendingDelete(null);
-                  onRemove(category.id);
-                }}
-              />
-            ))}
+      <div className={financeStyles.inset}>
+        <CollapseToggle
+          open={open}
+          title={`${active.length} ${active.length === 1 ? 'category' : 'categories'}`}
+          subtitle={archived.length ? `${archived.length} archived` : 'Rename, archive, or add a new one'}
+          onToggle={() => setOpen((value) => !value)}
+        />
+        {open ? (
+          <div className="border-t border-white/6 p-4">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-sm">
+                <thead>
+                  <tr className="text-xs uppercase tracking-[0.12em] text-slate-600">
+                    <th className="border-b border-white/8 px-3 py-3 font-semibold">Name</th>
+                    <th className="border-b border-white/8 px-3 py-3 font-semibold">Applies to</th>
+                    <th className="border-b border-white/8 px-3 py-3 font-semibold">Status</th>
+                    <th className="border-b border-white/8 px-3 py-3 text-right font-semibold" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {ordered.map((category) => (
+                    <CategoryRow
+                      key={category.id}
+                      category={category}
+                      saving={saving}
+                      readOnly={readOnly}
+                      confirmingDelete={pendingDelete === category.id}
+                      onSave={onSave}
+                      onDelete={() => {
+                        if (pendingDelete !== category.id) {
+                          setPendingDelete(category.id);
+                          return;
+                        }
+                        setPendingDelete(null);
+                        onRemove(category.id);
+                      }}
+                    />
+                  ))}
 
-            {!readOnly ? (
-              <tr>
-                <td className="border-b border-white/5 px-3 py-3">
-                  <input
-                    className={financeStyles.input}
-                    value={name}
-                    placeholder="New category"
-                    disabled={saving}
-                    onChange={(event) => setName(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') add();
-                    }}
-                  />
-                </td>
-                <td className="border-b border-white/5 px-3 py-3">
-                  <KindSelect value={kind} disabled={saving} onChange={setKind} />
-                </td>
-                <td className="border-b border-white/5 px-3 py-3 text-xs text-slate-600">New</td>
-                <td className="border-b border-white/5 px-3 py-3 text-right">
-                  <button
-                    type="button"
-                    className={financeStyles.primary}
-                    disabled={saving || !name.trim()}
-                    onClick={add}
-                  >
-                    Add
-                  </button>
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                  {!readOnly ? (
+                    <tr>
+                      <td className="border-b border-white/5 px-3 py-3">
+                        <input
+                          className={financeStyles.input}
+                          value={name}
+                          placeholder="New category"
+                          disabled={saving}
+                          onChange={(event) => setName(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') add();
+                          }}
+                        />
+                      </td>
+                      <td className="border-b border-white/5 px-3 py-3">
+                        <KindSelect value={kind} disabled={saving} onChange={setKind} />
+                      </td>
+                      <td className="border-b border-white/5 px-3 py-3 text-xs text-slate-600">New</td>
+                      <td className="border-b border-white/5 px-3 py-3 text-right">
+                        <button
+                          type="button"
+                          className={financeStyles.primary}
+                          disabled={saving || !name.trim()}
+                          onClick={add}
+                        >
+                          Add
+                        </button>
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+            {!ordered.length ? <p className="py-6 text-center text-sm text-slate-600">No categories yet.</p> : null}
+          </div>
+        ) : null}
       </div>
-      {!ordered.length ? <p className="py-6 text-center text-sm text-slate-600">No categories yet.</p> : null}
     </FinanceCard>
   );
 }
