@@ -7,7 +7,8 @@ import type {
   FinanceChatMessage,
   PendingAgentAction,
 } from '@/lib/finance-agent/types';
-import { apiFetch, errorMessage } from '@/lib/client-api';
+import { agentApi } from '@/lib/api-client';
+import { errorMessage } from '@/lib/client-api';
 import { FinanceToast, type FinanceToastState } from '../../components/FinanceToast';
 import { financeStyles } from '../../components/FinanceUI';
 import { EmptyState, Message, ThinkingIndicator } from './ChatMessage';
@@ -41,10 +42,10 @@ export function FinanceAgentChat() {
   const endRef = useRef<HTMLDivElement>(null);
 
   async function loadChats() {
-    const { chats: loaded } = await apiFetch<{ chats?: AgentConversation[] }>('/api/agent/chats');
+    const { chats: loaded } = await agentApi.listChats();
     let next = loaded ?? [];
     if (!next.length) {
-      const { chat } = await apiFetch<{ chat?: AgentConversation }>('/api/agent/chats', { body: {} });
+      const { chat } = await agentApi.createChat();
       if (!chat) throw new Error('Could not create chat');
       next = [chat];
     }
@@ -57,9 +58,7 @@ export function FinanceAgentChat() {
   }
 
   async function loadMessages(id: string) {
-    const { messages: loaded } = await apiFetch<{ messages?: FinanceChatMessage[] }>(
-      `/api/finance-agent/messages?chatId=${encodeURIComponent(id)}`
-    );
+    const { messages: loaded } = await agentApi.messages(id);
     setMessages(loaded ?? []);
   }
 
@@ -123,11 +122,7 @@ export function FinanceAgentChat() {
     setThinking('Thinking…');
 
     try {
-      const response = await fetch('/api/finance-agent/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, messages: nextMessages }),
-      });
+      const response = await agentApi.streamChat(chatId, nextMessages);
       if (!response.ok || !response.body) {
         const body = (await response.json()) as { error?: string };
         throw new Error(body.error || 'The assistant could not respond');
@@ -191,7 +186,7 @@ export function FinanceAgentChat() {
         if (done) break;
       }
       if (!completed) throw new Error('The assistant stream ended unexpectedly');
-      const { chats: refreshed } = await apiFetch<{ chats?: AgentConversation[] }>('/api/agent/chats');
+      const { chats: refreshed } = await agentApi.listChats();
       setChats(refreshed ?? chats);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Could not send message';
@@ -235,10 +230,7 @@ export function FinanceAgentChat() {
       }))
     );
     try {
-      const { action } = await apiFetch<{ action?: PendingAgentAction }>(
-        `/api/finance-agent/actions/${encodeURIComponent(actionId)}/${intent}`,
-        { body: entry ? { entry } : {} }
-      );
+      const { action } = await agentApi.resolveAction(actionId, intent, entry);
       if (!action) throw new Error(`Could not ${intent} action`);
       setMessages((current) => mapAction(current, actionId, () => action));
       setToast({
@@ -261,7 +253,7 @@ export function FinanceAgentChat() {
   async function clearChat() {
     if (!chatId) return;
     try {
-      await apiFetch(`/api/finance-agent/messages?chatId=${encodeURIComponent(chatId)}`, { method: 'DELETE' });
+      await agentApi.clearMessages(chatId);
       setMessages([]);
       setFailedRequest(null);
     } catch (cause) {
@@ -272,7 +264,7 @@ export function FinanceAgentChat() {
   async function startChat() {
     let chat: AgentConversation | undefined;
     try {
-      ({ chat } = await apiFetch<{ chat?: AgentConversation }>('/api/agent/chats', { body: {} }));
+      ({ chat } = await agentApi.createChat());
     } catch (cause) {
       setToast({ tone: 'error', message: errorMessage(cause, 'Could not create chat') });
       return;
@@ -291,7 +283,7 @@ export function FinanceAgentChat() {
 
   async function removeChat(id: string) {
     try {
-      await apiFetch(`/api/agent/chats/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      await agentApi.deleteChat(id);
     } catch (cause) {
       setToast({ tone: 'error', message: errorMessage(cause, 'Could not delete chat') });
       return;

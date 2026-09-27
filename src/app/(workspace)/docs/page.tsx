@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { oauthApi } from '@/lib/api-client';
 
 /**
  * Swagger UI for the MCP endpoint and the REST tool wrappers.
@@ -42,20 +43,13 @@ async function ensureClientId() {
   const cached = window.localStorage.getItem(CLIENT_ID_KEY);
   if (cached) return cached;
 
-  const response = await fetch('/oauth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_name: 'The Byte Office API docs',
-      redirect_uris: [redirectUri()],
-      grant_types: ['authorization_code', 'refresh_token'],
-      response_types: ['code'],
-      token_endpoint_auth_method: 'none',
-    }),
+  const { client_id: clientId } = await oauthApi.register({
+    client_name: 'The Byte Office API docs',
+    redirect_uris: [redirectUri()],
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    token_endpoint_auth_method: 'none',
   });
-  if (!response.ok) throw new Error('Could not register the docs page as an OAuth client');
-
-  const { client_id: clientId } = (await response.json()) as { client_id: string };
   window.localStorage.setItem(CLIENT_ID_KEY, clientId);
   return clientId;
 }

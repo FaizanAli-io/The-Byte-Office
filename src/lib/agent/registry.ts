@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { LEDGER_ENTRY_TYPES } from '@/types/ledger';
+import { CATEGORY_KINDS, LEDGER_ENTRY_TYPES } from '@/types/ledger';
 
 /**
  * Every agent tool, declared once.
@@ -60,6 +60,9 @@ const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .describe('ISO date YYYY-MM-DD within the ledger month');
+
+const categoryName = z.string().min(1).describe('Category name, as categories_list reports it');
+const categoryKind = z.enum(CATEGORY_KINDS).describe('Which entry types may use it: income, expense, or both');
 
 const portfolioFields = {
   itemType,
@@ -136,6 +139,47 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       'List every ledger category with its id, name and whether it suits income, expense or both. Archived categories are included and marked; do not propose one for a new entry.',
     schema: empty,
+    mcp: true,
+  },
+  {
+    name: 'category_add',
+    title: 'Add ledger category',
+    module: 'finance',
+    description: 'Create a ledger category immediately. Names are unique regardless of case.',
+    chatDescription:
+      'Create a confirmation proposal to add a ledger category. This never writes before user confirmation.',
+    schema: z.object({ name: categoryName, kind: categoryKind.default('both') }),
+    write: true,
+    mcp: true,
+  },
+  {
+    name: 'category_update',
+    title: 'Update ledger category',
+    module: 'finance',
+    description:
+      'Rename a category, change which entry types it suits, or archive and restore it. Identify it by its current name. Archiving keeps it on existing entries while removing it from the picker.',
+    chatDescription:
+      'Create a confirmation proposal to rename, re-kind, archive or restore a ledger category, identified by its current name. This never writes before confirmation.',
+    schema: z.object({
+      category: categoryName,
+      name: z.string().min(1).optional().describe('New name'),
+      kind: categoryKind.optional(),
+      archived: z.boolean().optional().describe('True to archive, false to restore'),
+    }),
+    write: true,
+    mcp: true,
+  },
+  {
+    name: 'category_remove',
+    title: 'Remove ledger category',
+    module: 'finance',
+    description:
+      'Delete a category outright, by name. Refused while any ledger entry still uses it — archive those instead.',
+    chatDescription:
+      'Create a confirmation proposal to delete a ledger category by name. Refused while any entry still uses it.',
+    schema: z.object({ category: categoryName }),
+    write: true,
+    destructive: true,
     mcp: true,
   },
   {

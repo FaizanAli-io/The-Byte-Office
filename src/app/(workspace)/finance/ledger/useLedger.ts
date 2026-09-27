@@ -1,6 +1,7 @@
 'use client';
 
-import { apiFetch, apiFetchOrNull, errorMessage } from '@/lib/client-api';
+import { categoriesApi, ledgerApi } from '@/lib/api-client';
+import { errorMessage } from '@/lib/client-api';
 import { currentMonth } from '@/lib/ledger';
 import type {
   CategoryKind,
@@ -28,7 +29,7 @@ export function useLedger() {
   ledgerRef.current = ledger;
 
   const loadCategories = useCallback(async () => {
-    setCategories(await apiFetch<LedgerCategory[]>('/api/categories'));
+    setCategories(await categoriesApi.list());
   }, []);
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export function useLedger() {
     setError('');
     setNotice('');
     try {
-      setLedger(await apiFetchOrNull<MonthlyLedger>(`/api/ledger?month=${selectedMonth}`));
+      setLedger(await ledgerApi.load(selectedMonth));
       setAccountsDirty(false);
     } catch (cause) {
       setError(errorMessage(cause, 'Could not load ledger'));
@@ -57,7 +58,7 @@ export function useLedger() {
     setSaving(true);
     setError('');
     try {
-      setLedger(await apiFetch<MonthlyLedger>('/api/ledger', { body: { month, importFinance } }));
+      setLedger(await ledgerApi.create(month, importFinance));
       setNotice(importFinance ? 'Opening balances imported from the portfolio editor.' : 'Monthly ledger created.');
     } catch (cause) {
       setError(errorMessage(cause, 'Could not create ledger'));
@@ -81,7 +82,7 @@ export function useLedger() {
             entries: next.entries,
             finalizedAt: next.status === 'finalized' ? next.finalizedAt : undefined,
           };
-          setLedger(await apiFetch<MonthlyLedger>('/api/ledger', { method: 'PUT', body: payload }));
+          setLedger(await ledgerApi.save(payload));
           setAccountsDirty(false);
           setNotice(successNotice);
         } catch (cause) {
@@ -158,8 +159,8 @@ export function useLedger() {
     setNotice('');
     try {
       await (input.id
-        ? apiFetch('/api/categories', { method: 'PUT', body: input })
-        : apiFetch('/api/categories', { body: { name: input.name, kind: input.kind } }));
+        ? categoriesApi.update({ ...input, id: input.id })
+        : categoriesApi.create({ name: input.name ?? '', kind: input.kind ?? 'both' }));
       await loadCategories();
       setNotice(input.id ? 'Category updated.' : 'Category added.');
     } catch (cause) {
@@ -174,7 +175,7 @@ export function useLedger() {
     setError('');
     setNotice('');
     try {
-      await apiFetch('/api/categories', { method: 'DELETE', body: { id } });
+      await categoriesApi.remove(id);
       await loadCategories();
       setNotice('Category deleted.');
     } catch (cause) {

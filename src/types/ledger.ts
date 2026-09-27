@@ -40,6 +40,11 @@ export interface LedgerCategory {
   sortOrder: number;
   /** Set when the category has left the picker but still names old entries. */
   archivedAt?: string | null;
+  /**
+   * How many ledger entries reference it, across every month. Derived rather
+   * than stored, and the number that decides whether it can be deleted.
+   */
+  entryCount: number;
 }
 
 export interface LedgerAccount {

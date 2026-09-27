@@ -1,7 +1,8 @@
 'use client';
 
 import type { FinanceToastState } from './FinanceToast';
-import { apiFetch, errorMessage } from '@/lib/client-api';
+import { financeApi } from '@/lib/api-client';
+import { errorMessage } from '@/lib/client-api';
 import { FinanceDoc } from '@/types/finance';
 import { useState, useEffect } from 'react';
 
@@ -22,7 +23,7 @@ export function useFinanceHandlers() {
   useEffect(() => {
     (async () => {
       try {
-        const doc = await apiFetch<FinanceDoc>('/api/finance');
+        const doc = await financeApi.load();
         if (!Array.isArray(doc?.localBanks)) throw new Error('Finance data was empty or invalid');
         setData(doc);
         setError('');
@@ -86,7 +87,7 @@ export function useFinanceHandlers() {
     if (!data || saving) return null;
     setSaving(true);
     try {
-      const { data: saved } = await apiFetch<{ data?: FinanceDoc }>('/api/finance', { body: data });
+      const { data: saved } = await financeApi.save(data);
       // Adopt the server's copy so holdings added in this session pick up the
       // IDs Postgres just assigned. Skipping this would make the next save
       // insert them again as new rows.

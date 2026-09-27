@@ -51,7 +51,12 @@ export function LedgerCategories({
   // counts also make up the collapsed summary.
   const active = categories.filter((category) => !category.archivedAt);
   const archived = categories.filter((category) => category.archivedAt);
-  const ordered = [...active, ...archived];
+
+  // Most-used first within each group, which puts the unused ones — the only
+  // ones that can be deleted — together at the bottom. The sort is stable, so
+  // equal counts keep the canonical order the API returned them in.
+  const byUsage = (list: LedgerCategory[]) => [...list].sort((a, b) => b.entryCount - a.entryCount);
+  const ordered = [...byUsage(active), ...byUsage(archived)];
 
   function add() {
     if (!name.trim()) return;
@@ -78,29 +83,13 @@ export function LedgerCategories({
                     <th className="border-b border-white/8 px-3 py-3 font-semibold">Name</th>
                     <th className="border-b border-white/8 px-3 py-3 font-semibold">Applies to</th>
                     <th className="border-b border-white/8 px-3 py-3 font-semibold">Status</th>
+                    {/* `w-px` collapses the column to its content, so the badge
+                        does not claim a share of the leftover width. */}
+                    <th className="w-px border-b border-white/8 px-3 py-3 text-center font-semibold">Used</th>
                     <th className="border-b border-white/8 px-3 py-3 text-right font-semibold" />
                   </tr>
                 </thead>
                 <tbody>
-                  {ordered.map((category) => (
-                    <CategoryRow
-                      key={category.id}
-                      category={category}
-                      saving={saving}
-                      readOnly={readOnly}
-                      confirmingDelete={pendingDelete === category.id}
-                      onSave={onSave}
-                      onDelete={() => {
-                        if (pendingDelete !== category.id) {
-                          setPendingDelete(category.id);
-                          return;
-                        }
-                        setPendingDelete(null);
-                        onRemove(category.id);
-                      }}
-                    />
-                  ))}
-
                   {!readOnly ? (
                     <tr>
                       <td className="border-b border-white/5 px-3 py-3">
@@ -119,6 +108,7 @@ export function LedgerCategories({
                         <KindSelect value={kind} disabled={saving} onChange={setKind} />
                       </td>
                       <td className="border-b border-white/5 px-3 py-3 text-xs text-slate-600">New</td>
+                      <td className="w-px border-b border-white/5 px-3 py-3" />
                       <td className="border-b border-white/5 px-3 py-3 text-right">
                         <button
                           type="button"
@@ -131,6 +121,25 @@ export function LedgerCategories({
                       </td>
                     </tr>
                   ) : null}
+
+                  {ordered.map((category) => (
+                    <CategoryRow
+                      key={category.id}
+                      category={category}
+                      saving={saving}
+                      readOnly={readOnly}
+                      confirmingDelete={pendingDelete === category.id}
+                      onSave={onSave}
+                      onDelete={() => {
+                        if (pendingDelete !== category.id) {
+                          setPendingDelete(category.id);
+                          return;
+                        }
+                        setPendingDelete(null);
+                        onRemove(category.id);
+                      }}
+                    />
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -192,6 +201,20 @@ function CategoryRow({
           {archived ? 'Archived' : 'Active'}
         </span>
       </td>
+      {/* Zero means nothing references it, which is the only state in which
+          Delete will succeed — the API refuses the rest. */}
+      <td className="w-px border-b border-white/5 px-3 py-3 text-center">
+        <span
+          title={`${category.entryCount} ${category.entryCount === 1 ? 'entry uses' : 'entries use'} this category`}
+          className={`inline-flex min-w-7 justify-center rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums ${
+            category.entryCount
+              ? 'border-cyan-400/25 bg-cyan-400/10 text-cyan-300'
+              : 'border-white/8 bg-white/[0.03] text-slate-600'
+          }`}
+        >
+          {category.entryCount}
+        </span>
+      </td>
       <td className="border-b border-white/5 px-3 py-3 text-right">
         {!readOnly ? (
           <div className="flex justify-end gap-3">
@@ -206,7 +229,8 @@ function CategoryRow({
             <button
               type="button"
               className="text-xs font-semibold text-rose-400 hover:text-rose-300 disabled:opacity-50"
-              disabled={saving}
+              disabled={saving || category.entryCount > 0}
+              title={category.entryCount ? 'In use by an entry — archive it instead' : undefined}
               onClick={onDelete}
             >
               {confirmingDelete ? 'Confirm' : 'Delete'}

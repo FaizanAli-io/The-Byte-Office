@@ -344,24 +344,34 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   return saved;
 }
 
-function toCategory(row: typeof categories.$inferSelect): LedgerCategory {
+function toCategory(row: typeof categories.$inferSelect, entryCount = 0): LedgerCategory {
   return {
     id: row.id,
     name: row.name,
     kind: row.kind,
     sortOrder: row.sortOrder,
     archivedAt: row.archivedAt ? row.archivedAt.toISOString() : null,
+    entryCount,
   };
 }
 
 /**
- * Every category, archived ones included. Callers that are filling a picker
- * hide the archived ones themselves; callers that are rendering an existing
- * entry need them, or a historical category would display as a blank.
+ * Every category, archived ones included. Callers filling a picker hide the
+ * archived ones themselves; callers rendering an existing entry need them, or
+ * a historical category would display as a blank.
+ *
+ * The usage count comes from the same round trip. A left join keeps categories
+ * nothing references, which are exactly the ones that can still be deleted;
+ * grouping by the primary key lets the other columns come along.
  */
 export async function listCategories(): Promise<LedgerCategory[]> {
-  const rows = await getDb().select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name));
-  return rows.map(toCategory);
+  const rows = await getDb()
+    .select({ category: categories, entryCount: sql<number>`count(${ledgerEntries.id})::int` })
+    .from(categories)
+    .leftJoin(ledgerEntries, eq(ledgerEntries.categoryId, categories.id))
+    .groupBy(categories.id)
+    .orderBy(asc(categories.sortOrder), asc(categories.name));
+  return rows.map((row) => toCategory(row.category, row.entryCount));
 }
 
 export async function createCategory(input: { name: string; kind: CategoryKind }): Promise<LedgerCategory> {

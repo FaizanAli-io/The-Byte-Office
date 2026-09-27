@@ -1,6 +1,6 @@
 'use client';
 
-import { apiFetch } from '@/lib/client-api';
+import { heldFundsApi, snapshotsApi } from '@/lib/api-client';
 import { portfolioTotals } from '@/lib/finance';
 import { formatMoney, type heldFunds } from '@/lib/ledger';
 import { useEffect, useState } from 'react';
@@ -35,7 +35,8 @@ export default function FinanceEditor() {
   // are a second read. A failure here only costs the net line, and the gross
   // figures are still correct without it, so it does not block the page.
   useEffect(() => {
-    apiFetch<ReturnType<typeof heldFunds>>('/api/held-funds')
+    heldFundsApi
+      .load()
       .then(setHeld)
       .catch((err) => console.error('Failed to fetch /api/held-funds:', err));
   }, []);
@@ -44,7 +45,7 @@ export default function FinanceEditor() {
     if (!data) return;
     setSnapshotLoading(true);
     try {
-      await apiFetch('/api/snapshots', { body: { data, grandTotal: portfolioTotals(data).grandTotal } });
+      await snapshotsApi.create(data, portfolioTotals(data).grandTotal);
       setToast({ message: 'Snapshot saved.', tone: 'success' });
     } catch (error) {
       console.error('Error saving snapshot:', error);

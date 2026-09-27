@@ -393,6 +393,7 @@ describe('categories', () => {
     kind: 'both',
     sortOrder: 0,
     archivedAt: null,
+    entryCount: 0,
     ...over,
   });
 
@@ -431,6 +432,10 @@ describe('categories', () => {
 
     it('will not revive an archived category by name', () => {
       expect(resolveCategoryId(list, 'Old thing')).toBeUndefined();
+    });
+
+    it('finds an archived category when the caller is managing them, not assigning them', () => {
+      expect(resolveCategoryId(list, 'Old thing', { includeArchived: true })).toBe('old');
     });
 
     it.each([[''], ['   '], [null], [undefined], [42]])('resolves %s to nothing', (value) => {

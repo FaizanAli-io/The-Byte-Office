@@ -1,6 +1,6 @@
 'use client';
 
-import { apiFetch } from '@/lib/client-api';
+import { authApi } from '@/lib/api-client';
 import { useState } from 'react';
 
 export function FinanceLogoutButton() {
@@ -9,7 +9,7 @@ export function FinanceLogoutButton() {
   async function logout() {
     setSubmitting(true);
     try {
-      await apiFetch('/api/finance-auth/logout', { body: {} });
+      await authApi.logout();
     } finally {
       window.location.replace('/finance/login');
     }

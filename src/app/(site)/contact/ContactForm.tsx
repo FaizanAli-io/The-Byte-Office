@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { apiFetch, errorMessage } from '@/lib/client-api';
+import { contactApi } from '@/lib/api-client';
+import { errorMessage } from '@/lib/client-api';
 import { company } from '@/content/site';
 
 type FormData = {
@@ -68,15 +69,13 @@ export default function ContactForm() {
     setStatus('sending');
     setError('');
     try {
-      await apiFetch('/api/contact', {
-        body: {
-          name: formData.name,
-          email: formData.email,
-          company: formData.companyName,
-          service: formData.service,
-          message: formData.message,
-          website: formData.website,
-        },
+      await contactApi.send({
+        name: formData.name,
+        email: formData.email,
+        company: formData.companyName,
+        service: formData.service,
+        message: formData.message,
+        website: formData.website,
       });
       setStatus('success');
       setFormData(initialForm);

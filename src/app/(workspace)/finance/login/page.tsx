@@ -1,6 +1,7 @@
 'use client';
 
-import { apiFetch, errorMessage } from '@/lib/client-api';
+import { authApi } from '@/lib/api-client';
+import { errorMessage } from '@/lib/client-api';
 import { FINANCE_LOGIN_EMAIL } from '@/lib/finance-constants';
 import { useState } from 'react';
 import { financeStyles } from '../components/FinanceUI';
@@ -22,9 +23,7 @@ export default function FinanceLoginPage() {
 
     try {
       const next = new URLSearchParams(window.location.search).get('next');
-      const result = await apiFetch<{ emailed?: boolean; loginLink?: string }>('/api/finance-auth/login', {
-        body: { next },
-      });
+      const result = await authApi.login(next);
       setSent(true);
       setEmailed(Boolean(result.emailed));
       if (typeof result.loginLink === 'string') setLoginLink(result.loginLink);

@@ -21,6 +21,10 @@ wrappers under `/api/mcp/tools/{name}` all derive from it. This is the part of t
 **A pure library layer.** `lib/ledger.ts`, `lib/finance.ts` and `lib/health.ts` hold arithmetic with no imports from
 the database or React, which is why they are the only parts with real test coverage.
 
+**One client-side API module.** [`lib/api-client.ts`](../src/lib/api-client.ts) owns every URL the browser calls, its
+method and its response type; [`client-api.ts`](../src/lib/client-api.ts) underneath owns the transport, the JSON and
+the error. No component holds a path string.
+
 **Writes go through an action layer.** The chat assistant proposes; the user confirms; `executeAgentAction` claims the
 row atomically, re-reads the source data, checks a fingerprint and only then writes. MCP writes skip the proposal step
 and are gated by OAuth scope instead.
@@ -122,6 +126,8 @@ Worth stating, so a future pass does not "fix" these:
 - **One list per closed set.** `LEDGER_ENTRY_TYPES` and `CATEGORY_KINDS` each feed the Postgres enum, the validator,
   the zod schema and the UI labels. Adding a type is one edit.
 - **The pure library layer.** Keeping arithmetic free of database and React imports is what makes it testable.
+- **URLs in one module.** Paths spread through components drifted into duplicated response generics and three
+  components dropping to raw `fetch` with their own error handling.
 - **Gross versus net kept apart.** Reconciliation uses gross because the cash is physically present; only the
   displayed net subtracts what is owed back.
 

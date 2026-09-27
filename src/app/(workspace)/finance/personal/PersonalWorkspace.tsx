@@ -1,6 +1,7 @@
 'use client';
 
-import { apiFetch, errorMessage } from '@/lib/client-api';
+import { healthApi, prayersApi } from '@/lib/api-client';
+import { errorMessage } from '@/lib/client-api';
 import { NAMAAZ_VALUES, type Namaaz } from '@/lib/db/schema';
 import type { HealthTracking, Prayer } from '@/types/personal';
 import { useEffect, useMemo, useState } from 'react';
@@ -30,10 +31,10 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
 
   async function refresh() {
     if (view === 'prayers') {
-      setPrayers(await apiFetch<Prayer[]>('/api/prayers'));
+      setPrayers(await prayersApi.list());
       return;
     }
-    setHealth(await apiFetch<HealthTracking[]>('/api/health-tracking'));
+    setHealth(await healthApi.list());
   }
 
   useEffect(() => {
@@ -57,9 +58,7 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
 
   async function savePrayer(namaaz: Namaaz, missed: number, id?: string) {
     const next = Math.max(0, missed);
-    await (id
-      ? apiFetch(`/api/prayers/${id}`, { method: 'PUT', body: { missed: next } })
-      : apiFetch('/api/prayers', { body: { namaaz, missed: next } }));
+    await (id ? prayersApi.update(id, next) : prayersApi.create(namaaz, next));
     await refresh();
     setToast({ tone: 'success', message: `${NAMAAZ_LABELS[namaaz]} updated.` });
   }
@@ -77,9 +76,7 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
         value: parsedValue,
         ...(createdAt ? { createdAt } : {}),
       };
-      await (editingId
-        ? apiFetch(`/api/health-tracking/${editingId}`, { method: 'PUT', body: payload })
-        : apiFetch('/api/health-tracking', { body: payload }));
+      await (editingId ? healthApi.update(editingId, payload) : healthApi.create(payload));
       setMetric('');
       setValue('');
       setCreatedAt('');
@@ -98,10 +95,10 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
       setPendingDelete(id);
       return;
     }
-    const response = await fetch(`/api/health-tracking/${id}`, { method: 'DELETE' });
-    if (!response.ok) {
-      const body = (await response.json()) as { error?: string };
-      setToast({ tone: 'error', message: body.error || 'Could not delete entry' });
+    try {
+      await healthApi.remove(id);
+    } catch (cause) {
+      setToast({ tone: 'error', message: errorMessage(cause, 'Could not delete entry') });
       return;
     }
     setPendingDelete(null);

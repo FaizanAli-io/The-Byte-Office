@@ -1,23 +1,11 @@
 'use client';
 
-import { apiFetch, errorMessage } from '@/lib/client-api';
+import { agentApi, type ToolLog } from '@/lib/api-client';
+import { errorMessage } from '@/lib/client-api';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FinancePageShell, FinanceCard, financeStyles } from '../../components/FinanceUI';
 
 const LOGS_PER_PAGE = 10;
-
-type ToolLog = {
-  id: string;
-  requestId: string;
-  model: string;
-  toolCallId: string;
-  toolName: string;
-  arguments: unknown;
-  result: unknown;
-  error: string | null;
-  durationMs: number | null;
-  createdAt: string;
-};
 
 export default function FinanceAgentLogsPage() {
   const [logs, setLogs] = useState<ToolLog[]>([]);
@@ -33,7 +21,7 @@ export default function FinanceAgentLogsPage() {
     if (!hasLoadedRef.current) setLoading(true);
     setError('');
     try {
-      const { logs: loaded } = await apiFetch<{ logs?: ToolLog[] }>('/api/finance-agent/logs?limit=200');
+      const { logs: loaded } = await agentApi.logs();
       setLogs(loaded || []);
       hasLoadedRef.current = true;
     } catch (cause) {

@@ -61,18 +61,21 @@ export function pickableCategories(categoryList: LedgerCategory[], type: LedgerE
  * Resolves a category from a name the way `resolveAccountId` resolves an
  * account: the assistant is handed names, not UUIDs. An exact name wins, a
  * single unambiguous partial match is accepted, and anything ambiguous
- * resolves to nothing rather than guessing. Archived categories are skipped
- * so a retired one cannot be revived by naming it.
+ * resolves to nothing rather than guessing.
+ *
+ * Archived categories are skipped by default, so a retired one cannot be
+ * revived by naming it on an entry. Managing categories is the exception —
+ * restoring one means naming it — so those callers opt in.
  */
-export function resolveCategoryId(categoryList: LedgerCategory[], name: unknown) {
+export function resolveCategoryId(categoryList: LedgerCategory[], name: unknown, { includeArchived = false } = {}) {
   if (typeof name !== 'string' || !name.trim()) return undefined;
   const requested = name.trim().toLowerCase();
-  const open = categoryList.filter((category) => !category.archivedAt);
+  const pool = includeArchived ? categoryList : categoryList.filter((category) => !category.archivedAt);
 
-  const exact = open.find((category) => category.name.toLowerCase() === requested);
+  const exact = pool.find((category) => category.name.toLowerCase() === requested);
   if (exact) return exact.id;
 
-  const partial = open.filter((category) => category.name.toLowerCase().includes(requested));
+  const partial = pool.filter((category) => category.name.toLowerCase().includes(requested));
   return partial.length === 1 ? partial[0].id : undefined;
 }
 

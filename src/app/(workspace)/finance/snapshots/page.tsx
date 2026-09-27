@@ -1,6 +1,7 @@
 'use client';
 
-import { apiFetch } from '@/lib/client-api';
+import { snapshotsApi } from '@/lib/api-client';
+import { errorMessage } from '@/lib/client-api';
 import { bankFundAllocations, individualFundAllocations, portfolioAllocations } from '@/lib/finance';
 import { formatMoney } from '@/lib/ledger';
 import type { FinanceSnapshot } from '@/types/finance';
@@ -18,15 +19,15 @@ export default function SnapshotsPage() {
   const [toast, setToast] = useState<FinanceToastState>(null);
 
   useEffect(() => {
-    fetch('/api/snapshots', { cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Could not load snapshots');
-        setSnapshots(await response.json());
+    snapshotsApi
+      .list()
+      .then((loaded) => {
+        setSnapshots(loaded);
         setError('');
       })
       .catch((cause) => {
         console.error('Error fetching snapshots:', cause);
-        setError(cause instanceof Error ? cause.message : 'Could not load snapshots');
+        setError(errorMessage(cause, 'Could not load snapshots'));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -42,7 +43,7 @@ export default function SnapshotsPage() {
     }
 
     try {
-      await apiFetch('/api/snapshots', { method: 'DELETE', body: { id } });
+      await snapshotsApi.remove(id);
     } catch {
       setPendingDelete(null);
       setToast({ message: 'Failed to delete snapshot.', tone: 'error' });

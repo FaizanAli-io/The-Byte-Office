@@ -4,8 +4,8 @@ import { accountMovement, categoryName, ENTRY_LABELS, monthBounds } from '@/lib/
 import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
-import { CollapseToggle } from './LedgerAccounts';
 import { draftIncomplete, emptyDraft, EntryFields } from './EntryFields';
+import { Modal } from '../components/Modal';
 import { HeldFundsModal } from './HeldFundsModal';
 import { EntryCards, entryDetail, EntryTable, type EntryRow } from './EntryRows';
 import { PAGE_SIZES, Pagination } from './Pagination';
@@ -40,7 +40,7 @@ export function LedgerEntries({
   const [filters, setFilters] = useState<EntryFilters>(emptyFilters);
   const [draft, setDraft] = useState(() => emptyDraft(bounds.min));
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
@@ -200,16 +200,28 @@ export function LedgerEntries({
     };
     if (editingId) onUpdate(entry);
     else onAdd(entry);
-    setDraft({
-      ...emptyDraft(draft.date),
-      type: draft.type,
-      accountId: draft.accountId,
-    });
+    // The type and account carry over: entering a month's transactions means
+    // several in a row from the same account.
+    setDraft({ ...emptyDraft(draft.date), type: draft.type, accountId: draft.accountId });
     setEditingId(null);
+    setEntryOpen(false);
+  }
+
+  /** Opens a blank draft, keeping the date already being worked in. */
+  function openAdd() {
+    setEditingId(null);
+    setDraft(emptyDraft(draft.date));
+    setEntryOpen(true);
+  }
+
+  function closeEntry() {
+    setEntryOpen(false);
+    setEditingId(null);
+    setDraft(emptyDraft(draft.date));
   }
 
   function editEntry(entry: LedgerEntry) {
-    setAddOpen(true);
+    setEntryOpen(true);
     setEditingId(entry.id);
     setDraft({
       date: entry.date,
@@ -229,54 +241,53 @@ export function LedgerEntries({
       title="Transactions"
       description="Transfers stay outside income and expense totals and update both accounts."
       action={
-        <button type="button" className={financeStyles.secondary} onClick={() => setHoldingsOpen(true)}>
-          View holdings
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {!readOnly ? (
+            <button type="button" className={financeStyles.primary} onClick={openAdd}>
+              Add transaction
+            </button>
+          ) : null}
+          <button type="button" className={financeStyles.secondary} onClick={() => setHoldingsOpen(true)}>
+            View holdings
+          </button>
+        </div>
       }
     >
       <HeldFundsModal open={holdingsOpen} onClose={() => setHoldingsOpen(false)} />
-      {!readOnly ? (
-        <div className={`${financeStyles.inset} mb-6`}>
-          <CollapseToggle
-            open={addOpen}
-            title={editingId ? 'Edit transaction' : 'Add transaction'}
-            subtitle={editingId ? 'Update the selected row' : 'Record income, expense, transfer, or fund movement'}
-            onToggle={() => setAddOpen((value) => !value)}
+      <Modal
+        open={entryOpen}
+        onClose={closeEntry}
+        title={editingId ? 'Edit transaction' : 'Add transaction'}
+        description={
+          editingId ? 'Update the selected row.' : 'Record income, expense, transfer, hold, or fund movement.'
+        }
+      >
+        {/* Two columns rather than the four the inline form used: a modal is
+            narrower than the card it replaced. */}
+        <div className="grid gap-3 md:grid-cols-2">
+          <EntryFields
+            draft={draft}
+            setDraft={setDraft}
+            accounts={accounts}
+            categories={categories}
+            bounds={bounds}
+            placeholders
           />
-          {addOpen ? (
-            <div className="grid gap-3 border-t border-white/6 p-4 md:grid-cols-2 xl:grid-cols-4">
-              <EntryFields
-                draft={draft}
-                setDraft={setDraft}
-                accounts={accounts}
-                categories={categories}
-                bounds={bounds}
-                placeholders
-              />
-              <button
-                type="button"
-                className={`${financeStyles.primary} self-end`}
-                disabled={draftIncomplete(draft, accounts)}
-                onClick={addEntry}
-              >
-                {editingId ? 'Update transaction' : 'Add transaction'}
-              </button>
-              {editingId ? (
-                <button
-                  type="button"
-                  className={`${financeStyles.secondary} self-end`}
-                  onClick={() => {
-                    setEditingId(null);
-                    setDraft(emptyDraft(draft.date));
-                  }}
-                >
-                  Cancel edit
-                </button>
-              ) : null}
-            </div>
-          ) : null}
         </div>
-      ) : null}
+        <div className="mt-5 flex flex-col gap-2 border-t border-white/6 pt-4 sm:flex-row sm:justify-end">
+          <button type="button" className={financeStyles.secondary} onClick={closeEntry}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={financeStyles.primary}
+            disabled={draftIncomplete(draft, accounts)}
+            onClick={addEntry}
+          >
+            {editingId ? 'Update transaction' : 'Add transaction'}
+          </button>
+        </div>
+      </Modal>
 
       <EntryFiltersPanel
         filters={filters}

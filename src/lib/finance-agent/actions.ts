@@ -3,8 +3,9 @@ import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
 import { executePersonalPayload } from '@/lib/agent/modules/personal';
 import { executeTboInquiry } from '@/lib/agent/modules/tbo-actions';
 import { listCategories, loadLedger, saveLedger } from '@/lib/db/queries';
+import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { resolveCategoryId } from '@/lib/ledger';
-import type { LedgerEntry } from '@/types/ledger';
+import { CATEGORY_KINDS, type CategoryKind, type LedgerEntry } from '@/types/ledger';
 import {
   addPortfolioItem,
   cancelAgentAction,
@@ -94,6 +95,57 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
           after: changes,
         },
         sourceFingerprint: fingerprint(current),
+      })
+    );
+  }
+
+  if (actionType === 'category_add') {
+    const name = requireString(args.name, 'name');
+    return toPublicAction(
+      await createAgentAction({
+        actionType,
+        payload: { actionType, name, kind: parseCategoryKind(args.kind) },
+        preview: { title: `Add category "${name}"` },
+      })
+    );
+  }
+
+  if (actionType === 'category_update' || actionType === 'category_remove') {
+    // Archived categories are included: restoring one means naming it, and
+    // deleting one that is already archived is the common case.
+    const categories = await listCategories();
+    const id = resolveCategoryId(categories, args.category, { includeArchived: true });
+    const current = categories.find((category) => category.id === id);
+    if (!current) {
+      throw new AgentActionError(
+        `No single category matches "${optionalString(args.category) ?? ''}". Call categories_list for the exact names.`,
+        404
+      );
+    }
+
+    if (actionType === 'category_remove') {
+      return toPublicAction(
+        await createAgentAction({
+          actionType,
+          payload: { actionType, id: current.id, name: current.name },
+          preview: { title: `Delete category "${current.name}"`, before: current },
+        })
+      );
+    }
+
+    const changes = {
+      ...(args.name === undefined ? {} : { name: requireString(args.name, 'name') }),
+      ...(args.kind === undefined ? {} : { kind: parseCategoryKind(args.kind) }),
+      ...(typeof args.archived === 'boolean' ? { archived: args.archived } : {}),
+    };
+    if (!Object.keys(changes).length) {
+      throw new AgentActionError('Nothing to change: pass a new name, a kind, or archived');
+    }
+    return toPublicAction(
+      await createAgentAction({
+        actionType,
+        payload: { actionType, id: current.id, changes },
+        preview: { title: `Update category "${current.name}"`, before: current, after: changes },
       })
     );
   }
@@ -251,6 +303,13 @@ async function executePayload(payload: AgentActionPayload, sourceFingerprint: st
     case 'ledger_entry_update':
     case 'ledger_entry_remove':
       return executeLedgerPayload(payload, sourceFingerprint);
+    case 'category_add':
+      return addCategory({ name: payload.name, kind: payload.kind });
+    case 'category_update':
+      return editCategory(payload.id, payload.changes);
+    case 'category_remove':
+      await discardCategory(payload.id);
+      return { id: payload.id, name: payload.name, removed: true };
     case 'prayer_set':
     case 'prayer_remove':
     case 'health_add':
@@ -306,6 +365,14 @@ async function executeLedgerPayload(
     entries,
     finalizedAt: ledger.finalizedAt,
   });
+}
+
+function parseCategoryKind(value: unknown): CategoryKind {
+  if (value === undefined) return 'both';
+  if (typeof value !== 'string' || !(CATEGORY_KINDS as readonly string[]).includes(value)) {
+    throw new AgentActionError(`kind must be one of: ${CATEGORY_KINDS.join(', ')}`);
+  }
+  return value as CategoryKind;
 }
 
 async function requireCurrentPortfolioItem(itemType: PortfolioItemType, id: string, sourceFingerprint: string | null) {

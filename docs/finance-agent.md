@@ -38,15 +38,26 @@ Writes only create a pending proposal:
 
 - `portfolio_item_add`, `portfolio_item_update`, `portfolio_item_remove`
 - `ledger_entry_add`, `ledger_entry_update`, `ledger_entry_remove`
+- `category_add`, `category_update`, `category_remove`
 
 Ledger add and edit proposals render a form in chat. Add defaults the date to
 today, type to expense, and account to the first account. Edit is filled from
 the existing record. Submitting the form inserts or updates that ledger entry.
 
-Entries reference a category by id, not by name. The assistant names one and
-the server resolves it against the canonical list: an exact name wins, a single
-unambiguous partial match is accepted, and anything ambiguous or archived
-resolves to nothing, leaving the entry uncategorised for the form to fix.
+Categories are addressed by **name** throughout — the assistant never handles a
+category UUID. The server resolves the name against the canonical list: an
+exact match wins, a single unambiguous partial match is accepted, and anything
+ambiguous resolves to nothing rather than guessing.
+
+Assigning a category to an entry skips archived ones, so a retired category
+cannot be revived by naming it on a transaction. Managing categories is the
+exception — restoring one means naming it — so `category_update` and
+`category_remove` search archived names too.
+
+`category_remove` deletes outright and is refused while any entry still
+references the category, with a count of how many; archiving is the ordinary
+way to retire one. Both rules live in `lib/categories.ts`, shared with the REST
+route behind the ledger page.
 
 The user can confirm or cancel a proposal for 15 minutes. Confirmation claims it
 once, reloads the source data, rejects stale or finalized records, validates the

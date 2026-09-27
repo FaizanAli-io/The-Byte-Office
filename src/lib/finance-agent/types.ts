@@ -1,4 +1,4 @@
-import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
+import type { CategoryKind, LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 
 export type PortfolioItemType = 'local_bank' | 'remote_bank' | 'mutual_fund';
 
@@ -9,6 +9,9 @@ export type AgentActionType =
   | 'ledger_entry_add'
   | 'ledger_entry_update'
   | 'ledger_entry_remove'
+  | 'category_add'
+  | 'category_update'
+  | 'category_remove'
   | 'prayer_set'
   | 'prayer_remove'
   | 'health_add'
@@ -66,6 +69,21 @@ export type AgentActionPayload =
       actionType: 'ledger_entry_remove';
       month: string;
       entryId: string;
+    }
+  | {
+      actionType: 'category_add';
+      name: string;
+      kind: CategoryKind;
+    }
+  | {
+      actionType: 'category_update';
+      id: string;
+      changes: { name?: string; kind?: CategoryKind; archived?: boolean };
+    }
+  | {
+      actionType: 'category_remove';
+      id: string;
+      name: string;
     }
   | {
       actionType: 'prayer_set';
