@@ -1,9 +1,17 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, inArray, lt } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { FinanceDoc, FinanceFund, FinanceSnapshot } from '@/types/finance';
-import type { LedgerAccount, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
+import type {
+  CategoryKind,
+  LedgerAccount,
+  LedgerCategory,
+  LedgerEntry,
+  MonthlyLedger,
+  MonthlyLedgerPayload,
+} from '@/types/ledger';
 import { getDb, getSql } from './index';
 import {
+  categories,
   financeSnapshots,
   ledgerAccounts,
   ledgerEntries,
@@ -212,7 +220,7 @@ function toEntry(row: typeof ledgerEntries.$inferSelect): LedgerEntry {
     amount: row.amount,
     destinationAmount: row.destinationAmount ?? undefined,
     exchangeRate: row.exchangeRate ?? undefined,
-    category: row.category ?? undefined,
+    categoryId: row.categoryId ?? undefined,
     counterparty: row.counterparty ?? undefined,
     note: row.note ?? undefined,
   };
@@ -310,7 +318,7 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   });
   body.entries.forEach((entry, index) => {
     statements.push(
-      sql`INSERT INTO finance.ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category, counterparty, note, sort_order) VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount === undefined ? null : entry.destinationAmount}, ${entry.exchangeRate ?? null}, ${entry.category ?? null}, ${entry.counterparty ?? null}, ${entry.note ?? null}, ${index})`
+      sql`INSERT INTO finance.ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category_id, counterparty, note, sort_order) VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount === undefined ? null : entry.destinationAmount}, ${entry.exchangeRate ?? null}, ${entry.categoryId ?? null}, ${entry.counterparty ?? null}, ${entry.note ?? null}, ${index})`
     );
   });
 
@@ -318,6 +326,68 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   const saved = await loadLedger(body.month);
   if (!saved) throw new Error('Failed to save ledger');
   return saved;
+}
+
+function toCategory(row: typeof categories.$inferSelect): LedgerCategory {
+  return {
+    id: row.id,
+    name: row.name,
+    kind: row.kind,
+    sortOrder: row.sortOrder,
+    archivedAt: row.archivedAt ? row.archivedAt.toISOString() : null,
+  };
+}
+
+/**
+ * Every category, archived ones included. Callers that are filling a picker
+ * hide the archived ones themselves; callers that are rendering an existing
+ * entry need them, or a historical category would display as a blank.
+ */
+export async function listCategories(): Promise<LedgerCategory[]> {
+  const rows = await getDb().select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name));
+  return rows.map(toCategory);
+}
+
+export async function createCategory(input: { name: string; kind: CategoryKind }): Promise<LedgerCategory> {
+  const [{ next }] = await getDb()
+    .select({ next: sql<number>`coalesce(max(${categories.sortOrder}), -1) + 1` })
+    .from(categories);
+  const [row] = await getDb()
+    .insert(categories)
+    .values({ name: input.name, kind: input.kind, sortOrder: next })
+    .returning();
+  return toCategory(row);
+}
+
+export async function updateCategory(
+  id: string,
+  changes: { name?: string; kind?: CategoryKind; sortOrder?: number; archived?: boolean }
+): Promise<LedgerCategory | null> {
+  const [row] = await getDb()
+    .update(categories)
+    .set({
+      ...(changes.name === undefined ? {} : { name: changes.name }),
+      ...(changes.kind === undefined ? {} : { kind: changes.kind }),
+      ...(changes.sortOrder === undefined ? {} : { sortOrder: changes.sortOrder }),
+      ...(changes.archived === undefined ? {} : { archivedAt: changes.archived ? new Date() : null }),
+    })
+    .where(eq(categories.id, id))
+    .returning();
+  return row ? toCategory(row) : null;
+}
+
+/** How many entries would break if this category went away. */
+export async function countCategoryUses(id: string) {
+  const [{ uses }] = await getDb()
+    .select({ uses: sql<number>`count(*)::int` })
+    .from(ledgerEntries)
+    .where(eq(ledgerEntries.categoryId, id));
+  return uses;
+}
+
+export async function deleteCategory(id: string) {
+  const deleted = await getDb().delete(categories).where(eq(categories.id, id)).returning({ id: categories.id });
+  return deleted.length > 0;
 }
 
 /**

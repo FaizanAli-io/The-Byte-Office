@@ -36,7 +36,7 @@ export function LedgerEntryChatForm({
       destinationAmount:
         draft.type === 'transfer' && draft.destinationAmount ? Number(draft.destinationAmount) : undefined,
       exchangeRate: sourceAccount?.exchangeRate ?? 1,
-      category: draft.category.trim() || undefined,
+      categoryId: draft.categoryId || undefined,
       counterparty: draft.counterparty.trim() || undefined,
       note: draft.note.trim() || undefined,
     });
@@ -48,6 +48,9 @@ export function LedgerEntryChatForm({
         draft={draft}
         setDraft={setDraft}
         accounts={form.accounts}
+        // A proposal made before categories existed was stored without a
+        // list; an empty one renders "No category" rather than throwing.
+        categories={form.categories ?? []}
         bounds={monthBounds(form.month)}
         disabled={busy}
       />
@@ -78,7 +81,7 @@ function draftFromForm(form: LedgerEntryFormState): EntryDraft {
       form.entry.destinationAccountId || (type === 'transfer' ? firstOtherAccountId(form.accounts, accountId) : ''),
     amount: form.entry.amount === undefined ? '' : String(form.entry.amount),
     destinationAmount: form.entry.destinationAmount === undefined ? '' : String(form.entry.destinationAmount),
-    category: form.entry.category ?? '',
+    categoryId: form.entry.categoryId ?? '',
     counterparty: form.entry.counterparty ?? '',
     note: form.entry.note ?? '',
   };

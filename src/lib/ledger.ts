@@ -1,4 +1,4 @@
-import type { LedgerAccount, LedgerEntry, LedgerEntryType, MonthlyLedger } from '@/types/ledger';
+import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType, MonthlyLedger } from '@/types/ledger';
 
 /** Every amount below is a major-unit amount: rupees for PKR, dollars for USD. */
 
@@ -30,6 +30,50 @@ export function eligibleAccounts<T extends Pick<LedgerAccount, 'type'>>(accounts
   }
   if (isHoldType(type)) return accounts.filter((account) => account.type === 'bank');
   return accounts;
+}
+
+/** Seeded by migration 0013: the only category the application writes itself. */
+export const RECONCILIATION_CATEGORY = 'Reconciliation';
+
+/** The name behind an entry's category id, or nothing if it has none. */
+export function categoryName(categoryList: LedgerCategory[], id?: string) {
+  return categoryList.find((category) => category.id === id)?.name ?? '';
+}
+
+/**
+ * The categories a picker should offer for one entry.
+ *
+ * `kind` narrows income and expense to the categories that suit them; every
+ * other entry type is neither, so it sees the whole list. The entry's current
+ * category always stays in the list even when archived, because otherwise
+ * editing an old entry's amount would silently blank its category.
+ */
+export function pickableCategories(categoryList: LedgerCategory[], type: LedgerEntryType, keepId?: string) {
+  return categoryList.filter((category) => {
+    if (category.id === keepId) return true;
+    if (category.archivedAt) return false;
+    if (type === 'income' || type === 'expense') return category.kind === type || category.kind === 'both';
+    return true;
+  });
+}
+
+/**
+ * Resolves a category from a name the way `resolveAccountId` resolves an
+ * account: the assistant is handed names, not UUIDs. An exact name wins, a
+ * single unambiguous partial match is accepted, and anything ambiguous
+ * resolves to nothing rather than guessing. Archived categories are skipped
+ * so a retired one cannot be revived by naming it.
+ */
+export function resolveCategoryId(categoryList: LedgerCategory[], name: unknown) {
+  if (typeof name !== 'string' || !name.trim()) return undefined;
+  const requested = name.trim().toLowerCase();
+  const open = categoryList.filter((category) => !category.archivedAt);
+
+  const exact = open.find((category) => category.name.toLowerCase() === requested);
+  if (exact) return exact.id;
+
+  const partial = open.filter((category) => category.name.toLowerCase().includes(requested));
+  return partial.length === 1 ? partial[0].id : undefined;
 }
 
 export function isMonth(value: string) {

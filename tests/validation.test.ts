@@ -64,7 +64,23 @@ describe('validateLedger', () => {
     entries: [{ id: 'e1', date: '2026-03-05', type: 'expense', accountId: 'a', amount: 10 }],
   });
 
+  const KNOWN_CATEGORIES = new Set(['cat-1']);
+
   it('accepts a well-formed draft', () => expect(validateLedger(base())).toBeNull());
+
+  it('accepts an entry pointing at a known category', () => {
+    const entries = [
+      { id: 'e1', date: '2026-03-05', type: 'expense' as const, accountId: 'a', amount: 10, categoryId: 'cat-1' },
+    ];
+    expect(validateLedger({ ...base(), entries }, KNOWN_CATEGORIES)).toBeNull();
+  });
+
+  it('refuses a category that does not exist, rather than letting the foreign key 500', () => {
+    const entries = [
+      { id: 'e1', date: '2026-03-05', type: 'expense' as const, accountId: 'a', amount: 10, categoryId: 'gone' },
+    ];
+    expect(validateLedger({ ...base(), entries }, KNOWN_CATEGORIES)).toBe('Unknown category');
+  });
 
   it('accepts a hold against a bank account', () => {
     const entries = [

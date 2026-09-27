@@ -1,7 +1,7 @@
 'use client';
 
-import { ENTRY_LABELS, eligibleAccounts, isHoldType } from '@/lib/ledger';
-import type { LedgerAccount, LedgerEntryType } from '@/types/ledger';
+import { ENTRY_LABELS, eligibleAccounts, isHoldType, pickableCategories } from '@/lib/ledger';
+import type { LedgerAccount, LedgerCategory, LedgerEntryType } from '@/types/ledger';
 import { financeStyles } from '../components/FinanceUI';
 import { Field } from './LedgerAccounts';
 
@@ -22,7 +22,7 @@ export type EntryDraft = {
   destinationAccountId: string;
   amount: string;
   destinationAmount: string;
-  category: string;
+  categoryId: string;
   counterparty: string;
   note: string;
 };
@@ -35,7 +35,7 @@ export function emptyDraft(date: string): EntryDraft {
     destinationAccountId: '',
     amount: '',
     destinationAmount: '',
-    category: '',
+    categoryId: '',
     counterparty: '',
     note: '',
   };
@@ -75,6 +75,7 @@ export function EntryFields({
   draft,
   setDraft,
   accounts,
+  categories,
   bounds,
   disabled = false,
   placeholders = false,
@@ -82,6 +83,7 @@ export function EntryFields({
   draft: EntryDraft;
   setDraft: (draft: EntryDraft) => void;
   accounts: EntryAccount[];
+  categories: LedgerCategory[];
   bounds: { min: string; max: string };
   disabled?: boolean;
   /** Show a blank "Select…" option, as the ledger page does. */
@@ -89,6 +91,7 @@ export function EntryFields({
 }) {
   const eligible = eligibleAccounts(accounts, draft.type);
   const target = conversionTarget(draft, accounts);
+  const pickable = pickableCategories(categories, draft.type, draft.categoryId || undefined);
 
   function changeType(type: LedgerEntryType) {
     const next = eligibleAccounts(accounts, type);
@@ -100,13 +103,16 @@ export function EntryFields({
         ? ''
         : (next[0]?.id ?? '');
     // Category and counterparty share a slot, so the one that just went off
-    // screen is cleared rather than left to be submitted invisibly.
+    // screen is cleared rather than left to be submitted invisibly. A category
+    // that no longer suits the new type goes too, for the same reason.
+    const keepsCategory =
+      !isHoldType(type) && pickableCategories(categories, type, undefined).some((item) => item.id === draft.categoryId);
     setDraft({
       ...draft,
       type,
       accountId,
       destinationAccountId: type === 'transfer' && !placeholders ? firstOtherAccountId(accounts, accountId) : '',
-      category: isHoldType(type) ? '' : draft.category,
+      categoryId: keepsCategory ? draft.categoryId : '',
       counterparty: isHoldType(type) ? draft.counterparty : '',
     });
   }
@@ -202,13 +208,20 @@ export function EntryFields({
         </Field>
       ) : (
         <Field label="Category (optional)">
-          <input
+          <select
             className={financeStyles.input}
-            value={draft.category}
+            value={draft.categoryId}
             disabled={disabled}
-            placeholder="Salary, bills, food…"
-            onChange={(event) => setDraft({ ...draft, category: event.target.value })}
-          />
+            onChange={(event) => setDraft({ ...draft, categoryId: event.target.value })}
+          >
+            <option value="">No category</option>
+            {pickable.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+                {category.archivedAt ? ' (archived)' : ''}
+              </option>
+            ))}
+          </select>
         </Field>
       )}
       <Field label="Note (optional)">

@@ -1,7 +1,7 @@
 'use client';
 
-import { accountMovement, ENTRY_LABELS, formatMoney, isHoldType, monthBounds } from '@/lib/ledger';
-import type { LedgerAccount, LedgerEntry, LedgerEntryType } from '@/types/ledger';
+import { accountMovement, categoryName, ENTRY_LABELS, formatMoney, isHoldType, monthBounds } from '@/lib/ledger';
+import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType } from '@/types/ledger';
 import { useEffect, useMemo, useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 import { CollapseToggle } from './LedgerAccounts';
@@ -11,6 +11,7 @@ import { emptyFilters, EntryFiltersPanel, type EntryFilters } from './EntryFilte
 export function LedgerEntries({
   month,
   accounts,
+  categories,
   entries,
   readOnly,
   onAdd,
@@ -19,6 +20,7 @@ export function LedgerEntries({
 }: {
   month: string;
   accounts: LedgerAccount[];
+  categories: LedgerCategory[];
   entries: LedgerEntry[];
   readOnly: boolean;
   onAdd: (entry: LedgerEntry) => void;
@@ -38,9 +40,14 @@ export function LedgerEntries({
     setFilters(emptyFilters);
   }, [bounds.min]);
 
-  const categories = useMemo(
-    () => [...new Set(entries.map((entry) => entry.category?.trim()).filter(Boolean) as string[])].sort(),
-    [entries]
+  // Only the categories this month actually uses, so the filter does not list
+  // dozens of options that would all return nothing.
+  const usedCategories = useMemo(
+    () =>
+      categories
+        .filter((category) => entries.some((entry) => entry.categoryId === category.id))
+        .map((category) => ({ id: category.id, name: category.name })),
+    [categories, entries]
   );
 
   const visibleEntries = useMemo(() => {
@@ -54,13 +61,15 @@ export function LedgerEntries({
         return false;
       }
       if (filters.type !== 'all' && entry.type !== filters.type) return false;
-      if (filters.category !== 'all' && (entry.category ?? '') !== filters.category) return false;
+      if (filters.category !== 'all' && (entry.categoryId ?? '') !== filters.category) return false;
       if (filters.dateFrom && entry.date < filters.dateFrom) return false;
       if (filters.dateTo && entry.date > filters.dateTo) return false;
       if (query) {
         const accountName = accounts.find((account) => account.id === entry.accountId)?.name ?? '';
         const destinationName = accounts.find((account) => account.id === entry.destinationAccountId)?.name ?? '';
-        const haystack = [entry.category, entry.note, accountName, destinationName].join(' ').toLowerCase();
+        const haystack = [entryDetail(entry, categories), entry.note, accountName, destinationName]
+          .join(' ')
+          .toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       return true;
@@ -78,11 +87,11 @@ export function LedgerEntries({
                   accounts.find((account) => account.id === b.accountId)?.name ?? ''
                 )
               : filters.sortBy === 'category'
-                ? (a.category ?? '').localeCompare(b.category ?? '')
+                ? categoryName(categories, a.categoryId).localeCompare(categoryName(categories, b.categoryId))
                 : a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
       return compare * direction;
     });
-  }, [accounts, entries, filters]);
+  }, [accounts, categories, entries, filters]);
   const showRunning = filters.accountId !== 'all' && filters.sortBy === 'date' && filters.sortDir === 'asc';
   const sourceAccount = accounts.find((account) => account.id === draft.accountId);
 
@@ -106,7 +115,7 @@ export function LedgerEntries({
         previous?.accountId === draft.accountId
           ? (previous.exchangeRate ?? sourceAccount?.exchangeRate ?? 1)
           : (sourceAccount?.exchangeRate ?? 1),
-      category: draft.category.trim() || undefined,
+      categoryId: draft.categoryId || undefined,
       counterparty: draft.counterparty.trim() || undefined,
       note: draft.note.trim() || undefined,
     };
@@ -130,7 +139,7 @@ export function LedgerEntries({
       destinationAccountId: entry.destinationAccountId ?? '',
       amount: String(entry.amount),
       destinationAmount: entry.destinationAmount === undefined ? '' : String(entry.destinationAmount),
-      category: entry.category ?? '',
+      categoryId: entry.categoryId ?? '',
       counterparty: entry.counterparty ?? '',
       note: entry.note ?? '',
     });
@@ -151,7 +160,14 @@ export function LedgerEntries({
           />
           {addOpen ? (
             <div className="grid gap-3 border-t border-white/6 p-4 md:grid-cols-2 xl:grid-cols-4">
-              <EntryFields draft={draft} setDraft={setDraft} accounts={accounts} bounds={bounds} placeholders />
+              <EntryFields
+                draft={draft}
+                setDraft={setDraft}
+                accounts={accounts}
+                categories={categories}
+                bounds={bounds}
+                placeholders
+              />
               <button
                 type="button"
                 className={`${financeStyles.primary} self-end`}
@@ -181,7 +197,7 @@ export function LedgerEntries({
         filters={filters}
         setFilters={setFilters}
         accounts={accounts}
-        categories={categories}
+        categories={usedCategories}
         bounds={bounds}
         open={filtersOpen}
         onToggle={() => setFiltersOpen((value) => !value)}
@@ -216,7 +232,9 @@ export function LedgerEntries({
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                 <TypeBadge type={entry.type} />
-                {entryDetail(entry) ? <span className="text-slate-400">{entryDetail(entry)}</span> : null}
+                {entryDetail(entry, categories) ? (
+                  <span className="text-slate-400">{entryDetail(entry, categories)}</span>
+                ) : null}
               </div>
               {entry.note ? <p className="mt-3 break-words text-xs leading-5 text-slate-500">{entry.note}</p> : null}
               {running !== undefined ? (
@@ -280,7 +298,7 @@ export function LedgerEntries({
                     {destination ? <span className="block text-xs text-slate-600">to {destination.name}</span> : null}
                   </td>
                   <td className="border-b border-white/5 px-3 py-4">
-                    <span>{entryDetail(entry) || '—'}</span>
+                    <span>{entryDetail(entry, categories) || '—'}</span>
                     {entry.note ? (
                       <span className="block max-w-xs truncate text-xs text-slate-600">{entry.note}</span>
                     ) : null}
@@ -327,8 +345,8 @@ export function LedgerEntries({
 }
 
 /** A hold's counterparty occupies the column a category would otherwise use. */
-function entryDetail(entry: LedgerEntry) {
-  if (!isHoldType(entry.type)) return entry.category ?? '';
+function entryDetail(entry: LedgerEntry, categoryList: LedgerCategory[]) {
+  if (!isHoldType(entry.type)) return categoryName(categoryList, entry.categoryId);
   return entry.counterparty ? `for ${entry.counterparty}` : '';
 }
 

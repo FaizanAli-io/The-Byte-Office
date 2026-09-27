@@ -31,6 +31,7 @@ Reads run immediately:
 
 - `portfolio_get`
 - `snapshots_list`, `snapshot_get`
+- `categories_list`
 - `ledgers_list`, `ledger_get`
 
 Writes only create a pending proposal:
@@ -41,6 +42,11 @@ Writes only create a pending proposal:
 Ledger add and edit proposals render a form in chat. Add defaults the date to
 today, type to expense, and account to the first account. Edit is filled from
 the existing record. Submitting the form inserts or updates that ledger entry.
+
+Entries reference a category by id, not by name. The assistant names one and
+the server resolves it against the canonical list: an exact name wins, a single
+unambiguous partial match is accepted, and anything ambiguous or archived
+resolves to nothing, leaving the entry uncategorised for the form to fix.
 
 The user can confirm or cancel a proposal for 15 minutes. Confirmation claims it
 once, reloads the source data, rejects stale or finalized records, validates the

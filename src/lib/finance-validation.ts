@@ -1,6 +1,30 @@
+import { z } from 'zod/v4';
 import { eligibleAccounts, isHoldType, isMonth, monthBounds } from '@/lib/ledger';
 import type { FinanceDoc } from '@/types/finance';
-import { LEDGER_ENTRY_TYPES, type LedgerAccount, type LedgerEntry, type MonthlyLedgerPayload } from '@/types/ledger';
+import {
+  CATEGORY_KINDS,
+  LEDGER_ENTRY_TYPES,
+  type LedgerAccount,
+  type LedgerEntry,
+  type MonthlyLedgerPayload,
+} from '@/types/ledger';
+
+/** Names are trimmed on the way in, because " Food" and "Food" are one category. */
+const categoryName = z.string().trim().min(1, 'A category needs a name').max(60, 'Category name is too long');
+const categoryKind = z.enum(CATEGORY_KINDS);
+
+export const categoryInputSchema = z.object({
+  name: categoryName,
+  kind: categoryKind.default('both'),
+});
+
+export const categoryUpdateSchema = z.object({
+  id: z.string().min(1, 'id is required'),
+  name: categoryName.optional(),
+  kind: categoryKind.optional(),
+  sortOrder: z.int().nonnegative().optional(),
+  archived: z.boolean().optional(),
+});
 
 export function validateFinanceDoc(value: unknown): value is Omit<FinanceDoc, '_id'> {
   if (!isRecord(value) || value.name !== 'finance') return false;
@@ -55,7 +79,15 @@ export function validateSnapshotInput(value: unknown) {
   return null;
 }
 
-export function validateLedger(body: MonthlyLedgerPayload) {
+/**
+ * `categoryIds` is every category that exists, archived ones included: an
+ * archived category still names old entries, so editing one of those entries
+ * must not be blocked by a category that has merely left the picker.
+ *
+ * The foreign key would reject an unknown id anyway; checking here is what
+ * turns a Postgres constraint violation into a sentence.
+ */
+export function validateLedger(body: MonthlyLedgerPayload, categoryIds: ReadonlySet<string> = new Set()) {
   if (!body || !isMonth(body.month)) return 'Invalid month';
   if (!['draft', 'finalized'].includes(body.status)) return 'Invalid status';
   if (!Array.isArray(body.accounts) || !Array.isArray(body.entries)) {
@@ -95,7 +127,7 @@ export function validateLedger(body: MonthlyLedgerPayload) {
   if (entryIds.size !== body.entries.length) return 'Entry IDs must be unique';
 
   for (const entry of body.entries as LedgerEntry[]) {
-    const error = validateLedgerEntry(entry, body.accounts, bounds);
+    const error = validateLedgerEntry(entry, body.accounts, bounds, categoryIds);
     if (error) return error;
 
     if (entry.type === 'transfer' && entry.destinationAccountId) {
@@ -126,7 +158,12 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function validateLedgerEntry(entry: LedgerEntry, accounts: LedgerAccount[], bounds: { min: string; max: string }) {
+function validateLedgerEntry(
+  entry: LedgerEntry,
+  accounts: LedgerAccount[],
+  bounds: { min: string; max: string },
+  categoryIds: ReadonlySet<string>
+) {
   const accountIds = new Set(accounts.map((account) => account.id));
   if (!(LEDGER_ENTRY_TYPES as readonly string[]).includes(entry.type)) {
     return 'Invalid entry type';
@@ -153,6 +190,9 @@ function validateLedgerEntry(entry: LedgerEntry, accounts: LedgerAccount[], boun
   }
   if (entry.counterparty !== undefined && !validName(entry.counterparty)) {
     return 'Counterparty must be a name';
+  }
+  if (entry.categoryId !== undefined && !categoryIds.has(entry.categoryId)) {
+    return 'Unknown category';
   }
   if (entry.destinationAmount !== undefined && !validPositiveNumber(entry.destinationAmount)) {
     return 'Destination amount must be positive';

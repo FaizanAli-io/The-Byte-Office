@@ -4,7 +4,7 @@ Things worth building, as opposed to [`improvements.md`](./improvements.md), whi
 here. It is a place to keep ideas with enough detail that picking one up later does not mean rediscovering the
 design.
 
-**Queued next: item 8.** Items 7 and 9 are built. Everything above them is unscheduled.
+**Items 7, 8 and 9 are built.** Everything above them is unscheduled.
 
 ---
 
@@ -135,34 +135,50 @@ be the same shape.
 
 ---
 
-## 8. A categories table for the ledger
+## 8. A categories table for the ledger — **done**
 
-**The idea.** `ledger_entries.category` is a free-text column with nothing behind it. There is no canonical list, so
-the UI cannot offer a picker, the assistant cannot be told what is valid, and a typo silently creates a new
-category. A `finance.categories` table fixes all three.
+**The idea.** `ledger_entries.category` was free text with nothing behind it. There was no canonical list, so the UI
+could not offer a picker, the assistant could not be told what was valid, and a typo silently created a new
+category. `finance.categories` fixes all three.
 
-**Reference or copy.** The decision that shapes everything else. A foreign key gives one canonical name and makes a
-rename propagate; free text keeps historical entries readable if a category is later removed. The middle path is a
-foreign key with `on delete restrict` plus an `archived` flag, so a category can leave the picker without
-rewriting history. That is probably right, and it matches how ledger accounts already behave.
+**Reference, not copy.** The decision that shaped the rest. Entries hold a `category_id`, so renaming a category
+updates every entry that used it. `on delete restrict` plus an `archived_at` flag is what keeps history readable: a
+category can leave the picker without rewriting the past, and one that entries still point at cannot be deleted at
+all — the API refuses with a count and says archiving is probably what was wanted.
 
-**Shape.** `id`, `name` (unique), `kind` (`income` / `expense` / `both`), `sort_order`, `archived_at`. `kind` is
-what lets the entry form show only sensible options once a type is chosen, which is most of the value of having the
-table at all.
+**Shape.** `id`, `name` (unique), `kind` (`income` / `expense` / `both`), `sort_order`, `archived_at`. `kind` only
+narrows the picker; it never rejects an entry. Income and expense entries see the categories that suit them plus the
+`both` ones, and every other entry type — transfer, fund movement — is neither, so it sees the whole list.
 
-**Migration.** Back-fill from `select distinct category from finance.ledger_entries where category is not null`,
-then add `category_id` and map. Keep the text column until the mapping is verified, then drop it.
+**One rule worth knowing:** a picker always keeps the entry's _current_ category, archived or unsuited. Without that,
+opening an old entry to change its amount would quietly blank its category on save.
 
-**Surfaces.** Three, and one of them already has the pattern:
+**Migration, in two files on purpose.** `0013` creates the table, back-fills one row per distinct name already in
+use, points every entry at its match, and seeds `Reconciliation`, which is the one category the application writes
+by itself. `0014` drops the old text column. They are separate so the drop can be held back and inspected; run
+together they are a single change. The kind of each back-filled category is inferred from how the name has actually
+been used, so a category only ever seen on expenses starts as an expense rather than as the permissive default.
+Case is preserved rather than folded — `Food` and `food` become two categories, which is faithful to the data and
+mergeable by hand.
 
-- the ledger entry form gets a select instead of a text input
-- the agent takes a category name and resolves it, exactly as `resolveAccountId` in
-  [`action-parsing.ts`](../src/lib/finance-agent/action-parsing.ts) already resolves an account from a fuzzy name
-- a `categories_list` tool under `finance:read`, so the model can see valid values before proposing an entry
+**Surfaces.**
 
-**Loose end.** Deciding whether the assistant may create a category, or only choose one. Only choosing is safer and
-keeps the list from growing a long tail; creating is more convenient. Probably only choosing, with a clear error
-naming the closest matches.
+| Piece                                                                              | Change                                                                                     |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Entry form                                                                         | A select, on the ledger page and in the assistant's in-chat form alike                     |
+| [`LedgerCategories`](<../src/app/(workspace)/finance/ledger/LedgerCategories.tsx>) | Add, rename, re-kind, archive and delete, collapsed by default on the ledger page          |
+| `GET/POST/PUT/DELETE /api/categories`                                              | The canonical list; delete refuses a category in use                                       |
+| `resolveCategoryId` in [`ledger.ts`](../src/lib/ledger.ts)                         | Exact name wins, one unambiguous partial match is accepted, ambiguity resolves to nothing  |
+| `categories_list` tool                                                             | Under `finance:read`, so the model can see valid values before proposing an entry          |
+| `ledger_get`                                                                       | Entries carry the category _name_ alongside the id, so the assistant never joins two lists |
+| `validateLedger`                                                                   | Rejects an unknown category id, turning a foreign-key violation into a sentence            |
+
+**The loose end is settled: the assistant may only choose, never create.** An unknown or ambiguous name leaves the
+entry uncategorised rather than inventing a category, which is exactly the long tail the table exists to prevent.
+Archived categories are skipped during resolution too, so a retired one cannot be revived by naming it.
+
+**Still open.** There is no merge. Two categories that should be one — a case difference, or a synonym — can only be
+fixed by re-pointing entries by hand. Worth building the first time it is actually needed.
 
 ---
 

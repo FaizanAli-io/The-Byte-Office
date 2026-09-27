@@ -2,7 +2,14 @@
 
 import { apiFetch, apiFetchOrNull, errorMessage } from '@/lib/client-api';
 import { currentMonth } from '@/lib/ledger';
-import type { LedgerAccount, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
+import type {
+  CategoryKind,
+  LedgerAccount,
+  LedgerCategory,
+  LedgerEntry,
+  MonthlyLedger,
+  MonthlyLedgerPayload,
+} from '@/types/ledger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useLedger() {
@@ -15,7 +22,18 @@ export function useLedger() {
   const persistChain = useRef(Promise.resolve());
   const ledgerRef = useRef<MonthlyLedger | null>(null);
   const [accountsDirty, setAccountsDirty] = useState(false);
+  // Categories are global rather than per-month, so they load once and
+  // survive a month change.
+  const [categories, setCategories] = useState<LedgerCategory[]>([]);
   ledgerRef.current = ledger;
+
+  const loadCategories = useCallback(async () => {
+    setCategories(await apiFetch<LedgerCategory[]>('/api/categories'));
+  }, []);
+
+  useEffect(() => {
+    loadCategories().catch((cause) => setError(errorMessage(cause, 'Could not load categories')));
+  }, [loadCategories]);
 
   const load = useCallback(async (selectedMonth: string) => {
     setLoading(true);
@@ -133,6 +151,41 @@ export function useLedger() {
     });
   }
 
+  /** One handler for both create and update, since the only difference is the id. */
+  async function saveCategory(input: { id?: string; name?: string; kind?: CategoryKind; archived?: boolean }) {
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      await (input.id
+        ? apiFetch('/api/categories', { method: 'PUT', body: input })
+        : apiFetch('/api/categories', { body: { name: input.name, kind: input.kind } }));
+      await loadCategories();
+      setNotice(input.id ? 'Category updated.' : 'Category added.');
+    } catch (cause) {
+      setError(errorMessage(cause, 'Could not save category'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeCategory(id: string) {
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      await apiFetch('/api/categories', { method: 'DELETE', body: { id } });
+      await loadCategories();
+      setNotice('Category deleted.');
+    } catch (cause) {
+      // Deleting a category in use is refused by the API with a count, which
+      // is more useful than anything this layer could say.
+      setError(errorMessage(cause, 'Could not delete category'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function addEntry(entry: LedgerEntry) {
     setLedger((current) => {
       if (!current) return current;
@@ -184,6 +237,9 @@ export function useLedger() {
     addEntry,
     updateEntry,
     removeEntry,
+    categories,
+    saveCategory,
+    removeCategory,
   };
 }
 

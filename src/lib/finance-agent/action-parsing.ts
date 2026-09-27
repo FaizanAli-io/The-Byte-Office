@@ -2,7 +2,7 @@ import { AgentActionError } from '@/lib/agent/action-utils';
 import { entryTypeSchema, itemTypeSchema } from '@/lib/agent/registry';
 import { isRecord, validMoney, validName, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
 import { eligibleAccounts, monthBounds } from '@/lib/ledger';
-import type { LedgerAccount, LedgerEntry, MonthlyLedger } from '@/types/ledger';
+import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger } from '@/types/ledger';
 import { fingerprint } from './repository';
 import type { AgentActionPayload, LedgerEntryFormState, PortfolioItemInput, PortfolioItemType } from './types';
 
@@ -61,14 +61,21 @@ export function optionalString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-export function assertLedgerWithEntries(ledger: MonthlyLedger, entries: LedgerEntry[]) {
-  const error = validateLedger({
-    month: ledger.month,
-    status: ledger.status,
-    accounts: ledger.accounts,
-    entries,
-    finalizedAt: ledger.finalizedAt,
-  });
+export function assertLedgerWithEntries(
+  ledger: MonthlyLedger,
+  entries: LedgerEntry[],
+  categoryIds: ReadonlySet<string>
+) {
+  const error = validateLedger(
+    {
+      month: ledger.month,
+      status: ledger.status,
+      accounts: ledger.accounts,
+      entries,
+      finalizedAt: ledger.finalizedAt,
+    },
+    categoryIds
+  );
   if (error) throw new AgentActionError(error);
 }
 
@@ -132,7 +139,7 @@ export function parsePortfolioUpdate(
 }
 
 export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
-  const optionalString = (key: 'category' | 'counterparty' | 'note') =>
+  const optionalString = (key: 'categoryId' | 'counterparty' | 'note') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requireString(args[key], key);
   const optionalNumber = (key: 'destinationAmount' | 'exchangeRate') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requirePositive(args[key], key);
@@ -152,7 +159,7 @@ export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<Le
     amount: requirePositive(args.amount ?? base.amount, 'amount'),
     destinationAmount: optionalNumber('destinationAmount'),
     exchangeRate: optionalNumber('exchangeRate'),
-    category: optionalString('category'),
+    categoryId: optionalString('categoryId'),
     counterparty: optionalString('counterparty'),
     note: optionalString('note'),
   };
@@ -236,6 +243,7 @@ export function ledgerForm(
   kind: LedgerEntryFormState['kind'],
   month: string,
   accounts: LedgerAccount[],
+  categoriesList: LedgerCategory[],
   entry: LedgerEntryFormState['entry']
 ): LedgerEntryFormState {
   return {
@@ -248,6 +256,7 @@ export function ledgerForm(
       type,
       exchangeRate,
     })),
+    categories: categoriesList,
     entry,
   };
 }

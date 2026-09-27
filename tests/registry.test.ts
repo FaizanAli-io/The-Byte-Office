@@ -118,6 +118,7 @@ describe('scope filtering', () => {
       'portfolio_get',
       'snapshots_list',
       'snapshot_get',
+      'categories_list',
       'ledgers_list',
       'ledger_get',
     ]);
@@ -135,8 +136,8 @@ describe('scope filtering', () => {
 
   it('exposes every MCP tool when every scope is granted', () => {
     expect(visibleWith([...OAUTH_SCOPES])).toHaveLength(mcpToolRegistry.length);
-    expect(agentToolRegistry).toHaveLength(20);
-    expect(mcpToolRegistry).toHaveLength(19);
+    expect(agentToolRegistry).toHaveLength(21);
+    expect(mcpToolRegistry).toHaveLength(20);
   });
 
   it('offers no scope that would grant nothing', () => {

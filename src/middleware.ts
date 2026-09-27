@@ -34,6 +34,7 @@ export const config = {
     '/api/snapshots/:path*',
     '/api/ledger/:path*',
     '/api/held-funds',
+    '/api/categories',
     '/api/prayers',
     '/api/prayers/:path*',
     '/api/health-tracking',

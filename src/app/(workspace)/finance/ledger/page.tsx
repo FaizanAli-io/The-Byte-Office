@@ -3,6 +3,7 @@
 import { formatMoney, ledgerSummary } from '@/lib/ledger';
 import { FinancePageShell, StatCard, financeStyles } from '../components/FinanceUI';
 import { LedgerAccounts } from './LedgerAccounts';
+import { LedgerCategories } from './LedgerCategories';
 import { LedgerEntries } from './LedgerEntries';
 import { useLedger } from './useLedger';
 
@@ -27,6 +28,9 @@ export default function LedgerPage() {
     addEntry,
     updateEntry,
     removeEntry,
+    categories,
+    saveCategory,
+    removeCategory,
   } = ledgerState;
   const summary = ledger ? ledgerSummary(ledger) : null;
   const isFinalized = ledger?.status === 'finalized';
@@ -135,6 +139,7 @@ export default function LedgerPage() {
           <LedgerAccounts
             month={ledger.month}
             accounts={ledger.accounts}
+            categories={categories}
             entries={ledger.entries}
             readOnly={isFinalized}
             saving={saving}
@@ -145,9 +150,17 @@ export default function LedgerPage() {
             onAddEntry={addEntry}
             onSave={saveAccounts}
           />
+          <LedgerCategories
+            categories={categories}
+            saving={saving}
+            readOnly={isFinalized}
+            onSave={saveCategory}
+            onRemove={removeCategory}
+          />
           <LedgerEntries
             month={ledger.month}
             accounts={ledger.accounts}
+            categories={categories}
             entries={ledger.entries}
             readOnly={isFinalized}
             onAdd={addEntry}

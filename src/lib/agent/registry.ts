@@ -81,7 +81,12 @@ const ledgerEntryFields = {
   amount: z.number().positive().optional(),
   destinationAmount: z.number().positive().nullable().optional(),
   exchangeRate: z.number().positive().nullable().optional(),
-  category: z.string().min(1).nullable().optional(),
+  category: z
+    .string()
+    .min(1)
+    .nullable()
+    .optional()
+    .describe('Category name from categories_list. Unknown or ambiguous names leave the entry uncategorised'),
   counterparty: z
     .string()
     .min(1)
@@ -122,6 +127,15 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'finance',
     description: 'Get one saved portfolio snapshot by its stable ID.',
     schema: z.object({ id: z.string().min(1).describe('Stable snapshot ID') }),
+    mcp: true,
+  },
+  {
+    name: 'categories_list',
+    title: 'List ledger categories',
+    module: 'finance',
+    description:
+      'List every ledger category with its id, name and whether it suits income, expense or both. Archived categories are included and marked; do not propose one for a new entry.',
+    schema: empty,
     mcp: true,
   },
   {

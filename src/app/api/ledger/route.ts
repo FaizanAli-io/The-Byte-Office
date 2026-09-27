@@ -3,6 +3,7 @@ import { accountStats, isMonth } from '@/lib/ledger';
 import { validateLedger } from '@/lib/finance-validation';
 import {
   createLedger,
+  listCategories,
   loadFinanceDoc,
   loadLedger,
   loadPreviousFinalizedLedger,
@@ -40,7 +41,8 @@ export const POST = apiRoute('POST /api/ledger', 'Failed to create ledger', asyn
 
 export const PUT = apiRoute('PUT /api/ledger', 'Failed to save ledger', async (req: Request) => {
   const body = await jsonBody<MonthlyLedgerPayload>(req);
-  const validationError = validateLedger(body);
+  const categoryIds = new Set((await listCategories()).map((category) => category.id));
+  const validationError = validateLedger(body, categoryIds);
   if (validationError) throw new ApiError(validationError);
 
   const existing = found(await loadLedger(body.month), 'Ledger not found');

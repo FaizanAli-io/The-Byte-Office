@@ -1,4 +1,4 @@
-import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
+import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 
 export type PortfolioItemType = 'local_bank' | 'remote_bank' | 'mutual_fund';
 
@@ -112,6 +112,8 @@ export type LedgerEntryFormState = {
   kind: 'ledger_entry_add' | 'ledger_entry_update';
   month: string;
   accounts: Pick<LedgerAccount, 'id' | 'name' | 'currency' | 'type' | 'exchangeRate'>[];
+  /** Archived ones included, so an existing entry's category still has a name. */
+  categories: LedgerCategory[];
   /**
    * Whatever of an entry is known so far. Spelling the fields out again was
    * how `counterparty` came to exist everywhere except the in-chat form.

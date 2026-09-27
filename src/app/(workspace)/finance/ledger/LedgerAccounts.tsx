@@ -1,13 +1,21 @@
 'use client';
 
-import { accountStats, formatMoney, formatVariancePct, reconcileDate, variancePct } from '@/lib/ledger';
-import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
+import {
+  accountStats,
+  formatMoney,
+  formatVariancePct,
+  RECONCILIATION_CATEGORY,
+  reconcileDate,
+  variancePct,
+} from '@/lib/ledger';
+import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 import { useState, type ReactNode } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 
 export function LedgerAccounts({
   month,
   accounts,
+  categories,
   entries,
   readOnly,
   saving,
@@ -20,6 +28,7 @@ export function LedgerAccounts({
 }: {
   month: string;
   accounts: LedgerAccount[];
+  categories: LedgerCategory[];
   entries: LedgerEntry[];
   readOnly: boolean;
   saving: boolean;
@@ -64,7 +73,9 @@ export function LedgerAccounts({
       accountId: account.id,
       amount: Math.round(Math.abs(stats.difference) * 100) / 100,
       exchangeRate: account.exchangeRate,
-      category: 'Reconciliation',
+      // The seeded "Reconciliation" category, looked up rather than typed.
+      // If it has been deleted the entry is simply uncategorised.
+      categoryId: categories.find((category) => category.name === RECONCILIATION_CATEGORY)?.id,
       note: 'Force reconcile',
     });
   }

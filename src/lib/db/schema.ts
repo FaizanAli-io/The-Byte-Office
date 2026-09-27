@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm';
-import { LEDGER_ENTRY_TYPES } from '@/types/ledger';
+import { CATEGORY_KINDS, LEDGER_ENTRY_TYPES } from '@/types/ledger';
 import {
   boolean,
   check,
@@ -37,6 +37,7 @@ export const ledgerStatusEnum = finance.enum('ledger_status', ['draft', 'finaliz
 export const ledgerAccountTypeEnum = finance.enum('ledger_account_type', ['bank', 'fund']);
 export const ledgerCurrencyEnum = finance.enum('ledger_currency', ['PKR', 'USD']);
 export const ledgerEntryTypeEnum = finance.enum('ledger_entry_type', LEDGER_ENTRY_TYPES);
+export const categoryKindEnum = finance.enum('category_kind', CATEGORY_KINDS);
 export const financeAgentActionStatusEnum = finance.enum('finance_agent_action_status', [
   'pending',
   'executing',
@@ -148,6 +149,27 @@ export const ledgerAccounts = finance.table(
   (table) => [index('ledger_accounts_ledger_idx').on(table.ledgerId)]
 );
 
+/**
+ * The canonical list of ledger categories.
+ *
+ * Entries reference a row rather than repeating a string, so renaming a
+ * category updates every entry that used it and a typo cannot quietly invent
+ * a new one. `on delete restrict` plus `archived_at` is what keeps history
+ * readable: a category can leave the picker without rewriting the past.
+ */
+export const categories = finance.table(
+  'categories',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    kind: categoryKindEnum('kind').notNull().default('both'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    archivedAt: timestamp('archived_at', { withTimezone: true, mode: 'date' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('categories_name_uidx').on(table.name)]
+);
+
 export const ledgerEntries = finance.table(
   'ledger_entries',
   {
@@ -176,7 +198,7 @@ export const ledgerEntries = finance.table(
       scale: 6,
       mode: 'number',
     }),
-    category: text('category'),
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'restrict' }),
     /** Whose money a hold belongs to; null on every other entry type. */
     counterparty: text('counterparty'),
     note: text('note'),
@@ -185,6 +207,7 @@ export const ledgerEntries = finance.table(
   (table) => [
     index('ledger_entries_ledger_idx').on(table.ledgerId),
     index('ledger_entries_account_idx').on(table.accountId),
+    index('ledger_entries_category_idx').on(table.categoryId),
     check('ledger_entries_amount_positive', sql`${table.amount} > 0`),
   ]
 );

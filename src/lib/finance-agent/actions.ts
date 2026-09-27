@@ -2,7 +2,8 @@ import { randomUUID } from 'crypto';
 import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
 import { executePersonalPayload } from '@/lib/agent/modules/personal';
 import { executeTboInquiry } from '@/lib/agent/modules/tbo-actions';
-import { loadLedger, saveLedger } from '@/lib/db/queries';
+import { listCategories, loadLedger, saveLedger } from '@/lib/db/queries';
+import { resolveCategoryId } from '@/lib/ledger';
 import type { LedgerEntry } from '@/types/ledger';
 import {
   addPortfolioItem,
@@ -109,7 +110,7 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
   }
 
   const month = requireString(args.month, 'month');
-  const ledger = await requireEditableLedger(month);
+  const [ledger, categoryList] = await Promise.all([requireEditableLedger(month), listCategories()]);
   const sourceFingerprint =
     actionType === 'ledger_entry_add' ? ledgerStructureFingerprint(ledger) : ledgerFingerprint(ledger);
 
@@ -132,7 +133,10 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
       amount: optionalPositive(args.amount),
       destinationAmount: optionalPositive(args.destinationAmount),
       exchangeRate: optionalPositive(args.exchangeRate),
-      category: optionalString(args.category),
+      // The assistant names a category; only an unambiguous, unarchived match
+      // resolves, and anything else simply leaves the entry uncategorised for
+      // the user to fix in the form.
+      categoryId: resolveCategoryId(categoryList, args.category ?? args.categoryId),
       note: optionalString(args.note),
     };
     return toPublicAction(
@@ -142,7 +146,7 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
         preview: { title: 'Add ledger entry' },
         sourceFingerprint,
       }),
-      ledgerForm('ledger_entry_add', month, ledger.accounts, {
+      ledgerForm('ledger_entry_add', month, ledger.accounts, categoryList, {
         ...entry,
       })
     );
@@ -155,7 +159,8 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
   if (actionType === 'ledger_entry_remove') {
     assertLedgerWithEntries(
       ledger,
-      ledger.entries.filter((entry) => entry.id !== entryId)
+      ledger.entries.filter((entry) => entry.id !== entryId),
+      new Set(categoryList.map((category) => category.id))
     );
     return toPublicAction(
       await createAgentAction({
@@ -177,7 +182,7 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
       },
       sourceFingerprint,
     }),
-    ledgerForm('ledger_entry_update', month, ledger.accounts, {
+    ledgerForm('ledger_entry_update', month, ledger.accounts, categoryList, {
       id: current.id,
       date: current.date,
       type: current.type,
@@ -185,7 +190,8 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
       destinationAccountId: current.destinationAccountId,
       amount: current.amount,
       destinationAmount: current.destinationAmount,
-      category: current.category,
+      categoryId: current.categoryId,
+      counterparty: current.counterparty,
       note: current.note,
     })
   );
@@ -309,7 +315,7 @@ async function executeLedgerPayload(
     entries = ledger.entries.filter((entry) => entry.id !== payload.entryId);
   }
 
-  assertLedgerWithEntries(ledger, entries);
+  assertLedgerWithEntries(ledger, entries, new Set((await listCategories()).map((category) => category.id)));
   return saveLedger(ledger, {
     month: ledger.month,
     status: ledger.status,

@@ -23,6 +23,25 @@ export const LEDGER_ENTRY_TYPES = [
 
 export type LedgerEntryType = (typeof LEDGER_ENTRY_TYPES)[number];
 
+/**
+ * What a category may be attached to. `both` is the default, because most
+ * categories are honestly either — "transfer fee" is an expense, "salary" is
+ * income, but "travel" can be both a cost and a reimbursement. The kind only
+ * narrows the picker; it never rejects an entry.
+ */
+export const CATEGORY_KINDS = ['income', 'expense', 'both'] as const;
+
+export type CategoryKind = (typeof CATEGORY_KINDS)[number];
+
+export interface LedgerCategory {
+  id: string;
+  name: string;
+  kind: CategoryKind;
+  sortOrder: number;
+  /** Set when the category has left the picker but still names old entries. */
+  archivedAt?: string | null;
+}
+
 export interface LedgerAccount {
   id: string;
   name: string;
@@ -43,7 +62,7 @@ export interface LedgerEntry {
   amount: number;
   destinationAmount?: number;
   exchangeRate?: number;
-  category?: string;
+  categoryId?: string;
   /** Who the money belongs to. Only meaningful on the two hold types. */
   counterparty?: string;
   note?: string;

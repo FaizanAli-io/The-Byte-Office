@@ -10,10 +10,13 @@ import {
   ledgerSummary,
   monthBounds,
   reconcileDate,
+  categoryName,
+  pickableCategories,
+  resolveCategoryId,
   UNATTRIBUTED_HOLD,
   variancePct,
 } from '@/lib/ledger';
-import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
+import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 
 // Every amount below is in rupees, the unit the whole application uses.
 
@@ -383,5 +386,87 @@ describe('held funds in a monthly summary', () => {
   it('is zero in a month with no holds', () => {
     const summary = ledgerSummary({ accounts, entries: [entry({ id: 'e', accountId: 'pkr', amount: 10 })] });
     expect(summary.heldMovement).toBe(0);
+  });
+});
+
+describe('categories', () => {
+  const category = (over: Partial<LedgerCategory>): LedgerCategory => ({
+    id: 'c1',
+    name: 'Groceries',
+    kind: 'both',
+    sortOrder: 0,
+    archivedAt: null,
+    ...over,
+  });
+
+  const list = [
+    category({ id: 'salary', name: 'Salary', kind: 'income' }),
+    category({ id: 'food', name: 'Food', kind: 'expense' }),
+    category({ id: 'travel', name: 'Travel', kind: 'both' }),
+    category({ id: 'old', name: 'Old thing', kind: 'both', archivedAt: '2026-01-01T00:00:00.000Z' }),
+  ];
+
+  describe('categoryName', () => {
+    it('resolves an id to its name', () => expect(categoryName(list, 'food')).toBe('Food'));
+    it('is blank for an entry with no category', () => expect(categoryName(list, undefined)).toBe(''));
+    it('is blank for an id that no longer exists', () => expect(categoryName(list, 'gone')).toBe(''));
+  });
+
+  describe('resolveCategoryId', () => {
+    it('matches a name exactly, ignoring case and padding', () => {
+      expect(resolveCategoryId(list, '  food ')).toBe('food');
+      expect(resolveCategoryId(list, 'FOOD')).toBe('food');
+    });
+
+    it('accepts a partial match when only one category could be meant', () => {
+      expect(resolveCategoryId(list, 'trav')).toBe('travel');
+    });
+
+    it('prefers an exact match over a longer name containing it', () => {
+      const withBoth = [...list, category({ id: 'food-out', name: 'Food out' })];
+      expect(resolveCategoryId(withBoth, 'Food')).toBe('food');
+    });
+
+    it('resolves to nothing when the name is ambiguous, rather than guessing', () => {
+      const withBoth = [...list, category({ id: 'food-out', name: 'Food out' })];
+      expect(resolveCategoryId(withBoth, 'foo')).toBeUndefined();
+    });
+
+    it('will not revive an archived category by name', () => {
+      expect(resolveCategoryId(list, 'Old thing')).toBeUndefined();
+    });
+
+    it.each([[''], ['   '], [null], [undefined], [42]])('resolves %s to nothing', (value) => {
+      expect(resolveCategoryId(list, value)).toBeUndefined();
+    });
+  });
+
+  describe('pickableCategories', () => {
+    const ids = (type: LedgerEntry['type'], keep?: string) =>
+      pickableCategories(list, type, keep).map((item) => item.id);
+
+    it('offers income categories and the either ones to income', () => {
+      expect(ids('income')).toEqual(['salary', 'travel']);
+    });
+
+    it('offers expense categories and the either ones to expense', () => {
+      expect(ids('expense')).toEqual(['food', 'travel']);
+    });
+
+    it('offers everything unarchived to a type that is neither', () => {
+      expect(ids('transfer')).toEqual(['salary', 'food', 'travel']);
+    });
+
+    it('hides archived categories', () => {
+      expect(ids('transfer')).not.toContain('old');
+    });
+
+    it('keeps the entry own archived category, so editing does not blank it', () => {
+      expect(ids('expense', 'old')).toContain('old');
+    });
+
+    it('keeps a held category even when its kind does not suit the type', () => {
+      expect(ids('expense', 'salary')).toContain('salary');
+    });
   });
 });

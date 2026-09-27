@@ -69,7 +69,8 @@ export function EntryFiltersPanel({
   filters: EntryFilters;
   setFilters: (filters: EntryFilters) => void;
   accounts: LedgerAccount[];
-  categories: string[];
+  /** Only the categories in use this month, as id and name. */
+  categories: { id: string; name: string }[];
   bounds: { min: string; max: string };
   open: boolean;
   onToggle: () => void;
@@ -131,8 +132,8 @@ export function EntryFiltersPanel({
             >
               <option value="all">All categories</option>
               {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
+                <option key={category.id} value={category.id}>
+                  {category.name}
                 </option>
               ))}
             </select>
