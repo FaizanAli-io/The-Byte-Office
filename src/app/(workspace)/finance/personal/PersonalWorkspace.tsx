@@ -6,6 +6,7 @@ import type { HealthTracking, Prayer } from '@/types/personal';
 import { useEffect, useMemo, useState } from 'react';
 import { FinanceToast, type FinanceToastState } from '../components/FinanceToast';
 import { FinanceCard, FinancePageShell, StatCard, financeStyles } from '../components/FinanceUI';
+import { HealthChart } from './HealthChart';
 
 const NAMAAZ_LABELS: Record<Namaaz, string> = {
   fajr: 'Fajr',
@@ -189,7 +190,7 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
         <FinancePageShell
           section="personal"
           title="Health"
-          description="Log integer readings such as weight, steps, or water. The assistant can change these only after you confirm."
+          description="Log readings such as weight, steps, or water — decimals are fine. The assistant can change these only after you confirm."
         >
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
             <StatCard label="Health entries" value={String(health.length)} hint="Newest first" tone="emerald" />
@@ -198,6 +199,11 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
               value={latestHealth ? `${latestHealth.metric} ${latestHealth.value}` : '—'}
               hint={latestHealth ? new Date(latestHealth.createdAt).toLocaleString() : 'Add a metric below'}
             />
+          </div>
+          {/* The trend is the reason to open this page, so it comes before the
+              form that feeds it. */}
+          <div className="mb-6">
+            <HealthChart entries={health} />
           </div>
           <FinanceCard title="Health tracking" description="Leave the date empty to use now.">
             <div className={`${financeStyles.inset} mb-5 grid gap-4 p-4 md:grid-cols-4`}>

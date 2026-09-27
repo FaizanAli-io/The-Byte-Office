@@ -4,7 +4,7 @@ Things worth building, as opposed to [`improvements.md`](./improvements.md), whi
 here. It is a place to keep ideas with enough detail that picking one up later does not mean rediscovering the
 design.
 
-**Queued next: items 7 and 8.** Item 9 is built. Everything above them is unscheduled.
+**Queued next: item 8.** Items 7 and 9 are built. Everything above them is unscheduled.
 
 ---
 
@@ -101,31 +101,37 @@ make the allocation history continuous and give the assistant something to reaso
 
 ---
 
-## 7. Health metrics over time
+## 7. Health metrics over time — **done**
 
-**The idea.** The health page is a list of readings. The point of tracking weight or glucose is the trend, which a
-list does not show. A line chart over time, with filters, makes the page worth opening.
+**The idea.** The health page was a list of readings. The point of tracking weight or glucose is the trend, which a
+list does not show. [`HealthChart`](<../src/app/(workspace)/finance/personal/HealthChart.tsx>) draws one metric over
+time with a range filter and optional weekly smoothing.
 
-`recharts` is already a dependency and `AllocationChart` on the snapshots page is the working precedent. The data
-needs no change: `health_tracking` now holds `numeric(10, 3)` values with a `created_at`, and
-`GET /api/health-tracking?metric=` already filters server-side, as does the `health_list` tool.
+**One metric at a time**, which was the decision that shaped the rest. Metrics are free text and carry different
+units, so plotting `weight_kg` at 80 against `body_fat_pct` at 18 on a shared axis says nothing true — and a second
+Y axis makes the same misreading quietly rather than loudly. A metric selector showing one series is honest and
+simpler. Comparing two could come later as small multiples, never as one overlaid chart.
 
-**One metric at a time.** This is the design decision to make first. Metrics are free-text and carry different units
-and magnitudes — plotting `weight_kg` at 80 against `body_fat_pct` at 18 on a shared axis is meaningless, and a dual
-axis invites the same misreading more subtly. A metric selector showing one series is honest and simpler. Comparing
-two metrics can come later as small multiples rather than one overlaid chart.
+**No new query.** The write-up here expected to need `select distinct metric`. It did not: the page already loads
+every reading through `GET /api/health-tracking` with no filter, so the metric list, the window and the averages are
+all derived on the client from data that had already arrived. The endpoint's `metric` parameter stays useful to the
+assistant, which does not want the whole table.
 
-**Filters worth having**, in order of value:
+**Filters.** Range as buttons (30d / 90d / 1y / All) rather than a date picker, since the question is almost always
+"recently" rather than "between two specific dates". The weekly-average toggle only appears once a window holds at
+least twelve readings, because smoothing three points hides more than it reveals; each averaged point carries its
+bucket size so the tooltip can say how many readings it stands for.
 
-| Filter      | Notes                                                                                 |
-| ----------- | ------------------------------------------------------------------------------------- |
-| Metric      | Required, since a chart only makes sense within one unit. Populate from distinct rows |
-| Date range  | Last 30 / 90 / 365 days / all, as buttons rather than a date picker                   |
-| Aggregation | Raw points versus a weekly average, once there are enough readings to be noisy        |
+Below the line: latest, change across the window, and the window's mean — what a trend line actually gets read for.
 
-**Loose ends.** The metric list needs a `select distinct metric` query, which nothing does yet. Free-text metrics
-also mean typos become separate series — `weight_kg` and `weight-kg` would plot apart. That is the same problem item
-8 solves for ledger categories, and the two could share an approach if it is worth it.
+**Split.** The arithmetic lives in [`lib/health.ts`](../src/lib/health.ts) and the component only draws, matching
+how `ledger.ts` and `finance.ts` already separate sums from screens. That is what makes the week bucketing testable,
+including the case worth getting wrong: `getDay()` returns 0 on Sunday, which belongs to the week that began six
+days earlier, not the one starting tomorrow.
+
+**Loose end, unchanged.** Free-text metrics mean a typo becomes its own series — `weight_kg` and `weight-kg` plot
+apart, and the selector lists both. That is the same problem item 8 solves for ledger categories, and the fix would
+be the same shape.
 
 ---
 
