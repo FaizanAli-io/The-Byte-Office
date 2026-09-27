@@ -1,1 +1,0 @@
-ALTER TABLE "personal"."health_tracking" ALTER COLUMN "value" SET DATA TYPE numeric(10, 3);

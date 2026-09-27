@@ -1,1 +1,0 @@
-ALTER TABLE "finance"."ledger_entries" DROP COLUMN "category";

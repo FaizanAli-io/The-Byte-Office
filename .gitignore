@@ -16,6 +16,9 @@
 # next.js
 /.next/
 /.next-check/
+
+# database dumps: every figure in the workspace
+/backups/
 /out/
 
 # production

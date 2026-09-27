@@ -1,6 +1,7 @@
 # Dependencies and build output
 node_modules
 .next
+.next-check
 out
 build
 coverage
@@ -9,6 +10,7 @@ coverage
 # regenerates them.
 package-lock.json
 drizzle/
+drizzle-baseline/
 skills-lock.json
 
 # Static assets and vendored third-party content
