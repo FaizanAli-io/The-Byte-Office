@@ -62,6 +62,7 @@ const isoDate = z
   .describe('ISO date YYYY-MM-DD within the ledger month');
 
 const categoryName = z.string().min(1).describe('Category name, as categories_list reports it');
+const categoryId = z.string().min(1).describe('Category id from categories_list');
 const categoryKind = z.enum(CATEGORY_KINDS).describe('Which entry types may use it: income, expense, or both');
 
 const portfolioFields = {
@@ -89,7 +90,7 @@ const ledgerEntryFields = {
     .min(1)
     .nullable()
     .optional()
-    .describe('Category name from categories_list. Unknown or ambiguous names leave the entry uncategorised'),
+    .describe('Category name from categories_list. An unknown or ambiguous name is rejected; null clears it'),
   counterparty: z
     .string()
     .min(1)
@@ -157,11 +158,11 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Update ledger category',
     module: 'finance',
     description:
-      'Rename a category, change which entry types it suits, or archive and restore it. Identify it by its current name. Archiving keeps it on existing entries while removing it from the picker.',
+      'Rename a category, change which entry types it suits, or archive and restore it. Identify it by id from categories_list. Archiving keeps it on existing entries while removing it from the picker.',
     chatDescription:
-      'Create a confirmation proposal to rename, re-kind, archive or restore a ledger category, identified by its current name. This never writes before confirmation.',
+      'Create a confirmation proposal to rename, re-kind, archive or restore a ledger category, identified by id from categories_list. This never writes before confirmation.',
     schema: z.object({
-      category: categoryName,
+      id: categoryId,
       name: z.string().min(1).optional().describe('New name'),
       kind: categoryKind.optional(),
       archived: z.boolean().optional().describe('True to archive, false to restore'),
@@ -174,10 +175,10 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Remove ledger category',
     module: 'finance',
     description:
-      'Delete a category outright, by name. Refused while any ledger entry still uses it — archive those instead.',
+      'Delete a category outright, by id from categories_list. Refused while any ledger entry still uses it — archive it instead.',
     chatDescription:
-      'Create a confirmation proposal to delete a ledger category by name. Refused while any entry still uses it.',
-    schema: z.object({ category: categoryName }),
+      'Create a confirmation proposal to delete a ledger category by id from categories_list. Refused while any entry still uses it.',
+    schema: z.object({ id: categoryId }),
     write: true,
     destructive: true,
     mcp: true,

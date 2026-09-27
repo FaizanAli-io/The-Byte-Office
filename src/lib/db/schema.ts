@@ -143,7 +143,10 @@ export const categories = finance.table(
     archivedAt: utc('archived_at'),
     createdAt: createdAt(),
   },
-  (table) => [uniqueIndex('categories_name_uidx').on(table.name)]
+  // Unique on the folded name, so "Food" and "food" cannot both exist. The
+  // application checks this too, for a readable message; the index is what
+  // makes it true.
+  (table) => [uniqueIndex('categories_name_uidx').on(sql`lower(${table.name})`)]
 );
 
 export const ledgerEntries = finance.table(

@@ -434,10 +434,6 @@ describe('categories', () => {
       expect(resolveCategoryId(list, 'Old thing')).toBeUndefined();
     });
 
-    it('finds an archived category when the caller is managing them, not assigning them', () => {
-      expect(resolveCategoryId(list, 'Old thing', { includeArchived: true })).toBe('old');
-    });
-
     it.each([[''], ['   '], [null], [undefined], [42]])('resolves %s to nothing', (value) => {
       expect(resolveCategoryId(list, value)).toBeUndefined();
     });

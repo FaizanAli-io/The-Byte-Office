@@ -44,20 +44,25 @@ Ledger add and edit proposals render a form in chat. Add defaults the date to
 today, type to expense, and account to the first account. Edit is filled from
 the existing record. Submitting the form inserts or updates that ledger entry.
 
-Categories are addressed by **name** throughout — the assistant never handles a
-category UUID. The server resolves the name against the canonical list: an
+Categories are addressed two ways, deliberately.
+
+**Assigning one to an entry uses its name.** `ledger_entry_add` and
+`ledger_entry_update` take `category` as a name, and the server resolves it: an
 exact match wins, a single unambiguous partial match is accepted, and anything
-ambiguous resolves to nothing rather than guessing.
+unknown or ambiguous is an error naming the near misses rather than a silently
+uncategorised entry. `null` clears the category. Archived categories are
+skipped, so a retired one cannot be revived by naming it on a transaction.
 
-Assigning a category to an entry skips archived ones, so a retired category
-cannot be revived by naming it on a transaction. Managing categories is the
-exception — restoring one means naming it — so `category_update` and
-`category_remove` search archived names too.
+**Managing one uses its id**, from `categories_list`. A rename would otherwise
+have to match the name it is about to replace, and archived categories are
+deliberately unreachable by name.
 
-`category_remove` deletes outright and is refused while any entry still
-references the category, with a count of how many; archiving is the ordinary
-way to retire one. Both rules live in `lib/categories.ts`, shared with the REST
-route behind the ledger page.
+Names are unique case-insensitively — "Food" and "food" are the same category,
+enforced by a unique index on `lower(name)` as well as by a readable check in
+the application. `category_remove` deletes outright and is refused while any
+entry still references the category, with a count of how many; archiving is
+the ordinary way to retire one. Both rules live in `lib/categories.ts`, shared
+with the REST route behind the ledger page.
 
 The user can confirm or cancel a proposal for 15 minutes. Confirmation claims it
 once, reloads the source data, rejects stale or finalized records, validates the

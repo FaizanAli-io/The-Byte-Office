@@ -63,14 +63,14 @@ export function pickableCategories(categoryList: LedgerCategory[], type: LedgerE
  * single unambiguous partial match is accepted, and anything ambiguous
  * resolves to nothing rather than guessing.
  *
- * Archived categories are skipped by default, so a retired one cannot be
- * revived by naming it on an entry. Managing categories is the exception —
- * restoring one means naming it — so those callers opt in.
+ * Archived categories are skipped: a retired one cannot be revived by naming
+ * it on an entry. Managing categories goes by id instead, so nothing needs to
+ * look one up by name.
  */
-export function resolveCategoryId(categoryList: LedgerCategory[], name: unknown, { includeArchived = false } = {}) {
+export function resolveCategoryId(categoryList: LedgerCategory[], name: unknown) {
   if (typeof name !== 'string' || !name.trim()) return undefined;
   const requested = name.trim().toLowerCase();
-  const pool = includeArchived ? categoryList : categoryList.filter((category) => !category.archivedAt);
+  const pool = categoryList.filter((category) => !category.archivedAt);
 
   const exact = pool.find((category) => category.name.toLowerCase() === requested);
   if (exact) return exact.id;

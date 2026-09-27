@@ -5,7 +5,7 @@ import { executeTboInquiry } from '@/lib/agent/modules/tbo-actions';
 import { listCategories, loadLedger, saveLedger } from '@/lib/db/queries';
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { resolveCategoryId } from '@/lib/ledger';
-import { CATEGORY_KINDS, type CategoryKind, type LedgerEntry } from '@/types/ledger';
+import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory, type LedgerEntry } from '@/types/ledger';
 import {
   addPortfolioItem,
   cancelAgentAction,
@@ -111,16 +111,13 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
   }
 
   if (actionType === 'category_update' || actionType === 'category_remove') {
-    // Archived categories are included: restoring one means naming it, and
-    // deleting one that is already archived is the common case.
-    const categories = await listCategories();
-    const id = resolveCategoryId(categories, args.category, { includeArchived: true });
-    const current = categories.find((category) => category.id === id);
+    // Identified by id, not by name: a rename would otherwise have to match
+    // the name it is about to replace, and archived categories — the ones you
+    // restore — are deliberately unreachable by name.
+    const id = requireString(args.id, 'id');
+    const current = (await listCategories()).find((category) => category.id === id);
     if (!current) {
-      throw new AgentActionError(
-        `No single category matches "${optionalString(args.category) ?? ''}". Call categories_list for the exact names.`,
-        404
-      );
+      throw new AgentActionError('Category not found. Call categories_list for the current ids.', 404);
     }
 
     if (actionType === 'category_remove') {
@@ -174,10 +171,7 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
       amount: optionalPositive(args.amount),
       destinationAmount: optionalPositive(args.destinationAmount),
       exchangeRate: optionalPositive(args.exchangeRate),
-      // The assistant names a category; only an unambiguous, unarchived match
-      // resolves, and anything else simply leaves the entry uncategorised for
-      // the user to fix in the form.
-      categoryId: resolveCategoryId(categoryList, args.category ?? args.categoryId),
+      categoryId: resolveCategoryArg(categoryList, args.category) ?? undefined,
       note: optionalString(args.note),
     };
     return toPublicAction(
@@ -337,9 +331,20 @@ async function executeLedgerPayload(
     throw new AgentActionError('The ledger changed after this proposal. Ask the assistant to try again.', 409);
   }
 
+  // The tool arguments are replayed over the payload on the MCP surface, and
+  // they name a category rather than identifying one. Translating here covers
+  // add and update alike; without it an update quietly kept its old category.
+  const categoryList = await listCategories();
+  const withCategory = (entry: object) => {
+    const fields = entry as Record<string, unknown>;
+    if (!('category' in fields)) return fields;
+    const { category, ...rest } = fields;
+    return { ...rest, categoryId: resolveCategoryArg(categoryList, category) };
+  };
+
   let entries: LedgerEntry[];
   if (payload.actionType === 'ledger_entry_add') {
-    const entry = parseLedgerEntry(payload.entry as unknown as Record<string, unknown>, { id: payload.entry.id });
+    const entry = parseLedgerEntry(withCategory(payload.entry), { id: payload.entry.id });
     if (ledger.entries.some((item) => item.id === entry.id)) {
       throw new AgentActionError('This entry was already added. Ask the assistant to open a new form.', 409);
     }
@@ -348,7 +353,7 @@ async function executeLedgerPayload(
     if (!ledger.entries.some((entry) => entry.id === payload.entryId)) {
       throw new AgentActionError('Ledger entry no longer exists', 409);
     }
-    const entry = parseLedgerEntry(payload.entry as unknown as Record<string, unknown>, { id: payload.entryId });
+    const entry = parseLedgerEntry(withCategory(payload.entry), { id: payload.entryId });
     entries = ledger.entries.map((item) => (item.id === payload.entryId ? entry : item));
   } else {
     if (!ledger.entries.some((entry) => entry.id === payload.entryId)) {
@@ -357,7 +362,7 @@ async function executeLedgerPayload(
     entries = ledger.entries.filter((entry) => entry.id !== payload.entryId);
   }
 
-  assertLedgerWithEntries(ledger, entries, new Set((await listCategories()).map((category) => category.id)));
+  assertLedgerWithEntries(ledger, entries, new Set(categoryList.map((category) => category.id)));
   return saveLedger(ledger, {
     month: ledger.month,
     status: ledger.status,
@@ -365,6 +370,34 @@ async function executeLedgerPayload(
     entries,
     finalizedAt: ledger.finalizedAt,
   });
+}
+
+/**
+ * Turns the assistant's category **name** into an id.
+ *
+ * Absent means "leave it alone", `null` means "clear it", and a name that
+ * matches nothing is an error rather than a silent drop — writing an
+ * uncategorised entry and saying nothing is the worst of the three outcomes,
+ * because on MCP there is no form for anyone to notice it in.
+ */
+function resolveCategoryArg(categoryList: LedgerCategory[], value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  const name = requireString(value, 'category');
+  const id = resolveCategoryId(categoryList, name);
+  if (id) return id;
+
+  const near = categoryList
+    .filter((category) => !category.archivedAt)
+    .map((category) => category.name)
+    .filter((candidate) => candidate.toLowerCase().includes(name.toLowerCase()));
+  throw new AgentActionError(
+    near.length
+      ? `"${name}" matches more than one category: ${near.join(', ')}. Use the exact name.`
+      : `No category is called "${name}". Call categories_list for the valid names.`,
+    404
+  );
 }
 
 function parseCategoryKind(value: unknown): CategoryKind {
