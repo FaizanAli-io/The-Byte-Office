@@ -12,7 +12,10 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
-    ignores: ['.next/**', 'node_modules/**', 'out/**'],
+    // `.next-check` is where `npm run build:check` puts its output, kept
+    // apart from `.next` so a verification build cannot disturb a running
+    // dev server. It is generated, so it is not ours to lint.
+    ignores: ['.next/**', '.next-check/**', 'node_modules/**', 'out/**'],
   },
   {
     rules: {

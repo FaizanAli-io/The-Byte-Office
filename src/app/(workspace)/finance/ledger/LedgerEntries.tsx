@@ -2,11 +2,20 @@
 
 import { accountMovement, categoryName, ENTRY_LABELS, formatMoney, isHoldType, monthBounds } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType } from '@/types/ledger';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 import { CollapseToggle } from './LedgerAccounts';
 import { draftIncomplete, emptyDraft, EntryFields } from './EntryFields';
-import { emptyFilters, EntryFiltersPanel, type EntryFilters } from './EntryFiltersPanel';
+import {
+  emptyFilters,
+  EntryFiltersPanel,
+  rememberFilters,
+  rememberedFilters,
+  type EntryFilters,
+} from './EntryFiltersPanel';
+
+/** Ten is enough to scan; the rest are for a month being worked through. */
+const PAGE_SIZES = [10, 25, 50, 100];
 
 export function LedgerEntries({
   month,
@@ -32,13 +41,39 @@ export function LedgerEntries({
   const [draft, setDraft] = useState(() => emptyDraft(bounds.min));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
+
+  // Refs rather than dependencies: restoring must happen when the month
+  // changes, not every time an account is added or an entry is edited.
+  const optionsRef = useRef<{ accounts: string[]; categories: string[] }>({ accounts: [], categories: [] });
 
   useEffect(() => {
     setDraft(emptyDraft(bounds.min));
     setEditingId(null);
-    setFilters(emptyFilters);
+    // Read here rather than in the initial state because this page is
+    // prerendered, and touching localStorage during render would not match
+    // what the server produced. Running on every month change is also what
+    // keeps the choices sticky as you move between months.
+    //
+    // A remembered account or category that this month knows nothing about
+    // falls back to "all": the select could not show it, and filtering by it
+    // would produce an empty table for no visible reason.
+    const stored = rememberedFilters();
+    const known = optionsRef.current;
+    setFilters({
+      ...stored,
+      accountId: known.accounts.includes(stored.accountId) ? stored.accountId : 'all',
+      category: known.categories.includes(stored.category) ? stored.category : 'all',
+    });
   }, [bounds.min]);
+
+  /** Persisted at the point of change, so no effect can race the first read. */
+  function applyFilters(next: EntryFilters) {
+    rememberFilters(next);
+    setFilters(next);
+  }
 
   // Only the categories this month actually uses, so the filter does not list
   // dozens of options that would all return nothing.
@@ -92,8 +127,24 @@ export function LedgerEntries({
       return compare * direction;
     });
   }, [accounts, categories, entries, filters]);
+  optionsRef.current = {
+    accounts: ['all', ...accounts.map((account) => account.id)],
+    categories: ['all', ...usedCategories.map((category) => category.id)],
+  };
+
   const showRunning = filters.accountId !== 'all' && filters.sortBy === 'date' && filters.sortDir === 'asc';
   const sourceAccount = accounts.find((account) => account.id === draft.accountId);
+
+  const pageCount = Math.max(1, Math.ceil(visibleEntries.length / pageSize));
+  // Clamped rather than corrected in state: deleting the last row of the last
+  // page should show the page before it, not an empty table.
+  const currentPage = Math.min(page, pageCount);
+  const firstOnPage = (currentPage - 1) * pageSize;
+  const pageEntries = visibleEntries.slice(firstOnPage, firstOnPage + pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters, pageSize]);
 
   function addEntry() {
     const amount = Number(draft.amount);
@@ -195,7 +246,7 @@ export function LedgerEntries({
 
       <EntryFiltersPanel
         filters={filters}
-        setFilters={setFilters}
+        setFilters={applyFilters}
         accounts={accounts}
         categories={usedCategories}
         bounds={bounds}
@@ -206,11 +257,13 @@ export function LedgerEntries({
       />
 
       <div className="space-y-3 md:hidden">
-        {visibleEntries.map((entry, index) => {
+        {pageEntries.map((entry, index) => {
           const account = accounts.find((item) => item.id === entry.accountId);
           const destination = accounts.find((item) => item.id === entry.destinationAccountId);
+          // Counted from the start of the filtered set, not the start of the
+          // page, or page two would restart from the opening balance.
           const running = showRunning
-            ? runningBalance(filters.accountId, visibleEntries.slice(0, index + 1), accounts)
+            ? runningBalance(filters.accountId, visibleEntries.slice(0, firstOnPage + index + 1), accounts)
             : undefined;
           return (
             <article key={entry.id} className={`${financeStyles.inset} p-4`}>
@@ -276,11 +329,11 @@ export function LedgerEntries({
             </tr>
           </thead>
           <tbody>
-            {visibleEntries.map((entry, index) => {
+            {pageEntries.map((entry, index) => {
               const account = accounts.find((item) => item.id === entry.accountId);
               const destination = accounts.find((item) => item.id === entry.destinationAccountId);
               const running = showRunning
-                ? runningBalance(filters.accountId, visibleEntries.slice(0, index + 1), accounts)
+                ? runningBalance(filters.accountId, visibleEntries.slice(0, firstOnPage + index + 1), accounts)
                 : undefined;
               return (
                 <tr key={entry.id} className="text-slate-300">
@@ -339,7 +392,18 @@ export function LedgerEntries({
       </div>
       {visibleEntries.length === 0 ? (
         <p className="py-10 text-center text-sm text-slate-600">No transactions for this view.</p>
-      ) : null}
+      ) : (
+        <Pagination
+          page={currentPage}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          firstOnPage={firstOnPage}
+          shown={pageEntries.length}
+          total={visibleEntries.length}
+          onPage={setPage}
+          onPageSize={setPageSize}
+        />
+      )}
     </FinanceCard>
   );
 }
@@ -348,6 +412,75 @@ export function LedgerEntries({
 function entryDetail(entry: LedgerEntry, categoryList: LedgerCategory[]) {
   if (!isHoldType(entry.type)) return categoryName(categoryList, entry.categoryId);
   return entry.counterparty ? `for ${entry.counterparty}` : '';
+}
+
+function Pagination({
+  page,
+  pageCount,
+  pageSize,
+  firstOnPage,
+  shown,
+  total,
+  onPage,
+  onPageSize,
+}: {
+  page: number;
+  pageCount: number;
+  pageSize: number;
+  firstOnPage: number;
+  shown: number;
+  total: number;
+  onPage: (page: number) => void;
+  onPageSize: (size: number) => void;
+}) {
+  return (
+    <div className="mt-5 flex flex-col gap-3 border-t border-white/6 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-slate-500">
+        {firstOnPage + 1}–{firstOnPage + shown} of {total}
+      </p>
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-2 text-xs text-slate-500">
+          Per page
+          <select
+            className={`${financeStyles.input} w-auto py-1.5`}
+            value={pageSize}
+            onChange={(event) => onPageSize(Number(event.target.value))}
+          >
+            {PAGE_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </label>
+        {/* Hidden rather than disabled on a single page: a lone "1 of 1" with
+            two dead arrows is noise. */}
+        {pageCount > 1 ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className={financeStyles.secondary}
+              disabled={page <= 1}
+              onClick={() => onPage(page - 1)}
+            >
+              Previous
+            </button>
+            <span className="min-w-20 text-center text-xs text-slate-500">
+              Page {page} of {pageCount}
+            </span>
+            <button
+              type="button"
+              className={financeStyles.secondary}
+              disabled={page >= pageCount}
+              onClick={() => onPage(page + 1)}
+            >
+              Next
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function runningBalance(accountId: string, entries: LedgerEntry[], accounts: LedgerAccount[]) {

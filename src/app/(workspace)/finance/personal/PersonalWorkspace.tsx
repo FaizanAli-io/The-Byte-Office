@@ -200,11 +200,6 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
               hint={latestHealth ? new Date(latestHealth.createdAt).toLocaleString() : 'Add a metric below'}
             />
           </div>
-          {/* The trend is the reason to open this page, so it comes before the
-              form that feeds it. */}
-          <div className="mb-6">
-            <HealthChart entries={health} />
-          </div>
           <FinanceCard title="Health tracking" description="Leave the date empty to use now.">
             <div className={`${financeStyles.inset} mb-5 grid gap-4 p-4 md:grid-cols-4`}>
               <label>
@@ -293,6 +288,11 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
               </div>
             )}
           </FinanceCard>
+          {/* Below the readings: the list is what the page is used to edit,
+              and the trend is what it is used to read. */}
+          <div className="mt-6">
+            <HealthChart entries={health} />
+          </div>
         </FinancePageShell>
       )}
       <FinanceToast toast={toast} onDismiss={() => setToast(null)} />

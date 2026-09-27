@@ -3,19 +3,17 @@
 import { useState } from 'react';
 import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory } from '@/types/ledger';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
-import { CollapseToggle, Field } from './LedgerAccounts';
 
 /**
- * The canonical category list, managed in the one place categories are used.
+ * The canonical category list, managed where categories are used.
  *
- * Categories are global rather than per-month, so this card does not belong
- * to the ledger being viewed — but a separate settings page for a single list
- * would be a page nobody remembers exists. It stays collapsed by default
- * because the list is edited far less often than it is picked from.
+ * Categories are global rather than per-month, so this table does not belong
+ * to the ledger being viewed — but a settings page holding a single list is a
+ * page nobody remembers exists.
  *
- * Archiving, not deleting, is the ordinary way to retire a category: the
- * entries that used it keep their label. Deleting is offered only for a
- * category nothing points at, and the API refuses the rest with a count.
+ * Archiving, not deleting, is the ordinary way to retire a category: entries
+ * that used it keep their label. Deleting is only for a category nothing
+ * points at, and the API refuses the rest with a count.
  */
 
 const KIND_LABELS: Record<CategoryKind, string> = {
@@ -23,6 +21,8 @@ const KIND_LABELS: Record<CategoryKind, string> = {
   expense: 'Expense only',
   both: 'Either',
 };
+
+type SaveInput = { id?: string; name?: string; kind?: CategoryKind; archived?: boolean };
 
 export function LedgerCategories({
   categories,
@@ -34,16 +34,19 @@ export function LedgerCategories({
   categories: LedgerCategory[];
   saving: boolean;
   readOnly: boolean;
-  onSave: (input: { id?: string; name?: string; kind?: CategoryKind; archived?: boolean }) => void;
+  onSave: (input: SaveInput) => void;
   onRemove: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<CategoryKind>('both');
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  const active = categories.filter((category) => !category.archivedAt);
-  const archived = categories.filter((category) => category.archivedAt);
+  // Active first, then archived, so the list people actually pick from is at
+  // the top and retired names stay visible without being in the way.
+  const ordered = [
+    ...categories.filter((category) => !category.archivedAt),
+    ...categories.filter((category) => category.archivedAt),
+  ];
 
   function add() {
     if (!name.trim()) return;
@@ -54,33 +57,55 @@ export function LedgerCategories({
 
   return (
     <FinanceCard title="Categories" description="One canonical list, shared by every month and by the assistant.">
-      <div className={financeStyles.inset}>
-        <CollapseToggle
-          open={open}
-          title={`${active.length} ${active.length === 1 ? 'category' : 'categories'}`}
-          subtitle={archived.length ? `${archived.length} archived` : 'Rename, archive, or add a new one'}
-          onToggle={() => setOpen((value) => !value)}
-        />
-        {open ? (
-          <div className="space-y-3 border-t border-white/6 p-4">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-sm">
+          <thead>
+            <tr className="text-xs uppercase tracking-[0.12em] text-slate-600">
+              <th className="border-b border-white/8 px-3 py-3 font-semibold">Name</th>
+              <th className="border-b border-white/8 px-3 py-3 font-semibold">Applies to</th>
+              <th className="border-b border-white/8 px-3 py-3 font-semibold">Status</th>
+              <th className="border-b border-white/8 px-3 py-3 text-right font-semibold" />
+            </tr>
+          </thead>
+          <tbody>
+            {ordered.map((category) => (
+              <CategoryRow
+                key={category.id}
+                category={category}
+                saving={saving}
+                readOnly={readOnly}
+                confirmingDelete={pendingDelete === category.id}
+                onSave={onSave}
+                onDelete={() => {
+                  if (pendingDelete !== category.id) {
+                    setPendingDelete(category.id);
+                    return;
+                  }
+                  setPendingDelete(null);
+                  onRemove(category.id);
+                }}
+              />
+            ))}
+
             {!readOnly ? (
-              <div className={`${financeStyles.inset} grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto]`}>
-                <Field label="New category">
+              <tr>
+                <td className="border-b border-white/5 px-3 py-3">
                   <input
                     className={financeStyles.input}
                     value={name}
-                    placeholder="Groceries"
+                    placeholder="New category"
                     disabled={saving}
                     onChange={(event) => setName(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') add();
                     }}
                   />
-                </Field>
-                <Field label="Applies to">
+                </td>
+                <td className="border-b border-white/5 px-3 py-3">
                   <KindSelect value={kind} disabled={saving} onChange={setKind} />
-                </Field>
-                <div className="flex items-end">
+                </td>
+                <td className="border-b border-white/5 px-3 py-3 text-xs text-slate-600">New</td>
+                <td className="border-b border-white/5 px-3 py-3 text-right">
                   <button
                     type="button"
                     className={financeStyles.primary}
@@ -89,35 +114,13 @@ export function LedgerCategories({
                   >
                     Add
                   </button>
-                </div>
-              </div>
+                </td>
+              </tr>
             ) : null}
-
-            {!categories.length ? (
-              <p className="py-6 text-center text-sm text-slate-600">No categories yet.</p>
-            ) : (
-              [...active, ...archived].map((category) => (
-                <CategoryRow
-                  key={category.id}
-                  category={category}
-                  saving={saving}
-                  readOnly={readOnly}
-                  confirmingDelete={pendingDelete === category.id}
-                  onSave={onSave}
-                  onDelete={() => {
-                    if (pendingDelete !== category.id) {
-                      setPendingDelete(category.id);
-                      return;
-                    }
-                    setPendingDelete(null);
-                    onRemove(category.id);
-                  }}
-                />
-              ))
-            )}
-          </div>
-        ) : null}
+          </tbody>
+        </table>
       </div>
+      {!ordered.length ? <p className="py-6 text-center text-sm text-slate-600">No categories yet.</p> : null}
     </FinanceCard>
   );
 }
@@ -134,7 +137,7 @@ function CategoryRow({
   saving: boolean;
   readOnly: boolean;
   confirmingDelete: boolean;
-  onSave: (input: { id?: string; name?: string; kind?: CategoryKind; archived?: boolean }) => void;
+  onSave: (input: SaveInput) => void;
   onDelete: () => void;
 }) {
   // Renaming commits on blur rather than on every keystroke, since each save
@@ -143,12 +146,8 @@ function CategoryRow({
   const archived = Boolean(category.archivedAt);
 
   return (
-    <div
-      className={`${financeStyles.inset} grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-end ${
-        archived ? 'opacity-60' : ''
-      }`}
-    >
-      <Field label={archived ? 'Archived' : 'Name'}>
+    <tr className={archived ? 'opacity-60' : ''}>
+      <td className="border-b border-white/5 px-3 py-3">
         <input
           className={financeStyles.input}
           value={draftName}
@@ -163,32 +162,42 @@ function CategoryRow({
             if (next !== category.name) onSave({ id: category.id, name: next });
           }}
         />
-      </Field>
-      <Field label="Applies to">
+      </td>
+      <td className="border-b border-white/5 px-3 py-3">
         <KindSelect
           value={category.kind}
           disabled={saving || readOnly}
           onChange={(kind) => onSave({ id: category.id, kind })}
         />
-      </Field>
-      <div className="flex gap-2">
+      </td>
+      <td className="border-b border-white/5 px-3 py-3">
+        <span className={`text-xs font-semibold ${archived ? 'text-slate-500' : 'text-emerald-300'}`}>
+          {archived ? 'Archived' : 'Active'}
+        </span>
+      </td>
+      <td className="border-b border-white/5 px-3 py-3 text-right">
         {!readOnly ? (
-          <>
+          <div className="flex justify-end gap-3">
             <button
               type="button"
-              className={financeStyles.secondary}
+              className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 disabled:opacity-50"
               disabled={saving}
               onClick={() => onSave({ id: category.id, archived: !archived })}
             >
               {archived ? 'Restore' : 'Archive'}
             </button>
-            <button type="button" className={financeStyles.danger} disabled={saving} onClick={onDelete}>
+            <button
+              type="button"
+              className="text-xs font-semibold text-rose-400 hover:text-rose-300 disabled:opacity-50"
+              disabled={saving}
+              onClick={onDelete}
+            >
               {confirmingDelete ? 'Confirm' : 'Delete'}
             </button>
-          </>
+          </div>
         ) : null}
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 }
 

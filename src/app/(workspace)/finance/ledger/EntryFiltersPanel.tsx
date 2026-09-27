@@ -11,8 +11,19 @@ import { CollapseToggle, Field } from './LedgerAccounts';
  * predicates that describe a default filter set.
  */
 
-export type EntrySortKey = 'date' | 'amount' | 'type' | 'account' | 'category';
-export type EntrySortDir = 'asc' | 'desc';
+export const ENTRY_SORT_KEYS = ['date', 'amount', 'type', 'account', 'category'] as const;
+export const ENTRY_SORT_DIRS = ['asc', 'desc'] as const;
+
+export type EntrySortKey = (typeof ENTRY_SORT_KEYS)[number];
+export type EntrySortDir = (typeof ENTRY_SORT_DIRS)[number];
+
+const SORT_LABELS: Record<EntrySortKey, string> = {
+  date: 'Date',
+  amount: 'Amount',
+  type: 'Type',
+  account: 'Account',
+  category: 'Category',
+};
 
 export type EntryFilters = {
   accountId: string;
@@ -35,6 +46,59 @@ export const emptyFilters: EntryFilters = {
   sortBy: 'date',
   sortDir: 'asc',
 };
+
+/**
+ * Filters are remembered between visits, because there is almost always one
+ * account or category being worked through and re-picking it every time is
+ * friction. They live in this browser only: a convenience, not data, so a
+ * fresh device simply starts on the defaults.
+ *
+ * The date window is deliberately *not* remembered. Every other filter means
+ * the same thing in any month, but a date range belongs to the month it was
+ * typed in — restoring March's "to 20 March" while viewing April would hide
+ * every row with nothing on screen to explain why.
+ *
+ * Both accessors swallow their errors, and every stored value is checked on
+ * the way back in. A private window, blocked site data or a hand-edited entry
+ * should cost the remembered filters, never the ledger.
+ */
+const FILTERS_KEY = 'ledger.filters';
+
+export function rememberedFilters(): EntryFilters {
+  try {
+    const raw = localStorage.getItem(FILTERS_KEY);
+    if (!raw) return emptyFilters;
+    const stored = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      ...emptyFilters,
+      accountId: storedText(stored.accountId, emptyFilters.accountId),
+      type: storedText(stored.type, emptyFilters.type),
+      category: storedText(stored.category, emptyFilters.category),
+      query: storedText(stored.query, emptyFilters.query),
+      sortBy: storedOneOf(stored.sortBy, ENTRY_SORT_KEYS, emptyFilters.sortBy),
+      sortDir: storedOneOf(stored.sortDir, ENTRY_SORT_DIRS, emptyFilters.sortDir),
+    };
+  } catch {
+    return emptyFilters;
+  }
+}
+
+export function rememberFilters(filters: EntryFilters) {
+  try {
+    const { accountId, type, category, query, sortBy, sortDir } = filters;
+    localStorage.setItem(FILTERS_KEY, JSON.stringify({ accountId, type, category, query, sortBy, sortDir }));
+  } catch {
+    // Nothing to do: the filters still work for this visit.
+  }
+}
+
+function storedText(value: unknown, fallback: string) {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function storedOneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
+}
 
 function sortOrderLabel(sortBy: EntrySortKey, direction: EntrySortDir) {
   if (sortBy === 'amount') return direction === 'asc' ? 'Low to high' : 'High to low';
@@ -172,11 +236,11 @@ export function EntryFiltersPanel({
               value={filters.sortBy}
               onChange={(event) => setFilters({ ...filters, sortBy: event.target.value as EntrySortKey })}
             >
-              <option value="date">Date</option>
-              <option value="amount">Amount</option>
-              <option value="type">Type</option>
-              <option value="account">Account</option>
-              <option value="category">Category</option>
+              {ENTRY_SORT_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {SORT_LABELS[key]}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label="Order">
