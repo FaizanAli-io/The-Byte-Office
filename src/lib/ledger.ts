@@ -1,4 +1,4 @@
-import type { LedgerAccount, LedgerEntry, MonthlyLedger } from '@/types/ledger';
+import type { LedgerAccount, LedgerEntry, LedgerEntryType, MonthlyLedger } from '@/types/ledger';
 
 /** Every amount below is a major-unit amount: rupees for PKR, dollars for USD. */
 
@@ -8,7 +8,29 @@ export const ENTRY_LABELS: Record<LedgerEntry['type'], string> = {
   transfer: 'Transfer',
   fund_contribution: 'Fund contribution',
   fund_withdrawal: 'Fund withdrawal',
+  hold_received: 'Hold received',
+  hold_returned: 'Hold returned',
 };
+
+/** Money someone else owns that is sitting in one of your accounts. */
+export function isHoldType(type: LedgerEntryType) {
+  return type === 'hold_received' || type === 'hold_returned';
+}
+
+/**
+ * Which accounts an entry type may touch. Fund movements only make sense on a
+ * fund; a hold only makes sense on a bank, because a hold on a fund would
+ * move `expected` without moving `netInvested` and silently distort the
+ * fund's gain or loss. The ledger form, the assistant's defaults and the
+ * validator all ask this one question rather than each repeating the rule.
+ */
+export function eligibleAccounts<T extends Pick<LedgerAccount, 'type'>>(accounts: T[], type: LedgerEntryType) {
+  if (type === 'fund_contribution' || type === 'fund_withdrawal') {
+    return accounts.filter((account) => account.type === 'fund');
+  }
+  if (isHoldType(type)) return accounts.filter((account) => account.type === 'bank');
+  return accounts;
+}
 
 export function isMonth(value: string) {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
@@ -47,7 +69,9 @@ export function accountMovement(accountId: string, entry: LedgerEntry) {
   }
 
   if (entry.accountId !== accountId) return 0;
-  if (entry.type === 'income' || entry.type === 'fund_contribution') {
+  // A received hold is real cash arriving, so the balance must rise by it or
+  // reconciliation against the statement would fail. It is simply not income.
+  if (entry.type === 'income' || entry.type === 'fund_contribution' || entry.type === 'hold_received') {
     return entry.amount;
   }
   return -entry.amount;
@@ -129,7 +153,58 @@ export function ledgerSummary(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'
     return total;
   }, 0);
 
-  return { income, expenses, netCashFlow: income - expenses, fundFlow };
+  const heldMovement = heldFunds(
+    ledger.entries.map((entry) => ({
+      type: entry.type,
+      counterparty: entry.counterparty,
+      amountPkr: toPkr(entry.amount, entry.accountId, ledger.accounts, entry.exchangeRate),
+    }))
+  ).total;
+
+  return { income, expenses, netCashFlow: income - expenses, fundFlow, heldMovement };
+}
+
+export const UNATTRIBUTED_HOLD = 'Unattributed';
+
+export type HoldMovement = {
+  type: LedgerEntryType;
+  counterparty?: string | null;
+  amountPkr: number;
+};
+
+/**
+ * How much of your cash belongs to someone else, and to whom.
+ *
+ * There is no register table: a hold is outstanding exactly when it has been
+ * received and not yet returned, which the entries already say. Feeding this
+ * the hold entries from one month gives that month's movement; feeding it
+ * every hold entry ever written gives what is outstanding now, and cutting
+ * the list off at a date gives what was outstanding then. One derivation, so
+ * a stored balance can never disagree with the entries behind it.
+ *
+ * Counterparties that net to zero have been settled and are dropped. A
+ * negative one means more was returned than was ever received, which is a
+ * mistake worth seeing rather than hiding.
+ */
+export function heldFunds(movements: HoldMovement[]) {
+  const byCounterparty = new Map<string, number>();
+  let total = 0;
+
+  for (const movement of movements) {
+    if (!isHoldType(movement.type)) continue;
+    const signed = movement.type === 'hold_received' ? movement.amountPkr : -movement.amountPkr;
+    const who = movement.counterparty?.trim() || UNATTRIBUTED_HOLD;
+    total += signed;
+    byCounterparty.set(who, (byCounterparty.get(who) ?? 0) + signed);
+  }
+
+  return {
+    total,
+    byCounterparty: [...byCounterparty]
+      .map(([counterparty, amount]) => ({ counterparty, amount }))
+      .filter((row) => Math.abs(row.amount) >= 0.005)
+      .sort((a, b) => b.amount - a.amount),
+  };
 }
 
 function toPkr(amount: number, accountId: string, accounts: LedgerAccount[], exchangeRate?: number) {

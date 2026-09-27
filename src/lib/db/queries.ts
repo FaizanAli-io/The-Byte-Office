@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, lt } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt } from 'drizzle-orm';
 import type { FinanceDoc, FinanceFund, FinanceSnapshot } from '@/types/finance';
 import type { LedgerAccount, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 import { getDb, getSql } from './index';
@@ -213,6 +213,7 @@ function toEntry(row: typeof ledgerEntries.$inferSelect): LedgerEntry {
     destinationAmount: row.destinationAmount ?? undefined,
     exchangeRate: row.exchangeRate ?? undefined,
     category: row.category ?? undefined,
+    counterparty: row.counterparty ?? undefined,
     note: row.note ?? undefined,
   };
 }
@@ -309,7 +310,7 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   });
   body.entries.forEach((entry, index) => {
     statements.push(
-      sql`INSERT INTO finance.ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category, note, sort_order) VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount === undefined ? null : entry.destinationAmount}, ${entry.exchangeRate ?? null}, ${entry.category ?? null}, ${entry.note ?? null}, ${index})`
+      sql`INSERT INTO finance.ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category, counterparty, note, sort_order) VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount === undefined ? null : entry.destinationAmount}, ${entry.exchangeRate ?? null}, ${entry.category ?? null}, ${entry.counterparty ?? null}, ${entry.note ?? null}, ${index})`
     );
   });
 
@@ -317,6 +318,49 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   const saved = await loadLedger(body.month);
   if (!saved) throw new Error('Failed to save ledger');
   return saved;
+}
+
+/**
+ * Every hold movement ever recorded, oldest first, already converted to PKR.
+ *
+ * Holds are the one ledger figure that has to be read across months: a hold
+ * taken in January is still outstanding in March, so a single month's entries
+ * cannot answer what is currently being held. Draft ledgers count, because the
+ * cash is in the account whether or not the month has been finalized.
+ */
+export async function loadHoldMovements() {
+  const rows = await getDb()
+    .select({
+      month: ledgers.month,
+      date: ledgerEntries.date,
+      type: ledgerEntries.type,
+      counterparty: ledgerEntries.counterparty,
+      note: ledgerEntries.note,
+      amount: ledgerEntries.amount,
+      entryRate: ledgerEntries.exchangeRate,
+      accountName: ledgerAccounts.name,
+      currency: ledgerAccounts.currency,
+      accountRate: ledgerAccounts.exchangeRate,
+    })
+    .from(ledgerEntries)
+    .innerJoin(ledgerAccounts, eq(ledgerEntries.accountId, ledgerAccounts.id))
+    .innerJoin(ledgers, eq(ledgerEntries.ledgerId, ledgers.id))
+    .where(inArray(ledgerEntries.type, ['hold_received', 'hold_returned']))
+    .orderBy(asc(ledgerEntries.date), asc(ledgerEntries.sortOrder));
+
+  return rows.map((row) => ({
+    month: row.month,
+    date: row.date,
+    type: row.type,
+    counterparty: row.counterparty ?? undefined,
+    note: row.note ?? undefined,
+    account: row.accountName,
+    amount: row.amount,
+    currency: row.currency,
+    // The entry's own rate is the one in force when the money moved; the
+    // account's is only a fallback for entries written before rates were kept.
+    amountPkr: row.currency === 'USD' ? row.amount * (row.entryRate ?? row.accountRate) : row.amount,
+  }));
 }
 
 export async function listSnapshots(): Promise<FinanceSnapshot[]> {

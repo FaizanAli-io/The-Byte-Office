@@ -1,17 +1,11 @@
 'use client';
 
-import { monthBounds } from '@/lib/ledger';
+import { eligibleAccounts, monthBounds } from '@/lib/ledger';
 import type { LedgerEntryFormState } from '@/lib/finance-agent/types';
 import type { LedgerEntryType } from '@/types/ledger';
 import { FormEvent, useState } from 'react';
 import { financeStyles } from '../../components/FinanceUI';
-import {
-  draftIncomplete,
-  eligibleAccounts,
-  firstOtherAccountId,
-  EntryFields,
-  type EntryDraft,
-} from '../../ledger/EntryFields';
+import { draftIncomplete, firstOtherAccountId, EntryFields, type EntryDraft } from '../../ledger/EntryFields';
 
 export function LedgerEntryChatForm({
   form,
@@ -43,6 +37,7 @@ export function LedgerEntryChatForm({
         draft.type === 'transfer' && draft.destinationAmount ? Number(draft.destinationAmount) : undefined,
       exchangeRate: sourceAccount?.exchangeRate ?? 1,
       category: draft.category.trim() || undefined,
+      counterparty: draft.counterparty.trim() || undefined,
       note: draft.note.trim() || undefined,
     });
   }
@@ -84,6 +79,7 @@ function draftFromForm(form: LedgerEntryFormState): EntryDraft {
     amount: form.entry.amount === undefined ? '' : String(form.entry.amount),
     destinationAmount: form.entry.destinationAmount === undefined ? '' : String(form.entry.destinationAmount),
     category: form.entry.category ?? '',
+    counterparty: form.entry.counterparty ?? '',
     note: form.entry.note ?? '',
   };
 }

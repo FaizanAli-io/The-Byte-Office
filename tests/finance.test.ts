@@ -23,7 +23,22 @@ const doc: FinanceDoc = {
 
 describe('portfolioTotals', () => {
   it('totals each class and the whole portfolio', () => {
-    expect(portfolioTotals(doc)).toEqual({ local: 1500, remote: 28_000, mutual: 6500, grandTotal: 36_000 });
+    expect(portfolioTotals(doc)).toEqual({
+      local: 1500,
+      remote: 28_000,
+      mutual: 6500,
+      grandTotal: 36_000,
+      held: 0,
+      net: 36_000,
+    });
+  });
+
+  it('nets out money being held for someone else', () => {
+    const totals = portfolioTotals(doc, 6000);
+    // Gross is unchanged: the cash really is in the accounts, and
+    // reconciliation has to keep agreeing with the bank.
+    expect(totals.grandTotal).toBe(36_000);
+    expect(totals.net).toBe(30_000);
   });
 
   it('is zero for an empty portfolio', () => {

@@ -1,5 +1,13 @@
-import { getSnapshot, listLedgerSummaries, listSnapshotSummaries, loadHoldings, loadLedger } from '@/lib/db/queries';
+import {
+  getSnapshot,
+  listLedgerSummaries,
+  listSnapshotSummaries,
+  loadHoldings,
+  loadHoldMovements,
+  loadLedger,
+} from '@/lib/db/queries';
 import { holdingTotals } from '@/lib/finance';
+import { heldFunds } from '@/lib/ledger';
 import { agentToolRegistry, type GroqTool } from '@/lib/agent/registry';
 import { proposeAgentAction } from './actions';
 import type { AgentActionType, PendingAgentAction } from './types';
@@ -13,8 +21,20 @@ export async function executeFinanceTool(
   const input = asObject(args);
 
   if (name === 'portfolio_get') {
-    const portfolio = await loadHoldings();
-    return { output: { ...portfolio, grandTotalPkr: holdingTotals(portfolio).grandTotal } };
+    const [portfolio, movements] = await Promise.all([loadHoldings(), loadHoldMovements()]);
+    const held = heldFunds(movements);
+    const totals = holdingTotals(portfolio, held.total);
+    // Both totals are reported, because neither alone is the honest answer:
+    // gross is what the accounts hold, net is what is actually owned.
+    return {
+      output: {
+        ...portfolio,
+        grandTotalPkr: totals.grandTotal,
+        heldForOthersPkr: totals.held,
+        netTotalPkr: totals.net,
+        heldForOthers: held.byCounterparty,
+      },
+    };
   }
   if (name === 'snapshots_list') {
     return { output: await listSnapshotSummaries() };

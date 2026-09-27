@@ -112,17 +112,11 @@ export type LedgerEntryFormState = {
   kind: 'ledger_entry_add' | 'ledger_entry_update';
   month: string;
   accounts: Pick<LedgerAccount, 'id' | 'name' | 'currency' | 'type' | 'exchangeRate'>[];
-  entry: {
-    id?: string;
-    date: string;
-    type?: LedgerEntry['type'];
-    accountId?: string;
-    destinationAccountId?: string;
-    amount?: number;
-    destinationAmount?: number;
-    category?: string;
-    note?: string;
-  };
+  /**
+   * Whatever of an entry is known so far. Spelling the fields out again was
+   * how `counterparty` came to exist everywhere except the in-chat form.
+   */
+  entry: Partial<LedgerEntry> & { date: string };
 };
 
 export type PendingAgentAction = {

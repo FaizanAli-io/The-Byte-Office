@@ -1,4 +1,5 @@
 import { relations, sql } from 'drizzle-orm';
+import { LEDGER_ENTRY_TYPES } from '@/types/ledger';
 import {
   boolean,
   check,
@@ -35,13 +36,7 @@ export const personal = pgSchema('personal');
 export const ledgerStatusEnum = finance.enum('ledger_status', ['draft', 'finalized']);
 export const ledgerAccountTypeEnum = finance.enum('ledger_account_type', ['bank', 'fund']);
 export const ledgerCurrencyEnum = finance.enum('ledger_currency', ['PKR', 'USD']);
-export const ledgerEntryTypeEnum = finance.enum('ledger_entry_type', [
-  'income',
-  'expense',
-  'transfer',
-  'fund_contribution',
-  'fund_withdrawal',
-]);
+export const ledgerEntryTypeEnum = finance.enum('ledger_entry_type', LEDGER_ENTRY_TYPES);
 export const financeAgentActionStatusEnum = finance.enum('finance_agent_action_status', [
   'pending',
   'executing',
@@ -182,6 +177,8 @@ export const ledgerEntries = finance.table(
       mode: 'number',
     }),
     category: text('category'),
+    /** Whose money a hold belongs to; null on every other entry type. */
+    counterparty: text('counterparty'),
     note: text('note'),
     sortOrder: integer('sort_order').notNull().default(0),
   },

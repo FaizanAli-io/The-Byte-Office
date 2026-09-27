@@ -1,6 +1,6 @@
 'use client';
 
-import { accountMovement, ENTRY_LABELS, formatMoney, monthBounds } from '@/lib/ledger';
+import { accountMovement, ENTRY_LABELS, formatMoney, isHoldType, monthBounds } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntry, LedgerEntryType } from '@/types/ledger';
 import { useEffect, useMemo, useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
@@ -107,6 +107,7 @@ export function LedgerEntries({
           ? (previous.exchangeRate ?? sourceAccount?.exchangeRate ?? 1)
           : (sourceAccount?.exchangeRate ?? 1),
       category: draft.category.trim() || undefined,
+      counterparty: draft.counterparty.trim() || undefined,
       note: draft.note.trim() || undefined,
     };
     if (editingId) onUpdate(entry);
@@ -130,6 +131,7 @@ export function LedgerEntries({
       amount: String(entry.amount),
       destinationAmount: entry.destinationAmount === undefined ? '' : String(entry.destinationAmount),
       category: entry.category ?? '',
+      counterparty: entry.counterparty ?? '',
       note: entry.note ?? '',
     });
   }
@@ -214,7 +216,7 @@ export function LedgerEntries({
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                 <TypeBadge type={entry.type} />
-                {entry.category ? <span className="text-slate-400">{entry.category}</span> : null}
+                {entryDetail(entry) ? <span className="text-slate-400">{entryDetail(entry)}</span> : null}
               </div>
               {entry.note ? <p className="mt-3 break-words text-xs leading-5 text-slate-500">{entry.note}</p> : null}
               {running !== undefined ? (
@@ -278,7 +280,7 @@ export function LedgerEntries({
                     {destination ? <span className="block text-xs text-slate-600">to {destination.name}</span> : null}
                   </td>
                   <td className="border-b border-white/5 px-3 py-4">
-                    <span>{entry.category || '—'}</span>
+                    <span>{entryDetail(entry) || '—'}</span>
                     {entry.note ? (
                       <span className="block max-w-xs truncate text-xs text-slate-600">{entry.note}</span>
                     ) : null}
@@ -324,6 +326,12 @@ export function LedgerEntries({
   );
 }
 
+/** A hold's counterparty occupies the column a category would otherwise use. */
+function entryDetail(entry: LedgerEntry) {
+  if (!isHoldType(entry.type)) return entry.category ?? '';
+  return entry.counterparty ? `for ${entry.counterparty}` : '';
+}
+
 function runningBalance(accountId: string, entries: LedgerEntry[], accounts: LedgerAccount[]) {
   const account = accounts.find((item) => item.id === accountId);
   if (!account) return 0;
@@ -336,6 +344,10 @@ const TYPE_BADGE: Record<LedgerEntryType, string> = {
   transfer: 'border-cyan-400/25 bg-cyan-400/12 text-cyan-300',
   fund_contribution: 'border-amber-400/25 bg-amber-400/12 text-amber-300',
   fund_withdrawal: 'border-violet-400/25 bg-violet-400/12 text-violet-300',
+  // Holds are deliberately the same colour in both directions: they are one
+  // concept moving two ways, not an income and an expense.
+  hold_received: 'border-sky-400/25 bg-sky-400/12 text-sky-300',
+  hold_returned: 'border-sky-400/25 bg-sky-400/12 text-sky-300',
 };
 
 function TypeBadge({ type }: { type: LedgerEntryType }) {

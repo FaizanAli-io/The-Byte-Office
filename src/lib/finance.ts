@@ -14,12 +14,21 @@ export type HoldingRows = {
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
-/** Every total is in PKR; remote banks are converted at their own rate. */
-export function holdingTotals(rows: HoldingRows) {
+/**
+ * Every total is in PKR; remote banks are converted at their own rate.
+ *
+ * `grandTotal` is gross: what the accounts actually hold, which is the number
+ * reconciliation has to agree with. `net` subtracts money being held for
+ * someone else, which is the number that is actually yours. `held` comes from
+ * the ledger's hold entries and is passed in, so this stays a pure function
+ * over holdings.
+ */
+export function holdingTotals(rows: HoldingRows, held = 0) {
   const local = sum(rows.localBanks.map((bank) => bank.amountPkr));
   const remote = sum(rows.remoteBanks.map((bank) => bank.amountUsd * bank.exchangeRate));
   const mutual = sum(rows.mutualFunds.map((fund) => fund.value));
-  return { local, remote, mutual, grandTotal: local + remote + mutual };
+  const grandTotal = local + remote + mutual;
+  return { local, remote, mutual, grandTotal, held, net: grandTotal - held };
 }
 
 /** `mutualFunds` is an array of single-key `{ [bank]: funds }` objects. */
@@ -30,8 +39,8 @@ export function fundGroups(data: Pick<FinanceDoc, 'mutualFunds'>): { bank: strin
   });
 }
 
-export function portfolioTotals(data: Pick<FinanceDoc, 'localBanks' | 'remoteBanks' | 'mutualFunds'>) {
-  return holdingTotals({ ...data, mutualFunds: fundGroups(data).flatMap((group) => group.funds) });
+export function portfolioTotals(data: Pick<FinanceDoc, 'localBanks' | 'remoteBanks' | 'mutualFunds'>, held = 0) {
+  return holdingTotals({ ...data, mutualFunds: fundGroups(data).flatMap((group) => group.funds) }, held);
 }
 
 export function portfolioAllocations(data: FinanceDoc) {

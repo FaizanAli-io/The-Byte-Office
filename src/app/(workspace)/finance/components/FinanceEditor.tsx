@@ -2,7 +2,8 @@
 
 import { apiFetch } from '@/lib/client-api';
 import { portfolioTotals } from '@/lib/finance';
-import { useState } from 'react';
+import type { heldFunds } from '@/lib/ledger';
+import { useEffect, useState } from 'react';
 import { LocalBanksSection, MutualFundsSection, RemoteBanksSection } from './HoldingTypes';
 import { FinancePageShell, StatCard, financeStyles } from './FinanceUI';
 import { FinanceToast, type FinanceToastState } from './FinanceToast';
@@ -28,6 +29,16 @@ export default function FinanceEditor() {
   } = useFinanceHandlers();
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [toast, setToast] = useState<FinanceToastState>(null);
+  const [held, setHeld] = useState<ReturnType<typeof heldFunds> | null>(null);
+
+  // Held funds come from the ledger rather than from the portfolio, so they
+  // are a second read. A failure here only costs the net line, and the gross
+  // figures are still correct without it, so it does not block the page.
+  useEffect(() => {
+    apiFetch<ReturnType<typeof heldFunds>>('/api/held-funds')
+      .then(setHeld)
+      .catch((err) => console.error('Failed to fetch /api/held-funds:', err));
+  }, []);
 
   async function handleSnapshot() {
     if (!data) return;
@@ -65,7 +76,11 @@ export default function FinanceEditor() {
     );
   }
 
-  const totals = portfolioTotals(data);
+  // The snapshot keeps recording the gross total: it is a record of what the
+  // accounts held, and what is owed back is derivable from the ledger for any
+  // past date anyway.
+  const totals = portfolioTotals(data, held?.total ?? 0);
+  const holdingForOthers = Math.abs(totals.held) >= 0.005;
 
   return (
     <FinancePageShell
@@ -87,15 +102,34 @@ export default function FinanceEditor() {
         </>
       }
     >
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={`mb-6 grid gap-4 sm:grid-cols-2 ${holdingForOthers ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}>
         <StatCard label="Local banks" value={`${Math.round(totals.local).toLocaleString()} PKR`} />
         <StatCard label="Remote banks" value={`${Math.round(totals.remote).toLocaleString()} PKR`} />
         <StatCard label="Mutual funds" value={`${Math.round(totals.mutual).toLocaleString()} PKR`} tone="amber" />
         <StatCard
           label="Portfolio total"
           value={`${Math.round(totals.grandTotal).toLocaleString()} PKR`}
-          tone="emerald"
+          hint={holdingForOthers ? 'Everything the accounts hold' : undefined}
+          tone={holdingForOthers ? 'cyan' : 'emerald'}
         />
+        {/* Two totals, because neither alone is honest: the accounts really do
+            hold the gross figure, but only the net figure is yours. */}
+        {holdingForOthers ? (
+          <>
+            <StatCard
+              label="Held for others"
+              value={`${Math.round(totals.held).toLocaleString()} PKR`}
+              hint={held?.byCounterparty.map((row) => row.counterparty).join(', ')}
+              tone="rose"
+            />
+            <StatCard
+              label="Net worth"
+              value={`${Math.round(totals.net).toLocaleString()} PKR`}
+              hint="Portfolio total minus held funds"
+              tone="emerald"
+            />
+          </>
+        ) : null}
       </div>
 
       <div className="space-y-6">

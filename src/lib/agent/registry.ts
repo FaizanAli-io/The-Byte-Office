@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { LEDGER_ENTRY_TYPES } from '@/types/ledger';
 
 /**
  * Every agent tool, declared once.
@@ -53,7 +54,7 @@ const entrySerial = z
   .describe('Zero-padded serial from ledger_get, such as 0001');
 export const itemTypeSchema = z.enum(['local_bank', 'remote_bank', 'mutual_fund']);
 const itemType = itemTypeSchema;
-export const entryTypeSchema = z.enum(['income', 'expense', 'transfer', 'fund_contribution', 'fund_withdrawal']);
+export const entryTypeSchema = z.enum(LEDGER_ENTRY_TYPES);
 const entryType = entryTypeSchema;
 const isoDate = z
   .string()
@@ -81,6 +82,12 @@ const ledgerEntryFields = {
   destinationAmount: z.number().positive().nullable().optional(),
   exchangeRate: z.number().positive().nullable().optional(),
   category: z.string().min(1).nullable().optional(),
+  counterparty: z
+    .string()
+    .min(1)
+    .nullable()
+    .optional()
+    .describe('Whose money this is. Only for hold_received and hold_returned'),
   note: z.string().min(1).nullable().optional(),
 };
 
@@ -96,7 +103,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     name: 'portfolio_get',
     title: 'Get portfolio',
     module: 'finance',
-    description: 'Get the live portfolio, stable item IDs, balances, and PKR total.',
+    description:
+      'Get the live portfolio with stable item IDs and balances. Reports a gross PKR total, the amount held for other people, and the net total that is actually yours.',
     schema: empty,
     mcp: true,
   },

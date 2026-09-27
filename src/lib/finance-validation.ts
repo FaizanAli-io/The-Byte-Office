@@ -1,6 +1,6 @@
-import { isMonth, monthBounds } from '@/lib/ledger';
+import { eligibleAccounts, isHoldType, isMonth, monthBounds } from '@/lib/ledger';
 import type { FinanceDoc } from '@/types/finance';
-import type { LedgerEntry, MonthlyLedgerPayload } from '@/types/ledger';
+import { LEDGER_ENTRY_TYPES, type LedgerAccount, type LedgerEntry, type MonthlyLedgerPayload } from '@/types/ledger';
 
 export function validateFinanceDoc(value: unknown): value is Omit<FinanceDoc, '_id'> {
   if (!isRecord(value) || value.name !== 'finance') return false;
@@ -95,7 +95,7 @@ export function validateLedger(body: MonthlyLedgerPayload) {
   if (entryIds.size !== body.entries.length) return 'Entry IDs must be unique';
 
   for (const entry of body.entries as LedgerEntry[]) {
-    const error = validateLedgerEntry(entry, ids, bounds);
+    const error = validateLedgerEntry(entry, body.accounts, bounds);
     if (error) return error;
 
     if (entry.type === 'transfer' && entry.destinationAccountId) {
@@ -126,8 +126,9 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function validateLedgerEntry(entry: LedgerEntry, accountIds: Set<string>, bounds: { min: string; max: string }) {
-  if (!['income', 'expense', 'transfer', 'fund_contribution', 'fund_withdrawal'].includes(entry.type)) {
+function validateLedgerEntry(entry: LedgerEntry, accounts: LedgerAccount[], bounds: { min: string; max: string }) {
+  const accountIds = new Set(accounts.map((account) => account.id));
+  if (!(LEDGER_ENTRY_TYPES as readonly string[]).includes(entry.type)) {
     return 'Invalid entry type';
   }
   if (!entry.id || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) || entry.date < bounds.min || entry.date > bounds.max) {
@@ -143,6 +144,15 @@ function validateLedgerEntry(entry: LedgerEntry, accountIds: Set<string>, bounds
       entry.destinationAccountId === entry.accountId)
   ) {
     return 'Transfers need two different valid accounts';
+  }
+  // Enforced here and not merely in the form: a hold parked on a fund account
+  // would move the expected balance without moving the cost basis, so the
+  // fund's gain or loss would come out wrong with nothing on screen to say why.
+  if (isHoldType(entry.type) && !eligibleAccounts(accounts, entry.type).some((item) => item.id === entry.accountId)) {
+    return 'Held funds must sit in a bank account';
+  }
+  if (entry.counterparty !== undefined && !validName(entry.counterparty)) {
+    return 'Counterparty must be a name';
   }
   if (entry.destinationAmount !== undefined && !validPositiveNumber(entry.destinationAmount)) {
     return 'Destination amount must be positive';

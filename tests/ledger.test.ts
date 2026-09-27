@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   accountMovement,
   accountStats,
+  eligibleAccounts,
   expectedBalance,
   formatVariancePct,
+  heldFunds,
   isMonth,
   ledgerSummary,
   monthBounds,
   reconcileDate,
+  UNATTRIBUTED_HOLD,
   variancePct,
 } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
@@ -87,6 +90,11 @@ describe('accountMovement', () => {
   it('treats a fund contribution as an inflow to the fund', () => {
     expect(accountMovement('bank', entry({ type: 'fund_contribution', amount: 40 }))).toBe(40);
     expect(accountMovement('bank', entry({ type: 'fund_withdrawal', amount: 40 }))).toBe(-40);
+  });
+
+  it('moves the balance on a hold, because the cash really arrives and leaves', () => {
+    expect(accountMovement('bank', entry({ type: 'hold_received', amount: 50_000 }))).toBe(50_000);
+    expect(accountMovement('bank', entry({ type: 'hold_returned', amount: 50_000 }))).toBe(-50_000);
   });
 
   it('ignores entries that do not touch the account', () => {
@@ -288,5 +296,92 @@ describe('decimal amounts', () => {
       entries: [entry({ id: 'i', accountId: 'usd', type: 'income', amount: 123.45 })],
     });
     expect(summary.income).toBeCloseTo(123.45 * 283.456789, 6);
+  });
+});
+
+describe('eligibleAccounts', () => {
+  const accounts = [bank(), fund()];
+
+  it('offers only funds to a fund movement', () => {
+    expect(eligibleAccounts(accounts, 'fund_contribution').map((account) => account.id)).toEqual(['fund']);
+  });
+
+  it('offers only banks to a hold', () => {
+    expect(eligibleAccounts(accounts, 'hold_received').map((account) => account.id)).toEqual(['bank']);
+    expect(eligibleAccounts(accounts, 'hold_returned').map((account) => account.id)).toEqual(['bank']);
+  });
+
+  it('offers everything to an ordinary entry', () => {
+    expect(eligibleAccounts(accounts, 'expense')).toHaveLength(2);
+  });
+});
+
+describe('heldFunds', () => {
+  const movement = (type: 'hold_received' | 'hold_returned', amountPkr: number, counterparty?: string) => ({
+    type,
+    counterparty,
+    amountPkr,
+  });
+
+  it('is what came in minus what went back', () => {
+    const held = heldFunds([movement('hold_received', 50_000, 'Ali'), movement('hold_returned', 20_000, 'Ali')]);
+    expect(held.total).toBe(30_000);
+    expect(held.byCounterparty).toEqual([{ counterparty: 'Ali', amount: 30_000 }]);
+  });
+
+  it('keeps counterparties apart and sorts by what is owed', () => {
+    const held = heldFunds([movement('hold_received', 10_000, 'Ali'), movement('hold_received', 40_000, 'Sara')]);
+    expect(held.byCounterparty).toEqual([
+      { counterparty: 'Sara', amount: 40_000 },
+      { counterparty: 'Ali', amount: 10_000 },
+    ]);
+  });
+
+  it('drops a counterparty who has been paid back in full', () => {
+    const held = heldFunds([movement('hold_received', 5000, 'Ali'), movement('hold_returned', 5000, 'Ali')]);
+    expect(held.total).toBe(0);
+    expect(held.byCounterparty).toEqual([]);
+  });
+
+  it('still shows a counterparty who was over-repaid, since that is a mistake', () => {
+    const held = heldFunds([movement('hold_received', 1000, 'Ali'), movement('hold_returned', 1500, 'Ali')]);
+    expect(held.byCounterparty).toEqual([{ counterparty: 'Ali', amount: -500 }]);
+  });
+
+  it('groups holds with no name under one heading', () => {
+    const held = heldFunds([movement('hold_received', 100), movement('hold_received', 200, '  ')]);
+    expect(held.byCounterparty).toEqual([{ counterparty: UNATTRIBUTED_HOLD, amount: 300 }]);
+  });
+
+  it('ignores every other entry type', () => {
+    expect(heldFunds([{ type: 'income', amountPkr: 99_000 }]).total).toBe(0);
+  });
+});
+
+describe('held funds in a monthly summary', () => {
+  const accounts = [bank({ id: 'pkr' }), bank({ id: 'usd', currency: 'USD', exchangeRate: 280 })];
+
+  it('stays out of income and expenses', () => {
+    const summary = ledgerSummary({
+      accounts,
+      entries: [
+        entry({ id: 'h', accountId: 'pkr', type: 'hold_received', amount: 50_000 }),
+        entry({ id: 'e', accountId: 'pkr', type: 'expense', amount: 2000 }),
+      ],
+    });
+    expect(summary).toMatchObject({ income: 0, expenses: 2000, heldMovement: 50_000 });
+  });
+
+  it('converts a hold taken in a foreign account at the entry rate', () => {
+    const summary = ledgerSummary({
+      accounts,
+      entries: [entry({ id: 'h', accountId: 'usd', type: 'hold_received', amount: 100, exchangeRate: 300 })],
+    });
+    expect(summary.heldMovement).toBe(30_000);
+  });
+
+  it('is zero in a month with no holds', () => {
+    const summary = ledgerSummary({ accounts, entries: [entry({ id: 'e', accountId: 'pkr', amount: 10 })] });
+    expect(summary.heldMovement).toBe(0);
   });
 });

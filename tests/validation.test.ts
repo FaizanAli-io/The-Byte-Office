@@ -65,6 +65,34 @@ describe('validateLedger', () => {
   });
 
   it('accepts a well-formed draft', () => expect(validateLedger(base())).toBeNull());
+
+  it('accepts a hold against a bank account', () => {
+    const entries = [
+      { id: 'h1', date: '2026-03-05', type: 'hold_received' as const, accountId: 'a', amount: 50, counterparty: 'Ali' },
+    ];
+    expect(validateLedger({ ...base(), entries })).toBeNull();
+  });
+
+  it('refuses a hold parked on a fund, which would skew the cost basis', () => {
+    const payload = base();
+    payload.accounts.push({
+      id: 'f',
+      name: 'Meezan Cash',
+      type: 'fund',
+      currency: 'PKR',
+      openingBalance: 0,
+      exchangeRate: 1,
+    });
+    payload.entries = [{ id: 'h1', date: '2026-03-05', type: 'hold_returned', accountId: 'f', amount: 50 }];
+    expect(validateLedger(payload)).toMatch(/bank account/);
+  });
+
+  it('refuses a blank counterparty', () => {
+    const entries = [
+      { id: 'h1', date: '2026-03-05', type: 'hold_received' as const, accountId: 'a', amount: 50, counterparty: '  ' },
+    ];
+    expect(validateLedger({ ...base(), entries })).toMatch(/Counterparty/);
+  });
   it('rejects a malformed month', () => expect(validateLedger({ ...base(), month: '2026-13' })).toBe('Invalid month'));
 
   it('rejects an entry dated outside its month', () => {

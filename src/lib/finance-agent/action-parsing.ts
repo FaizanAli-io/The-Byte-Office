@@ -1,7 +1,7 @@
 import { AgentActionError } from '@/lib/agent/action-utils';
 import { entryTypeSchema, itemTypeSchema } from '@/lib/agent/registry';
 import { isRecord, validMoney, validName, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
-import { monthBounds } from '@/lib/ledger';
+import { eligibleAccounts, monthBounds } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntry, MonthlyLedger } from '@/types/ledger';
 import { fingerprint } from './repository';
 import type { AgentActionPayload, LedgerEntryFormState, PortfolioItemInput, PortfolioItemType } from './types';
@@ -132,7 +132,7 @@ export function parsePortfolioUpdate(
 }
 
 export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
-  const optionalString = (key: 'category' | 'note') =>
+  const optionalString = (key: 'category' | 'counterparty' | 'note') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requireString(args[key], key);
   const optionalNumber = (key: 'destinationAmount' | 'exchangeRate') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requirePositive(args[key], key);
@@ -153,6 +153,7 @@ export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<Le
     destinationAmount: optionalNumber('destinationAmount'),
     exchangeRate: optionalNumber('exchangeRate'),
     category: optionalString('category'),
+    counterparty: optionalString('counterparty'),
     note: optionalString('note'),
   };
 }
@@ -266,9 +267,5 @@ export function isEntryType(value: unknown): value is LedgerEntry['type'] {
 }
 
 export function firstAccountId(accounts: Pick<LedgerAccount, 'id' | 'type'>[], type: LedgerEntry['type']) {
-  const eligible =
-    type === 'fund_contribution' || type === 'fund_withdrawal'
-      ? accounts.filter((account) => account.type === 'fund')
-      : accounts;
-  return eligible[0]?.id ?? accounts[0]?.id ?? '';
+  return eligibleAccounts(accounts, type)[0]?.id ?? accounts[0]?.id ?? '';
 }

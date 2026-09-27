@@ -106,7 +106,7 @@ export default function LedgerPage() {
           </div>
 
           {summary ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className={`grid gap-4 sm:grid-cols-2 ${summary.heldMovement ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
               <StatCard label="Income" value={formatMoney(summary.income, 'PKR')} tone="emerald" />
               <StatCard label="Expenses" value={formatMoney(summary.expenses, 'PKR')} tone="rose" />
               <StatCard
@@ -120,6 +120,15 @@ export default function LedgerPage() {
                 hint="Contributions minus withdrawals"
                 tone="amber"
               />
+              {/* Only shown in months that actually moved a hold, so the row
+                  stays four tiles wide the rest of the time. */}
+              {summary.heldMovement ? (
+                <StatCard
+                  label="Held funds"
+                  value={formatMoney(summary.heldMovement, 'PKR')}
+                  hint="Received minus returned this month"
+                />
+              ) : null}
             </div>
           ) : null}
 

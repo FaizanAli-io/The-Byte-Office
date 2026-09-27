@@ -1,7 +1,27 @@
 export type LedgerCurrency = 'PKR' | 'USD';
 export type LedgerStatus = 'draft' | 'finalized';
 export type LedgerAccountType = 'bank' | 'fund';
-export type LedgerEntryType = 'income' | 'expense' | 'transfer' | 'fund_contribution' | 'fund_withdrawal';
+/**
+ * The entry types, declared once. The database enum, the runtime validator, the
+ * agent's zod schema and the UI label map all derive from this list, because
+ * five separate copies is how one of them ends up missing a type.
+ *
+ * `hold_received` and `hold_returned` are cash movements that are not yours:
+ * money someone hands you to keep for them, and the same money going back.
+ * They move the account balance like any other entry, so reconciliation still
+ * works, but they stay out of income and expenses.
+ */
+export const LEDGER_ENTRY_TYPES = [
+  'income',
+  'expense',
+  'transfer',
+  'fund_contribution',
+  'fund_withdrawal',
+  'hold_received',
+  'hold_returned',
+] as const;
+
+export type LedgerEntryType = (typeof LEDGER_ENTRY_TYPES)[number];
 
 export interface LedgerAccount {
   id: string;
@@ -24,6 +44,8 @@ export interface LedgerEntry {
   destinationAmount?: number;
   exchangeRate?: number;
   category?: string;
+  /** Who the money belongs to. Only meaningful on the two hold types. */
+  counterparty?: string;
   note?: string;
 }
 

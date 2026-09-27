@@ -1,15 +1,15 @@
 'use client';
 
-import { ENTRY_LABELS } from '@/lib/ledger';
+import { ENTRY_LABELS, eligibleAccounts, isHoldType } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntryType } from '@/types/ledger';
 import { financeStyles } from '../components/FinanceUI';
 import { Field } from './LedgerAccounts';
 
 /**
  * The ledger page and the assistant's in-chat form collect exactly the same
- * seven fields with the same rules, and used to do it with two copies of the
- * same markup. The only genuine differences are whether the account selects
- * offer a blank placeholder and whether the inputs are disabled while saving.
+ * fields with the same rules, and used to do it with two copies of the same
+ * markup. The only genuine differences are whether the account selects offer
+ * a blank placeholder and whether the inputs are disabled while saving.
  */
 
 /** The chat form only carries these columns, so that is what the fields need. */
@@ -23,6 +23,7 @@ export type EntryDraft = {
   amount: string;
   destinationAmount: string;
   category: string;
+  counterparty: string;
   note: string;
 };
 
@@ -35,15 +36,9 @@ export function emptyDraft(date: string): EntryDraft {
     amount: '',
     destinationAmount: '',
     category: '',
+    counterparty: '',
     note: '',
   };
-}
-
-/** Fund movements can only touch fund accounts. */
-export function eligibleAccounts<T extends EntryAccount>(accounts: T[], type: LedgerEntryType) {
-  return type === 'fund_contribution' || type === 'fund_withdrawal'
-    ? accounts.filter((account) => account.type === 'fund')
-    : accounts;
 }
 
 export function firstOtherAccountId(accounts: EntryAccount[], accountId: string) {
@@ -104,11 +99,15 @@ export function EntryFields({
       : placeholders
         ? ''
         : (next[0]?.id ?? '');
+    // Category and counterparty share a slot, so the one that just went off
+    // screen is cleared rather than left to be submitted invisibly.
     setDraft({
       ...draft,
       type,
       accountId,
       destinationAccountId: type === 'transfer' && !placeholders ? firstOtherAccountId(accounts, accountId) : '',
+      category: isHoldType(type) ? '' : draft.category,
+      counterparty: isHoldType(type) ? draft.counterparty : '',
     });
   }
 
@@ -189,15 +188,29 @@ export function EntryFields({
           </Field>
         </>
       ) : null}
-      <Field label="Category (optional)">
-        <input
-          className={financeStyles.input}
-          value={draft.category}
-          disabled={disabled}
-          placeholder="Salary, bills, food…"
-          onChange={(event) => setDraft({ ...draft, category: event.target.value })}
-        />
-      </Field>
+      {/* A hold has no category — it is neither income nor expense. The slot
+          asks whose money it is instead, which is the thing worth recording. */}
+      {isHoldType(draft.type) ? (
+        <Field label="Counterparty (optional)">
+          <input
+            className={financeStyles.input}
+            value={draft.counterparty}
+            disabled={disabled}
+            placeholder="Whose money is this?"
+            onChange={(event) => setDraft({ ...draft, counterparty: event.target.value })}
+          />
+        </Field>
+      ) : (
+        <Field label="Category (optional)">
+          <input
+            className={financeStyles.input}
+            value={draft.category}
+            disabled={disabled}
+            placeholder="Salary, bills, food…"
+            onChange={(event) => setDraft({ ...draft, category: event.target.value })}
+          />
+        </Field>
+      )}
       <Field label="Note (optional)">
         <input
           className={financeStyles.input}

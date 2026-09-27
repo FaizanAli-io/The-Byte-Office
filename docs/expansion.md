@@ -4,7 +4,7 @@ Things worth building, as opposed to [`improvements.md`](./improvements.md), whi
 here. It is a place to keep ideas with enough detail that picking one up later does not mean rediscovering the
 design.
 
-**Queued next: items 7, 8 and 9.** Everything above them is unscheduled.
+**Queued next: items 7 and 8.** Item 9 is built. Everything above them is unscheduled.
 
 ---
 
@@ -160,28 +160,48 @@ naming the closest matches.
 
 ---
 
-## 9. Held funds: money in an account that is not yours
+## 9. Held funds: money in an account that is not yours — **done**
 
 **The idea.** Some of the balance in an account is money being held for someone else. It is really there — the bank
-says so and reconciliation must agree — but it is not part of net worth. Today the portfolio total silently counts
-it, which overstates what you actually have.
+says so and reconciliation must agree — but it is not part of net worth. The portfolio total used to count it
+silently, which overstated what you actually have.
 
-**Two totals, not one.** This is the whole design. Gross is what the accounts hold; net is gross minus what is owed
-back. Reconciliation keeps using **gross**, because the cash is physically present and
-`expectedBalance` must still match the statement. Only the portfolio and snapshot figures gain a net line.
-`holdingTotals` in [`finance.ts`](../src/lib/finance.ts) is the single place that changes, since everything already
-derives from it.
+**Built as ledger entry types, not a register.** The write-up here originally proposed a `finance.held_funds` table
+standing apart from the ledger. Reading the code again showed why that was wrong: cash handed to you lands in a real
+account, so it already had to be entered in the ledger or `expectedBalance` would stop matching the statement — and
+the only types available were `income` and `expense`. A hold was therefore inflating the monthly income figure, and a
+separate table would have left that untouched.
 
-**Shape.** A `finance.held_funds` table rather than a column on the account, because who and why matter and a
-single number loses both: `id`, `account_id`, `counterparty`, `amount`, `currency`, `note`, `created_at`,
-`settled_at`. Outstanding means `settled_at is null`. A row is not a ledger entry — a hold persists across months
-while the ledger is monthly — but settling one usually accompanies a real transfer out, and the two should be
-recorded together rather than one implying the other.
+So `hold_received` and `hold_returned` joined `ledger_entry_type` instead. They move the account balance like any
+other entry, which keeps reconciliation honest, and they sit outside income and expenses, which keeps the monthly
+summary honest.
 
-**What it touches.** `holdingTotals` gains `held` and `net`; the portfolio stat tiles gain a net figure; snapshots
-should record both so historical comparisons stay meaningful; `portfolio_get` reports both so the assistant stops
-quoting a number that is too large. Ledger arithmetic is untouched, which is the point.
+**One source of truth.** There is no stored balance. What is outstanding is a fold over the hold entries —
+`Σ received − Σ returned`, grouped by counterparty — so a register and its entries can never drift apart. The same
+fold answers three questions depending on what it is given: one month's entries give that month's movement, every
+entry gives what is held now, and entries up to a date give what was held then. That last one is why snapshots did
+**not** need a `held_total` column: unlike `grand_total`, which captures mutable holdings, the held figure for any
+past moment is still derivable from the ledger.
 
-**Open question.** This is the first liability in the model. If credit card balances or loans follow, a general
-`obligations` table would serve all of them and `held_funds` would become one `kind`. Worth a moment's thought
-before building, but not worth generalising for cases that may never arrive — start specific.
+**What it touches.**
+
+| Piece                                                               | Change                                                                    |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `LEDGER_ENTRY_TYPES` in [`types/ledger.ts`](../src/types/ledger.ts) | The one list the enum, validator, zod schema and labels all derive from   |
+| `ledger_entries.counterparty`                                       | Whose money it is; replaces the category field on the form for hold types |
+| `accountMovement`                                                   | `hold_received` adds to the balance, `hold_returned` subtracts            |
+| `ledgerSummary`                                                     | Gains `heldMovement`; income and expenses are untouched by holds          |
+| `heldFunds()` in [`ledger.ts`](../src/lib/ledger.ts)                | The fold, plus the per-counterparty breakdown                             |
+| `holdingTotals`                                                     | Gains `held` and `net`; `grandTotal` stays gross                          |
+| `GET /api/held-funds`                                               | Totals plus the dated movements behind them                               |
+| `portfolio_get`                                                     | Reports `grandTotalPkr`, `heldForOthersPkr` and `netTotalPkr`             |
+
+**Two constraints worth remembering.** A hold must sit in a bank account, enforced in `validateLedger` and not merely
+in the form: parked on a fund it would move `expected` without moving `netInvested`, so the fund's gain or loss would
+come out wrong with nothing on screen to explain it. And the portfolio's gross total is still what a snapshot records
+and what reconciliation compares against — only the displayed net line and the assistant's answer subtract the holds.
+
+**Still open.** This is the first liability in the model. If credit card balances or loans follow, a general
+`obligations` table would serve all of them and holds would become one `kind`. Not worth generalising until a second
+case actually arrives. The snapshot detail page could also show a net line by asking `/api/held-funds` for the
+movements up to that snapshot's timestamp; the endpoint already returns them.
