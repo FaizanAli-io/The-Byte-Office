@@ -46,11 +46,11 @@ export const READ_SCOPES = OAUTH_SCOPES.filter((scope) => scope.endsWith(':read'
 
 const TOKEN_PREFIX = 'at';
 
-export function getOAuthSecret() {
+function getOAuthSecret() {
   return process.env.OAUTH_SIGNING_SECRET;
 }
 
-export function isOAuthScope(value: string): value is OAuthScope {
+function isOAuthScope(value: string): value is OAuthScope {
   return (OAUTH_SCOPES as readonly string[]).includes(value);
 }
 

@@ -279,6 +279,32 @@ export async function loadPreviousFinalizedLedger(month: string) {
   return loadLedger(ledger.month);
 }
 
+type Sql = ReturnType<typeof getSql>;
+
+/**
+ * The column lists for the two ledger child tables, written once.
+ *
+ * `createLedger` and `saveLedger` both rewrite accounts, and both had their
+ * own copy of a four-hundred-character INSERT — which is how a new column
+ * gets added to one and forgotten in the other.
+ */
+function insertLedgerAccount(
+  sql: Sql,
+  ledgerId: string,
+  account: LedgerAccount,
+  index: number,
+  /** A new month has no closing balance yet; a save writes what the form holds. */
+  actualClosingBalance: number | null
+) {
+  return sql`INSERT INTO finance.ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order)
+    VALUES (${account.id}, ${ledgerId}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${actualClosingBalance}, ${account.exchangeRate}, ${index})`;
+}
+
+function insertLedgerEntry(sql: Sql, ledgerId: string, entry: LedgerEntry, index: number) {
+  return sql`INSERT INTO finance.ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category_id, counterparty, note, sort_order)
+    VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount ?? null}, ${entry.exchangeRate ?? null}, ${entry.categoryId ?? null}, ${entry.counterparty ?? null}, ${entry.note ?? null}, ${index})`;
+}
+
 export async function createLedger(input: { month: string; accounts: LedgerAccount[] }): Promise<MonthlyLedger> {
   const id = randomUUID();
   const now = new Date();
@@ -287,11 +313,7 @@ export async function createLedger(input: { month: string; accounts: LedgerAccou
     sql`INSERT INTO finance.ledgers (id, month, status, created_at, updated_at) VALUES (${id}, ${input.month}, 'draft', ${now.toISOString()}, ${now.toISOString()})`,
   ];
 
-  input.accounts.forEach((account, index) => {
-    statements.push(
-      sql`INSERT INTO finance.ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${id}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis === undefined ? null : account.openingCostBasis}, ${null}, ${account.exchangeRate}, ${index})`
-    );
-  });
+  input.accounts.forEach((account, index) => statements.push(insertLedgerAccount(sql, id, account, index, null)));
 
   await sql.transaction(statements);
   const created = await loadLedger(input.month);
@@ -311,16 +333,10 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
     sql`UPDATE finance.ledgers SET status = ${body.status}, updated_at = ${now.toISOString()}, finalized_at = ${finalizedAt ? finalizedAt.toISOString() : null} WHERE id = ${ledgerId}`,
   ];
 
-  body.accounts.forEach((account, index) => {
-    statements.push(
-      sql`INSERT INTO finance.ledger_accounts (id, ledger_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order) VALUES (${account.id}, ${ledgerId}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis === undefined ? null : account.openingCostBasis}, ${account.actualClosingBalance === undefined ? null : account.actualClosingBalance}, ${account.exchangeRate}, ${index})`
-    );
-  });
-  body.entries.forEach((entry, index) => {
-    statements.push(
-      sql`INSERT INTO finance.ledger_entries (id, ledger_id, date, type, account_id, destination_account_id, amount, destination_amount, exchange_rate, category_id, counterparty, note, sort_order) VALUES (${entry.id}, ${ledgerId}, ${entry.date}, ${entry.type}, ${entry.accountId}, ${entry.destinationAccountId ?? null}, ${entry.amount}, ${entry.destinationAmount === undefined ? null : entry.destinationAmount}, ${entry.exchangeRate ?? null}, ${entry.categoryId ?? null}, ${entry.counterparty ?? null}, ${entry.note ?? null}, ${index})`
-    );
-  });
+  body.accounts.forEach((account, index) =>
+    statements.push(insertLedgerAccount(sql, ledgerId, account, index, account.actualClosingBalance ?? null))
+  );
+  body.entries.forEach((entry, index) => statements.push(insertLedgerEntry(sql, ledgerId, entry, index)));
 
   await sql.transaction(statements);
   const saved = await loadLedger(body.month);

@@ -1,0 +1,137 @@
+# Architecture
+
+Where the structure of this codebase works against itself. [`improvements.md`](./improvements.md) lists discrete
+defects and [`expansion.md`](./expansion.md) lists things worth building; this file is for the shape underneath both —
+the decisions that are hard to reverse and that keep generating smaller problems.
+
+Nothing here is urgent. The application works, the arithmetic is tested, and the workspace has one user. These are
+written down so that the next time one of them bites, the fix is a decision rather than a discovery.
+
+---
+
+## The map, as it stands
+
+**Two Postgres schemas.** `finance` holds the portfolio, ledgers, snapshots, OAuth and every assistant conversation;
+`personal` holds prayers and health readings.
+
+**Three surfaces over one tool registry.** [`lib/agent/registry.ts`](../src/lib/agent/registry.ts) declares each tool
+once — name, zod schema, description, module, whether it writes. The chat assistant, the MCP server and the REST
+wrappers under `/api/mcp/tools/{name}` all derive from it. This is the part of the design that has held up best.
+
+**A pure library layer.** `lib/ledger.ts`, `lib/finance.ts` and `lib/health.ts` hold arithmetic with no imports from
+the database or React, which is why they are the only parts with real test coverage.
+
+**Writes go through an action layer.** The chat assistant proposes; the user confirms; `executeAgentAction` claims the
+row atomically, re-reads the source data, checks a fingerprint and only then writes. MCP writes skip the proposal step
+and are gated by OAuth scope instead.
+
+---
+
+## 1. There are two account models, and nothing reconciles them
+
+The portfolio keeps accounts in `local_banks`, `remote_banks` and `mutual_funds`. The ledger keeps them in
+`ledger_accounts`, one set **per month**, created either by copying the portfolio once (`accountsFromFinance` mints
+fresh UUIDs) or by carrying forward the previous month (`carryAccounts` keeps the ids).
+
+So "HBL" in the portfolio and "HBL" in the ledger are unrelated rows that happen to share a name. Consequences:
+
+- The portfolio total is **hand-maintained**, while the ledger's closing balances are **reconciled against
+  statements**. Two sources of truth for the same money, and nothing compares them. Drift after the one-time import is
+  invisible.
+- Held funds are recorded in the ledger but subtracted from the portfolio total. That works because both are money in
+  PKR, but no per-account net is possible — you cannot ask "how much of HBL is actually mine".
+- Snapshots capture the portfolio, so they inherit whatever staleness the portfolio has.
+
+**The fix is a real account entity** that both sides reference: portfolio holdings become balances _of_ an account,
+and `ledger_accounts` becomes a per-month opening/closing record _for_ an account rather than a copy of one. The
+monthly close could then write the reconciled closing balance straight back to the portfolio, which is the thing that
+currently has to be typed twice.
+
+This is the largest item here and the one everything else in the finance model leans on.
+
+## 2. One holding is three tables
+
+`local_banks` (PKR), `remote_banks` (USD plus a rate) and `mutual_funds` (bank plus fund name) differ by two columns
+and a currency. Splitting them by kind means every layer carries the same three-way branch:
+
+| Layer                                                             | What the split costs                                                     |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [`registry.ts`](../src/lib/agent/registry.ts)                     | `itemType` enum plus a flat union of every field any kind needs          |
+| [`action-parsing.ts`](../src/lib/finance-agent/action-parsing.ts) | `HOLDING_FIELDS`, one validator list per kind                            |
+| [`repository.ts`](../src/lib/finance-agent/repository.ts)         | `HOLDING_TABLES` and a `holdingTable()` lookup on all four CRUD paths    |
+| [`finance.ts`](../src/lib/finance.ts)                             | `HoldingRows` with three arrays and three separate sums                  |
+| [`queries.ts`](../src/lib/db/queries.ts)                          | `flattenMutualFunds` / `groupMutualFunds` and `MUTUAL_FUND_GROUP_STRIDE` |
+
+One `holdings` table with `kind`, `currency`, `amount`, `exchange_rate` and an optional `group` collapses all of it.
+The API shape is the harder half, because `mutualFunds` is exposed as `Record<bank, Fund[]>[]` — an array of
+single-key objects that forces `Object.keys(group)[0]` at six call sites and encodes grouping as
+`floor(sort_order / 1000)`, which breaks past a thousand funds in one bank and cannot represent two groups with the
+same name. The table underneath is already flat; only the shape crossing the wire is not.
+
+## 3. The ledger is edited as a document, not as rows
+
+`PUT /api/ledger` takes a whole month and `saveLedger` deletes every account and entry for it and reinserts them. That
+is why:
+
+- there is no concurrency control on the UI path — two tabs means silent last-write-wins on a month's books (the agent
+  path is protected by a fingerprint, the UI path is not);
+- every entry's `sort_order` is reassigned on every save;
+- adding one transaction rewrites the month.
+
+It is a reasonable shape for a form that edits a whole month at once, and it is genuinely simple. The cheap mitigation
+is an `updated_at` precondition on the `UPDATE` so a stale save is rejected rather than applied. The larger version is
+row-level endpoints for entries, which the assistant's action layer effectively already wants.
+
+## 4. `lib/agent` and `lib/finance-agent` do not mean what they are named
+
+`lib/finance-agent/` became the home for _generic_ agent infrastructure. `repository.ts` owns conversations, messages,
+tool logs and every action type — including `prayer_set` and `tbo_send_inquiry`, which have nothing to do with
+finance. The dependency runs both ways:
+
+```
+finance-agent/actions.ts → agent/modules/personal.ts → finance-agent/repository.ts
+```
+
+The database shows the same leak: personal conversations live in the `finance` schema, in a table called
+`finance_agent_messages`.
+
+The three-module split the system prompt describes — finance, personal, tbo — is the right shape. Promote the shared
+pieces (conversations, messages, tool logs, the action lifecycle) to `lib/agent/`, and leave `lib/finance-agent/` as
+one module beside the other two. Renaming the tables can wait; untangling the imports need not.
+
+## 5. Two validation systems
+
+`personal-validation.ts` is zod, shared by the REST routes and the assistant's tools.
+[`finance-validation.ts`](../src/lib/finance-validation.ts) is hand-rolled predicates returning `string | null`.
+
+Worth knowing rather than worth fixing. `validateLedger` does cross-field work — currency matching, account
+membership, hold-on-a-bank-account, category existence, finalize preconditions — that reads clearly as imperative code
+and would become several `superRefine` blocks. It also has the better test coverage of the two. The cost is that a
+contributor has to learn both conventions.
+
+---
+
+## What should not change
+
+Worth stating, so a future pass does not "fix" these:
+
+- **One tool registry.** Three surfaces derive from it. The last time they were separate they drifted into
+  contradicting each other about whether writes were confirmed.
+- **Held funds derived, never stored.** The outstanding balance is a fold over the ledger's hold entries. A stored
+  total would be a second source of truth for something already written down.
+- **One list per closed set.** `LEDGER_ENTRY_TYPES` and `CATEGORY_KINDS` each feed the Postgres enum, the validator,
+  the zod schema and the UI labels. Adding a type is one edit.
+- **The pure library layer.** Keeping arithmetic free of database and React imports is what makes it testable.
+- **Gross versus net kept apart.** Reconciliation uses gross because the cash is physically present; only the
+  displayed net subtracts what is owed back.
+
+---
+
+## If these were tackled, in this order
+
+1. **4 — untangle `agent` / `finance-agent`.** Pure refactor, no schema change, and it makes the rest easier to reason
+   about.
+2. **3 — an `updated_at` precondition on ledger saves.** Small, and it closes a real data-loss path.
+3. **2 — collapse the three holdings tables.** Self-contained, and it removes the most repeated branch in the code.
+4. **1 — a shared account entity.** Largest, and worth doing only when the hand-maintained portfolio total actually
+   starts disagreeing with the ledger often enough to hurt.

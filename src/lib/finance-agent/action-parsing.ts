@@ -139,9 +139,11 @@ export function parsePortfolioUpdate(
 }
 
 export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
-  const optionalString = (key: 'categoryId' | 'counterparty' | 'note') =>
+  // Named apart from the exported `optionalString`, which takes a value
+  // rather than a key and means something different.
+  const carriedString = (key: 'categoryId' | 'counterparty' | 'note') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requireString(args[key], key);
-  const optionalNumber = (key: 'destinationAmount' | 'exchangeRate') =>
+  const carriedNumber = (key: 'destinationAmount' | 'exchangeRate') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requirePositive(args[key], key);
   const destinationAccountId =
     args.destinationAccountId === null
@@ -157,11 +159,11 @@ export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<Le
     accountId: requireString(args.accountId ?? base.accountId, 'accountId'),
     destinationAccountId,
     amount: requirePositive(args.amount ?? base.amount, 'amount'),
-    destinationAmount: optionalNumber('destinationAmount'),
-    exchangeRate: optionalNumber('exchangeRate'),
-    categoryId: optionalString('categoryId'),
-    counterparty: optionalString('counterparty'),
-    note: optionalString('note'),
+    destinationAmount: carriedNumber('destinationAmount'),
+    exchangeRate: carriedNumber('exchangeRate'),
+    categoryId: carriedString('categoryId'),
+    counterparty: carriedString('counterparty'),
+    note: carriedString('note'),
   };
 }
 

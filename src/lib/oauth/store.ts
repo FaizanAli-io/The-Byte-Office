@@ -116,6 +116,7 @@ export async function rotateRefreshToken(presented: string): Promise<RotatedRefr
   }
 
   if (claimed.expiresAt <= new Date()) return null;
+  await pruneRefreshTokens();
 
   return {
     clientId: claimed.clientId,
@@ -126,7 +127,20 @@ export async function rotateRefreshToken(presented: string): Promise<RotatedRefr
   };
 }
 
-export async function revokeFamily(familyId: string) {
+/**
+ * Rotation is the only thing that grows this table, so it is also where the
+ * old rows are swept. A cron would be tidier, but there is nothing to run one
+ * and a table that grows forever is worse than one extra DELETE every six
+ * hours. Awaited rather than fired and forgotten: a floating promise in a
+ * serverless function is a promise that may never run.
+ */
+async function pruneRefreshTokens() {
+  await getDb()
+    .delete(oauthRefreshTokens)
+    .where(or(lt(oauthRefreshTokens.expiresAt, new Date()), lt(oauthRefreshTokens.revokedAt, hoursAgo(24 * 30))));
+}
+
+async function revokeFamily(familyId: string) {
   await getDb()
     .update(oauthRefreshTokens)
     .set({ revokedAt: new Date() })
@@ -141,13 +155,6 @@ export async function revokeRefreshToken(presented: string) {
     .where(eq(oauthRefreshTokens.tokenHash, await sha256Hex(presented)))
     .limit(1);
   if (row) await revokeFamily(row.familyId);
-}
-
-/** Drops rows that can no longer authorize anything. */
-export async function pruneRefreshTokens() {
-  await getDb()
-    .delete(oauthRefreshTokens)
-    .where(or(lt(oauthRefreshTokens.expiresAt, new Date()), lt(oauthRefreshTokens.revokedAt, hoursAgo(24 * 30))));
 }
 
 function hoursAgo(hours: number) {

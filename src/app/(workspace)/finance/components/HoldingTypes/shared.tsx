@@ -13,7 +13,7 @@ export const styleClasses = {
     'inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-400/15 bg-rose-400/8 text-lg font-bold text-rose-300 transition hover:bg-rose-400/15',
 };
 
-export function numberOrZero(value: string) {
+function numberOrZero(value: string) {
   const n = Number(value);
   return isNaN(n) ? 0 : n;
 }

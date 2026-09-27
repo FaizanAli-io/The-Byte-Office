@@ -1,10 +1,10 @@
-export function jsonResult(data: unknown) {
+function jsonResult(data: unknown) {
   return {
     content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
   };
 }
 
-export function errorResult(error: unknown) {
+function errorResult(error: unknown) {
   const message = error instanceof Error ? error.message : 'Unexpected MCP tool error';
   return {
     content: [{ type: 'text' as const, text: message }],

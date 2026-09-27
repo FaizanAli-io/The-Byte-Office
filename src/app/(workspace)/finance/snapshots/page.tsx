@@ -2,6 +2,7 @@
 
 import { apiFetch } from '@/lib/client-api';
 import { bankFundAllocations, individualFundAllocations, portfolioAllocations } from '@/lib/finance';
+import { formatMoney } from '@/lib/ledger';
 import type { FinanceSnapshot } from '@/types/finance';
 import { useEffect, useState } from 'react';
 import { FinancePageShell, financeStyles } from '../components/FinanceUI';
@@ -95,9 +96,7 @@ export default function SnapshotsPage() {
                         minute: '2-digit',
                       })}
                     </p>
-                    <p className="mt-2 text-2xl font-bold text-cyan-300">
-                      {Math.round(snapshot.grandTotal).toLocaleString()} PKR
-                    </p>
+                    <p className="mt-2 text-2xl font-bold text-cyan-300">{formatMoney(snapshot.grandTotal, 'PKR')}</p>
                   </button>
                   <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">
                     <span className="text-xs font-semibold text-slate-600">

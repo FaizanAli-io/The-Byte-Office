@@ -11,8 +11,8 @@ import { CollapseToggle, Field } from './LedgerAccounts';
  * predicates that describe a default filter set.
  */
 
-export const ENTRY_SORT_KEYS = ['date', 'amount', 'type', 'account', 'category'] as const;
-export const ENTRY_SORT_DIRS = ['asc', 'desc'] as const;
+const ENTRY_SORT_KEYS = ['date', 'amount', 'type', 'account', 'category'] as const;
+const ENTRY_SORT_DIRS = ['asc', 'desc'] as const;
 
 export type EntrySortKey = (typeof ENTRY_SORT_KEYS)[number];
 export type EntrySortDir = (typeof ENTRY_SORT_DIRS)[number];
@@ -106,7 +106,7 @@ function sortOrderLabel(sortBy: EntrySortKey, direction: EntrySortDir) {
   return direction === 'asc' ? 'A to Z' : 'Z to A';
 }
 
-export function isDefaultFilters(filters: EntryFilters) {
+function isDefaultFilters(filters: EntryFilters) {
   return (
     filters.accountId === emptyFilters.accountId &&
     filters.type === emptyFilters.type &&

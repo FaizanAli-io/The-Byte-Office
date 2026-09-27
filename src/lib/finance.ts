@@ -32,7 +32,7 @@ export function holdingTotals(rows: HoldingRows, held = 0) {
 }
 
 /** `mutualFunds` is an array of single-key `{ [bank]: funds }` objects. */
-export function fundGroups(data: Pick<FinanceDoc, 'mutualFunds'>): { bank: string; funds: FinanceFund[] }[] {
+function fundGroups(data: Pick<FinanceDoc, 'mutualFunds'>): { bank: string; funds: FinanceFund[] }[] {
   return data.mutualFunds.map((group) => {
     const bank = Object.keys(group)[0];
     return { bank, funds: group[bank] ?? [] };

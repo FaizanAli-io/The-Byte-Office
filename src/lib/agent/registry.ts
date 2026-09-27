@@ -334,8 +334,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
   },
 ];
 
-export const agentToolByName = new Map(agentToolRegistry.map((tool) => [tool.name, tool]));
-
 export function toolNamesForModule(module: AgentToolModule) {
   return new Set(agentToolRegistry.filter((tool) => tool.module === module).map((tool) => tool.name));
 }
@@ -354,12 +352,12 @@ export type GroqTool = {
 };
 
 /** Groq rejects the `$schema` key that `z.toJSONSchema` adds, so drop it. */
-export function jsonSchemaFor(tool: AgentToolDefinition): Record<string, unknown> {
+function jsonSchemaFor(tool: AgentToolDefinition): Record<string, unknown> {
   const { $schema: _schema, ...parameters } = z.toJSONSchema(tool.schema) as Record<string, unknown>;
   return parameters;
 }
 
-export function toGroqTool(tool: AgentToolDefinition): GroqTool {
+function toGroqTool(tool: AgentToolDefinition): GroqTool {
   return {
     type: 'function',
     function: {

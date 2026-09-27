@@ -212,7 +212,7 @@ export async function deleteConversation(id: string) {
   return deleted.length > 0;
 }
 
-export async function touchConversation(id: string, title?: string) {
+async function touchConversation(id: string, title?: string) {
   await getDb()
     .update(agentConversations)
     .set({

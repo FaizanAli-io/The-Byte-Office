@@ -4,9 +4,9 @@ import { executeFinanceTool } from '@/lib/finance-agent/tools';
 import { groqTools } from '@/lib/agent/registry';
 import type { PendingAgentAction } from '@/lib/finance-agent/types';
 
-export const agentTools = groqTools;
+const agentTools = groqTools;
 
-export const SYSTEM_PROMPT = `You are the private assistant for The Byte Office.
+const SYSTEM_PROMPT = `You are the private assistant for The Byte Office.
 You have three cleanly separate modules. Use only the module that matches the user's request.
 
 Module A — TBO

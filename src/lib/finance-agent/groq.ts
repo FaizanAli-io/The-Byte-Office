@@ -33,7 +33,7 @@ export type GroqAssistantMessage = {
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 export const PRIMARY_MODEL = 'openai/gpt-oss-120b';
 // Degraded but working service when the primary model is rate limited.
-export const FALLBACK_MODEL = 'openai/gpt-oss-20b';
+const FALLBACK_MODEL = 'openai/gpt-oss-20b';
 
 export class GroqError extends Error {
   constructor(

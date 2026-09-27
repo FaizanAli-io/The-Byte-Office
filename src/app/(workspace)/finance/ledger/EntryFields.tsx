@@ -46,7 +46,7 @@ export function firstOtherAccountId(accounts: EntryAccount[], accountId: string)
 }
 
 /** A cross-currency transfer cannot be inferred, so the destination amount is required. */
-export function conversionTarget(draft: EntryDraft, accounts: EntryAccount[]) {
+function conversionTarget(draft: EntryDraft, accounts: EntryAccount[]) {
   if (draft.type !== 'transfer') return null;
   const source = accounts.find((account) => account.id === draft.accountId);
   const destination = accounts.find((account) => account.id === draft.destinationAccountId);

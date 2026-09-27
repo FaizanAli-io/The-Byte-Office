@@ -2,7 +2,7 @@
 
 import { apiFetch } from '@/lib/client-api';
 import { portfolioTotals } from '@/lib/finance';
-import type { heldFunds } from '@/lib/ledger';
+import { formatMoney, type heldFunds } from '@/lib/ledger';
 import { useEffect, useState } from 'react';
 import { LocalBanksSection, MutualFundsSection, RemoteBanksSection } from './HoldingTypes';
 import { FinancePageShell, StatCard, financeStyles } from './FinanceUI';
@@ -103,12 +103,12 @@ export default function FinanceEditor() {
       }
     >
       <div className={`mb-6 grid gap-4 sm:grid-cols-2 ${holdingForOthers ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}>
-        <StatCard label="Local banks" value={`${Math.round(totals.local).toLocaleString()} PKR`} />
-        <StatCard label="Remote banks" value={`${Math.round(totals.remote).toLocaleString()} PKR`} />
-        <StatCard label="Mutual funds" value={`${Math.round(totals.mutual).toLocaleString()} PKR`} tone="amber" />
+        <StatCard label="Local banks" value={formatMoney(totals.local, 'PKR')} />
+        <StatCard label="Remote banks" value={formatMoney(totals.remote, 'PKR')} />
+        <StatCard label="Mutual funds" value={formatMoney(totals.mutual, 'PKR')} tone="amber" />
         <StatCard
           label="Portfolio total"
-          value={`${Math.round(totals.grandTotal).toLocaleString()} PKR`}
+          value={formatMoney(totals.grandTotal, 'PKR')}
           hint={holdingForOthers ? 'Everything the accounts hold' : undefined}
           tone={holdingForOthers ? 'cyan' : 'emerald'}
         />
@@ -118,13 +118,13 @@ export default function FinanceEditor() {
           <>
             <StatCard
               label="Held for others"
-              value={`${Math.round(totals.held).toLocaleString()} PKR`}
+              value={formatMoney(totals.held, 'PKR')}
               hint={held?.byCounterparty.map((row) => row.counterparty).join(', ')}
               tone="rose"
             />
             <StatCard
               label="Net worth"
-              value={`${Math.round(totals.net).toLocaleString()} PKR`}
+              value={formatMoney(totals.net, 'PKR')}
               hint="Portfolio total minus held funds"
               tone="emerald"
             />

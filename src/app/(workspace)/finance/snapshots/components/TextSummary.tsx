@@ -1,6 +1,7 @@
 'use client';
 
 import { portfolioTotals } from '@/lib/finance';
+import { formatMoney } from '@/lib/ledger';
 import type { FinanceSnapshot } from '@/types/finance';
 
 export function TextSummary({ snapshot }: { snapshot: FinanceSnapshot }) {
@@ -63,13 +64,13 @@ function SummaryGroup({
         {items.map((item, index) => (
           <li key={`${item.label}-${index}`} className="flex justify-between gap-4">
             <span className="truncate">{item.label || 'Unnamed'}</span>
-            <span className="shrink-0 text-slate-300">{Math.round(item.value).toLocaleString()}</span>
+            <span className="shrink-0 text-slate-300">{formatMoney(item.value, 'PKR')}</span>
           </li>
         ))}
       </ul>
       <div className="mt-3 flex justify-between border-t border-white/6 pt-3 text-xs">
         <span className="text-slate-600">Total</span>
-        <span className="font-bold text-slate-200">{Math.round(total).toLocaleString()} PKR</span>
+        <span className="font-bold text-slate-200">{formatMoney(total, 'PKR')}</span>
       </div>
     </div>
   );

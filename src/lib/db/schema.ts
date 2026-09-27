@@ -1,4 +1,4 @@
-import { relations, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { CATEGORY_KINDS, LEDGER_ENTRY_TYPES } from '@/types/ledger';
 import {
   boolean,
@@ -30,6 +30,21 @@ import {
  * `floor(sort_order / 1000)`.
  */
 
+/**
+ * Column shapes that repeat across tables, written once.
+ *
+ * `money` is the major-unit amount described above; `rate` carries six
+ * decimals because an exchange rate needs them and an amount does not; `utc`
+ * is the only timestamp flavour this schema uses. Each is a factory rather
+ * than a shared value, because a Drizzle column builder belongs to one column.
+ */
+const money = (name: string) => numeric(name, { precision: 18, scale: 2, mode: 'number' });
+const rate = (name: string) => numeric(name, { precision: 18, scale: 6, mode: 'number' });
+const utc = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
+const createdAt = () => utc('created_at').notNull().defaultNow();
+const updatedAt = () => utc('updated_at').notNull().defaultNow();
+const sortOrder = () => integer('sort_order').notNull().default(0);
+
 export const finance = pgSchema('finance');
 export const personal = pgSchema('personal');
 
@@ -49,48 +64,30 @@ export const financeAgentActionStatusEnum = finance.enum('finance_agent_action_s
 export const localBanks = finance.table('local_banks', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
-  amountPkr: numeric('amount_pkr', {
-    precision: 18,
-    scale: 2,
-    mode: 'number',
-  })
-    .notNull()
-    .default(0),
-  sortOrder: integer('sort_order').notNull().default(0),
-  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  amountPkr: money('amount_pkr').notNull().default(0),
+  sortOrder: sortOrder(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
 });
 
 export const remoteBanks = finance.table('remote_banks', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
-  amountUsd: numeric('amount_usd', {
-    precision: 18,
-    scale: 2,
-    mode: 'number',
-  })
-    .notNull()
-    .default(0),
-  exchangeRate: numeric('exchange_rate', {
-    precision: 18,
-    scale: 6,
-    mode: 'number',
-  })
-    .notNull()
-    .default(1),
-  sortOrder: integer('sort_order').notNull().default(0),
-  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  amountUsd: money('amount_usd').notNull().default(0),
+  exchangeRate: rate('exchange_rate').notNull().default(1),
+  sortOrder: sortOrder(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
 });
 
 export const mutualFunds = finance.table('mutual_funds', {
   id: uuid('id').defaultRandom().primaryKey(),
   bankName: text('bank_name').notNull(),
   fundName: text('fund_name').notNull(),
-  value: numeric('value', { precision: 18, scale: 2, mode: 'number' }).notNull().default(0),
-  sortOrder: integer('sort_order').notNull().default(0),
-  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  value: money('value').notNull().default(0),
+  sortOrder: sortOrder(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
 });
 
 export const ledgers = finance.table(
@@ -99,12 +96,9 @@ export const ledgers = finance.table(
     id: uuid('id').defaultRandom().primaryKey(),
     month: text('month').notNull(),
     status: ledgerStatusEnum('status').notNull().default('draft'),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-    finalizedAt: timestamp('finalized_at', {
-      withTimezone: true,
-      mode: 'date',
-    }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    finalizedAt: utc('finalized_at'),
   },
   (table) => [
     uniqueIndex('ledgers_month_uidx').on(table.month),
@@ -122,29 +116,11 @@ export const ledgerAccounts = finance.table(
     name: text('name').notNull(),
     type: ledgerAccountTypeEnum('type').notNull(),
     currency: ledgerCurrencyEnum('currency').notNull(),
-    openingBalance: numeric('opening_balance', {
-      precision: 18,
-      scale: 2,
-      mode: 'number',
-    }).notNull(),
-    openingCostBasis: numeric('opening_cost_basis', {
-      precision: 18,
-      scale: 2,
-      mode: 'number',
-    }),
-    actualClosingBalance: numeric('actual_closing_balance', {
-      precision: 18,
-      scale: 2,
-      mode: 'number',
-    }),
-    exchangeRate: numeric('exchange_rate', {
-      precision: 18,
-      scale: 6,
-      mode: 'number',
-    })
-      .notNull()
-      .default(1),
-    sortOrder: integer('sort_order').notNull().default(0),
+    openingBalance: money('opening_balance').notNull(),
+    openingCostBasis: money('opening_cost_basis'),
+    actualClosingBalance: money('actual_closing_balance'),
+    exchangeRate: rate('exchange_rate').notNull().default(1),
+    sortOrder: sortOrder(),
   },
   (table) => [index('ledger_accounts_ledger_idx').on(table.ledgerId)]
 );
@@ -163,9 +139,9 @@ export const categories = finance.table(
     id: uuid('id').defaultRandom().primaryKey(),
     name: text('name').notNull(),
     kind: categoryKindEnum('kind').notNull().default('both'),
-    sortOrder: integer('sort_order').notNull().default(0),
-    archivedAt: timestamp('archived_at', { withTimezone: true, mode: 'date' }),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    sortOrder: sortOrder(),
+    archivedAt: utc('archived_at'),
+    createdAt: createdAt(),
   },
   (table) => [uniqueIndex('categories_name_uidx').on(table.name)]
 );
@@ -183,26 +159,14 @@ export const ledgerEntries = finance.table(
       .notNull()
       .references(() => ledgerAccounts.id, { onDelete: 'restrict' }),
     destinationAccountId: uuid('destination_account_id').references(() => ledgerAccounts.id, { onDelete: 'restrict' }),
-    amount: numeric('amount', {
-      precision: 18,
-      scale: 2,
-      mode: 'number',
-    }).notNull(),
-    destinationAmount: numeric('destination_amount', {
-      precision: 18,
-      scale: 2,
-      mode: 'number',
-    }),
-    exchangeRate: numeric('exchange_rate', {
-      precision: 18,
-      scale: 6,
-      mode: 'number',
-    }),
+    amount: money('amount').notNull(),
+    destinationAmount: money('destination_amount'),
+    exchangeRate: rate('exchange_rate'),
     categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'restrict' }),
     /** Whose money a hold belongs to; null on every other entry type. */
     counterparty: text('counterparty'),
     note: text('note'),
-    sortOrder: integer('sort_order').notNull().default(0),
+    sortOrder: sortOrder(),
   },
   (table) => [
     index('ledger_entries_ledger_idx').on(table.ledgerId),
@@ -227,12 +191,8 @@ export const financeSnapshots = finance.table(
   'finance_snapshots',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    timestamp: timestamp('timestamp', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-    grandTotal: numeric('grand_total', {
-      precision: 18,
-      scale: 2,
-      mode: 'number',
-    }).notNull(),
+    timestamp: utc('timestamp').notNull().defaultNow(),
+    grandTotal: money('grand_total').notNull(),
     data: jsonb('data').$type<SnapshotHoldings>().notNull(),
   },
   (table) => [index('finance_snapshots_timestamp_idx').on(table.timestamp)]
@@ -247,15 +207,9 @@ export const financeAgentActions = finance.table(
     preview: jsonb('preview').$type<{ title: string; before?: unknown; after?: unknown }>().notNull(),
     sourceFingerprint: text('source_fingerprint'),
     status: financeAgentActionStatusEnum('status').notNull().default('pending'),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-    expiresAt: timestamp('expires_at', {
-      withTimezone: true,
-      mode: 'date',
-    }).notNull(),
-    executedAt: timestamp('executed_at', {
-      withTimezone: true,
-      mode: 'date',
-    }),
+    createdAt: createdAt(),
+    expiresAt: utc('expires_at').notNull(),
+    executedAt: utc('executed_at'),
     error: text('error'),
   },
   (table) => [index('finance_agent_actions_status_expiry_idx').on(table.status, table.expiresAt)]
@@ -271,9 +225,9 @@ export const magicLinks = finance.table(
   'magic_links',
   {
     nonce: uuid('nonce').primaryKey(),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
-    consumedAt: timestamp('consumed_at', { withTimezone: true, mode: 'date' }),
+    createdAt: createdAt(),
+    expiresAt: utc('expires_at').notNull(),
+    consumedAt: utc('consumed_at'),
   },
   (table) => [index('magic_links_expires_idx').on(table.expiresAt)]
 );
@@ -292,8 +246,8 @@ export const oauthClients = finance.table('oauth_clients', {
   clientName: text('client_name').notNull(),
   // Matched exactly, never by prefix: a prefix match is an open redirect.
   redirectUris: jsonb('redirect_uris').$type<string[]>().notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-  lastUsedAt: timestamp('last_used_at', { withTimezone: true, mode: 'date' }),
+  createdAt: createdAt(),
+  lastUsedAt: utc('last_used_at'),
 });
 
 export const oauthAuthorizationCodes = finance.table(
@@ -307,8 +261,8 @@ export const oauthAuthorizationCodes = finance.table(
     codeChallenge: text('code_challenge').notNull(),
     scopes: jsonb('scopes').$type<string[]>().notNull(),
     resource: text('resource').notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
-    consumedAt: timestamp('consumed_at', { withTimezone: true, mode: 'date' }),
+    expiresAt: utc('expires_at').notNull(),
+    consumedAt: utc('consumed_at'),
   },
   (table) => [index('oauth_authorization_codes_expires_idx').on(table.expiresAt)]
 );
@@ -331,9 +285,9 @@ export const oauthRefreshTokens = finance.table(
       .references(() => oauthClients.clientId, { onDelete: 'cascade' }),
     familyId: uuid('family_id').notNull(),
     scopes: jsonb('scopes').$type<string[]>().notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
-    revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    expiresAt: utc('expires_at').notNull(),
+    revokedAt: utc('revoked_at'),
+    createdAt: createdAt(),
   },
   (table) => [index('oauth_refresh_tokens_family_idx').on(table.familyId)]
 );
@@ -344,8 +298,8 @@ export const agentConversations = finance.table(
     id: uuid('id').defaultRandom().primaryKey(),
     title: text('title').notNull().default('New chat'),
     workspace: text('workspace').notNull().default('finance'),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
   (table) => [
     index('agent_conversations_updated_idx').on(table.updatedAt),
@@ -365,7 +319,7 @@ export const financeAgentMessages = finance.table(
     content: text('content').notNull(),
     actions: jsonb('actions').$type<unknown[]>().notNull().default([]),
     isError: boolean('is_error').notNull().default(false),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    createdAt: createdAt(),
   },
   (table) => [
     index('finance_agent_messages_created_idx').on(table.createdAt),
@@ -385,7 +339,7 @@ export const financeAgentToolLogs = finance.table(
     result: jsonb('result').$type<unknown>(),
     error: text('error'),
     durationMs: integer('duration_ms'),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    createdAt: createdAt(),
   },
   (table) => [
     index('finance_agent_tool_logs_created_idx').on(table.createdAt),
@@ -405,7 +359,7 @@ export const prayers = personal.table(
     id: uuid('id').defaultRandom().primaryKey(),
     namaaz: namaazEnum('namaaz').notNull(),
     missed: integer('missed').notNull().default(0),
-    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updatedAt: updatedAt(),
   },
   (table) => [
     uniqueIndex('prayers_namaaz_uidx').on(table.namaaz),
@@ -421,43 +375,10 @@ export const healthTracking = personal.table(
     // Readings are decimal: weight, temperature and glucose are not whole
     // numbers. Not money, so a float is fine — nothing sums these.
     value: numeric('value', { precision: 10, scale: 3, mode: 'number' }).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    createdAt: createdAt(),
   },
   (table) => [
     index('health_tracking_created_idx').on(table.createdAt),
     index('health_tracking_metric_idx').on(table.metric),
   ]
 );
-
-export const ledgersRelations = relations(ledgers, ({ many }) => ({
-  accounts: many(ledgerAccounts),
-  entries: many(ledgerEntries),
-}));
-
-export const ledgerAccountsRelations = relations(ledgerAccounts, ({ one, many }) => ({
-  ledger: one(ledgers, {
-    fields: [ledgerAccounts.ledgerId],
-    references: [ledgers.id],
-  }),
-  entries: many(ledgerEntries, { relationName: 'entryAccount' }),
-  destinationEntries: many(ledgerEntries, {
-    relationName: 'entryDestination',
-  }),
-}));
-
-export const ledgerEntriesRelations = relations(ledgerEntries, ({ one }) => ({
-  ledger: one(ledgers, {
-    fields: [ledgerEntries.ledgerId],
-    references: [ledgers.id],
-  }),
-  account: one(ledgerAccounts, {
-    fields: [ledgerEntries.accountId],
-    references: [ledgerAccounts.id],
-    relationName: 'entryAccount',
-  }),
-  destinationAccount: one(ledgerAccounts, {
-    fields: [ledgerEntries.destinationAccountId],
-    references: [ledgerAccounts.id],
-    relationName: 'entryDestination',
-  }),
-}));

@@ -13,7 +13,9 @@ and no code path that accepts a shared secret. The last section records what tha
 The larger reason to do this is not ChatGPT. One static key means one level of access: anything holding it can delete
 a ledger entry with no confirmation, and the only way to revoke it is to rotate the key and re-configure every client.
 OAuth gives per-client credentials that can be revoked individually and **scopes**, so a connector can be granted read
-access without write access. That is the real fix for item 3 in [`improvements.md`](./improvements.md).
+access without write access. That is what closed the long-standing complaint that MCP writes bypassed the
+confirmation model the docs promised: they still apply immediately on that surface, but only for a client that was
+granted `finance:write`, and that grant is per client and revocable.
 
 ---
 
@@ -460,7 +462,7 @@ Two knock-on effects worth recording.
 
 **`/docs` improved rather than degraded.** It used to ask you to paste a master key into a page that loads a
 third-party script. It now runs the authorization code flow with PKCE, registering itself on first load and keeping
-only a public `client_id`. That closes item 6 in [`improvements.md`](./improvements.md) as a side effect.
+only a public `client_id`. The page that used to invite pasting a master key now holds nothing worth stealing.
 
 **There is no longer a non-browser way in.** If `OAUTH_SIGNING_SECRET` is misconfigured on a deploy, you cannot fall
 back to curl with a header. `npm run oauth:token` is the escape hatch, and it needs database access. This is the

@@ -7,7 +7,7 @@ import { NAMAAZ_VALUES } from '@/lib/db/schema';
  * rules — previously each had its own hand-rolled copy.
  */
 
-export const namaazSchema = z.enum(NAMAAZ_VALUES, {
+const namaazSchema = z.enum(NAMAAZ_VALUES, {
   error: `Namaaz must be one of: ${NAMAAZ_VALUES.join(', ')}`,
 });
 
