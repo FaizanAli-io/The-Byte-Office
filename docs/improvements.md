@@ -28,31 +28,6 @@ What is left, in order:
 Item 3 (MCP writes bypass the confirmation model) is now closed: writes still apply immediately on that surface, but
 a client only gets them if it was granted `finance:write`, and that grant is per client and revocable.
 
--------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | [4 — server-side session revocation](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--mostly-done) | The replay hole is closed and the token is no longer reachable from JavaScript, so what is left is revocation. Deliberately deferred: doing it properly means a database read in the middleware on every protected request. |
-| **2** | [19 — no security headers](#19-no-security-headers--open) | `next.config.ts` is still an empty object. A CSP is the cheapest remaining hardening and complements the work already done on `/docs`. |
-| **3** | [17 — non-UUID path parameters return 500](#17-non-uuid-path-parameters-return-500--open) | Small and self-contained. A bad id should be a 400 or 404, not a stack trace and a generic server error. |
-
-**Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan), item 8
-(per-instance login throttle), item 14 (ledger write concurrency).
-
-Item 3 (MCP writes bypass the confirmation model) is now closed: writes still apply immediately on that surface, but
-a client only gets them if it was granted `finance:write`, and that grant is per client and revocable.
-
--------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | [6 — `/docs` is public and invites pasting the master API key](#6-docs-is-public-and-invites-pasting-the-master-api-key--open) | A public, indexable page that loads a third-party script from unpkg onto your origin and asks you to paste `MCP_API_KEY`, which it then stores in `localStorage`. That key writes to your ledger without confirmation. Cheapest fix on the list. |
-| **2** | [4 — magic links are replayable](#4-magic-links-are-replayable-and-sessions-cannot-be-revoked--open) + [5 — session token in `localStorage`](#5-a-30-day-session-token-sits-in-localstorage--open) | One user means one account and no second line of defence. A link that leaks from email or a proxy log works repeatedly for 15 minutes, the session it mints lasts 30 days, and logout cannot revoke it. Item 5 hands an equivalent token to any XSS in order to toggle a nav item. |
-| **3** | [18 — no tests and no CI](#18-no-tests-and-no-ci--open) | Independent of user count. `accountMovement`, `expectedBalance`, `accountStats`, `ledgerSummary` and `variancePct` are the arithmetic your reconciliation depends on, they are pure and dependency-free, and they have never been executed by anything but the UI. |
-| **4** | [15 — money is JavaScript floats](#15-money-is-javascript-floats--closed-by-decision) | Also independent of user count. Drift accumulates through `expectedBalance` and surfaces as a phantom reconciliation variance. Bigger job than the others, which is why it is fourth rather than first. |
-
-**Explicitly deprioritised while this stays single-user:** item 2 (`syncActionInMessages` full-table scan — degrades
-with message volume, and you are one person), item 8 (per-instance login throttle — a real limit needs a shared store,
-which is multi-instance work), and item 14 (ledger write concurrency — only bites with two tabs open at once).
-
-Item 3 (MCP writes bypass the confirmation model) sits outside this ranking: it is now documented rather than
-surprising, and with one key holder it is a deliberate choice rather than a hole. It becomes urgent the moment a second
-person or a shared agent gets that key.
-
 ---
 
 ## Tier 1 — Correctness and exposure
