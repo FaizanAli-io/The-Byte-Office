@@ -1,7 +1,7 @@
 'use client';
 
 import { eligibleAccounts, monthBounds } from '@/lib/ledger';
-import type { LedgerEntryFormState } from '@/lib/finance-agent/types';
+import type { LedgerEntryFormState } from '@/lib/agent/types';
 import type { LedgerEntryType } from '@/types/ledger';
 import { FormEvent, useState } from 'react';
 import { financeStyles } from '../../components/FinanceUI';

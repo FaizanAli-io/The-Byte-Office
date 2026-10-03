@@ -321,16 +321,30 @@ export async function createLedger(input: { month: string; accounts: LedgerAccou
   return created;
 }
 
-export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPayload): Promise<MonthlyLedger> {
+/**
+ * Rewrites a month, but only if it is still the version the caller read
+ * (`body.updatedAt`). Returns `null` when it is not, so two open tabs reject
+ * the stale save instead of silently discarding the other one's edits.
+ *
+ * The HTTP transaction cannot branch, so the guard aborts it instead: the
+ * conditional UPDATE runs first, and dividing by its row count raises when it
+ * matched nothing. A concurrent save blocks on the row lock and then re-checks
+ * `updated_at`, so the race between two saves is closed too.
+ */
+export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPayload): Promise<MonthlyLedger | null> {
   const now = new Date();
   const finalizedAt =
     body.status === 'finalized' ? (existing.finalizedAt ? new Date(existing.finalizedAt) : now) : null;
   const sql = getSql();
   const ledgerId = String(existing._id);
+  const expected = new Date(body.updatedAt).toISOString();
   const statements = [
+    sql`WITH saved AS (
+      UPDATE finance.ledgers SET status = ${body.status}, updated_at = ${now.toISOString()}, finalized_at = ${finalizedAt ? finalizedAt.toISOString() : null}
+      WHERE id = ${ledgerId} AND date_trunc('milliseconds', updated_at) = ${expected} RETURNING 1
+    ) SELECT 1 / (SELECT count(*) FROM saved)::int`,
     sql`DELETE FROM finance.ledger_entries WHERE ledger_id = ${ledgerId}`,
     sql`DELETE FROM finance.ledger_accounts WHERE ledger_id = ${ledgerId}`,
-    sql`UPDATE finance.ledgers SET status = ${body.status}, updated_at = ${now.toISOString()}, finalized_at = ${finalizedAt ? finalizedAt.toISOString() : null} WHERE id = ${ledgerId}`,
   ];
 
   body.accounts.forEach((account, index) =>
@@ -338,7 +352,13 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   );
   body.entries.forEach((entry, index) => statements.push(insertLedgerEntry(sql, ledgerId, entry, index)));
 
-  await sql.transaction(statements);
+  try {
+    await sql.transaction(statements);
+  } catch (cause) {
+    // 22012 is division_by_zero: the guard above, meaning the month moved on.
+    if ((cause as { code?: string }).code === '22012') return null;
+    throw cause;
+  }
   const saved = await loadLedger(body.month);
   if (!saved) throw new Error('Failed to save ledger');
   return saved;

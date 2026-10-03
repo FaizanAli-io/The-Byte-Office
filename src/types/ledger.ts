@@ -84,4 +84,5 @@ export interface MonthlyLedger {
   finalizedAt?: Date | string;
 }
 
-export type MonthlyLedgerPayload = Omit<MonthlyLedger, '_id' | 'createdAt' | 'updatedAt'>;
+/** `updatedAt` is the version the client read; a save against any other is rejected. */
+export type MonthlyLedgerPayload = Omit<MonthlyLedger, '_id' | 'createdAt'>;

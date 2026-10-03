@@ -1,4 +1,4 @@
-import { listAgentToolLogs } from '@/lib/finance-agent/repository';
+import { listAgentToolLogs } from '@/lib/agent/repository';
 import { apiRoute, searchParam } from '@/lib/api';
 
 export const GET = apiRoute('GET /api/finance-agent/logs', 'Failed to load assistant logs', async (req: Request) => ({

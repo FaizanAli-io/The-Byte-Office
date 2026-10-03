@@ -1,7 +1,7 @@
 import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
-import { createAgentAction } from '@/lib/finance-agent/repository';
+import { createAgentAction } from '@/lib/agent/repository';
 import { parseInquiry, sendInquiryEmail } from '@/lib/inquiry-email';
-import type { AgentActionPayload } from '@/lib/finance-agent/types';
+import type { AgentActionPayload } from '@/lib/agent/types';
 
 export async function proposeTboInquiry(rawArgs: unknown) {
   const inquiry = parseInquiry(rawArgs);

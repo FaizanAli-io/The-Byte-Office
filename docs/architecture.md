@@ -29,6 +29,11 @@ the error. No component holds a path string.
 row atomically, re-reads the source data, checks a fingerprint and only then writes. MCP writes skip the proposal step
 and are gated by OAuth scope instead.
 
+**Shared agent core, three modules.** `lib/agent/` owns what every module uses — the wire types, conversations,
+messages, tool logs and the action lifecycle (`actions.ts` claims, dispatches and records). The finance module lives in
+`lib/finance-agent/`, personal and TBO in `lib/agent/modules/`. Modules import the core and never each other; only
+`runtime.ts` and `actions.ts` know all three.
+
 ---
 
 ## 1. There are two account models, and nothing reconciles them
@@ -62,7 +67,7 @@ and a currency. Splitting them by kind means every layer carries the same three-
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | [`registry.ts`](../src/lib/agent/registry.ts)                     | `itemType` enum plus a flat union of every field any kind needs          |
 | [`action-parsing.ts`](../src/lib/finance-agent/action-parsing.ts) | `HOLDING_FIELDS`, one validator list per kind                            |
-| [`repository.ts`](../src/lib/finance-agent/repository.ts)         | `HOLDING_TABLES` and a `holdingTable()` lookup on all four CRUD paths    |
+| [`portfolio.ts`](../src/lib/finance-agent/portfolio.ts)           | `HOLDING_TABLES` and a `holdingTable()` lookup on all four CRUD paths    |
 | [`finance.ts`](../src/lib/finance.ts)                             | `HoldingRows` with three arrays and three separate sums                  |
 | [`queries.ts`](../src/lib/db/queries.ts)                          | `flattenMutualFunds` / `groupMutualFunds` and `MUTUAL_FUND_GROUP_STRIDE` |
 
@@ -74,36 +79,18 @@ same name. The table underneath is already flat; only the shape crossing the wir
 
 ## 3. The ledger is edited as a document, not as rows
 
-`PUT /api/ledger` takes a whole month and `saveLedger` deletes every account and entry for it and reinserts them. That
-is why:
+`PUT /api/ledger` takes a whole month and `saveLedger` deletes every account and entry for it and reinserts them. A
+save carries the `updatedAt` it read and is rejected with a 409 if the month has moved on, so two tabs no longer lose
+each other's edits silently. What the shape still costs:
 
-- there is no concurrency control on the UI path — two tabs means silent last-write-wins on a month's books (the agent
-  path is protected by a fingerprint, the UI path is not);
 - every entry's `sort_order` is reassigned on every save;
-- adding one transaction rewrites the month.
+- adding one transaction rewrites the month;
+- a rejected save means reloading the whole month, not merging one row.
 
-It is a reasonable shape for a form that edits a whole month at once, and it is genuinely simple. The cheap mitigation
-is an `updated_at` precondition on the `UPDATE` so a stale save is rejected rather than applied. The larger version is
+It is a reasonable shape for a form that edits a whole month at once, and it is genuinely simple. The larger fix is
 row-level endpoints for entries, which the assistant's action layer effectively already wants.
 
-## 4. `lib/agent` and `lib/finance-agent` do not mean what they are named
-
-`lib/finance-agent/` became the home for _generic_ agent infrastructure. `repository.ts` owns conversations, messages,
-tool logs and every action type — including `prayer_set` and `tbo_send_inquiry`, which have nothing to do with
-finance. The dependency runs both ways:
-
-```
-finance-agent/actions.ts → agent/modules/personal.ts → finance-agent/repository.ts
-```
-
-The database shows the same leak: personal conversations live in the `finance` schema, in a table called
-`finance_agent_messages`.
-
-The three-module split the system prompt describes — finance, personal, tbo — is the right shape. Promote the shared
-pieces (conversations, messages, tool logs, the action lifecycle) to `lib/agent/`, and leave `lib/finance-agent/` as
-one module beside the other two. Renaming the tables can wait; untangling the imports need not.
-
-## 5. Two validation systems
+## 4. Two validation systems
 
 `personal-validation.ts` is zod, shared by the REST routes and the assistant's tools.
 [`finance-validation.ts`](../src/lib/finance-validation.ts) is hand-rolled predicates returning `string | null`.
@@ -135,9 +122,7 @@ Worth stating, so a future pass does not "fix" these:
 
 ## If these were tackled, in this order
 
-1. **4 — untangle `agent` / `finance-agent`.** Pure refactor, no schema change, and it makes the rest easier to reason
-   about.
-2. **3 — an `updated_at` precondition on ledger saves.** Small, and it closes a real data-loss path.
-3. **2 — collapse the three holdings tables.** Self-contained, and it removes the most repeated branch in the code.
-4. **1 — a shared account entity.** Largest, and worth doing only when the hand-maintained portfolio total actually
+1. **2 — collapse the three holdings tables.** Self-contained, and it removes the most repeated branch in the code.
+2. **3 — row-level ledger entry endpoints.** Only once whole-month saves start to hurt.
+3. **1 — a shared account entity.** Largest, and worth doing only when the hand-maintained portfolio total actually
    starts disagreeing with the ledger often enough to hurt.

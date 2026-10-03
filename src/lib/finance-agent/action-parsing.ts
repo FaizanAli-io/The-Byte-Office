@@ -3,8 +3,13 @@ import { entryTypeSchema, itemTypeSchema } from '@/lib/agent/registry';
 import { isRecord, validMoney, validName, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
 import { eligibleAccounts, monthBounds } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger } from '@/types/ledger';
-import { fingerprint } from './repository';
-import type { AgentActionPayload, LedgerEntryFormState, PortfolioItemInput, PortfolioItemType } from './types';
+import { fingerprint } from '@/lib/agent/repository';
+import type {
+  AgentActionPayload,
+  LedgerEntryFormState,
+  PortfolioItemInput,
+  PortfolioItemType,
+} from '@/lib/agent/types';
 
 /**
  * Pure helpers behind `actions.ts`: argument parsing, the ledger and portfolio
@@ -66,16 +71,7 @@ export function assertLedgerWithEntries(
   entries: LedgerEntry[],
   categoryIds: ReadonlySet<string>
 ) {
-  const error = validateLedger(
-    {
-      month: ledger.month,
-      status: ledger.status,
-      accounts: ledger.accounts,
-      entries,
-      finalizedAt: ledger.finalizedAt,
-    },
-    categoryIds
-  );
+  const error = validateLedger({ ...ledger, entries }, categoryIds);
   if (error) throw new AgentActionError(error);
 }
 

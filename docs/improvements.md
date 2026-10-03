@@ -8,14 +8,13 @@ a backlog that is mostly ticked boxes is a backlog nobody reads.
 
 **The workspace has exactly one user**, so items whose only cost is scale are not the priority.
 
-| Priority | Item                                                                                        | Why here                                                                                       |
-| -------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| **1**    | [1 — no security headers](#1-no-security-headers)                                           | `next.config.ts` still sets only `distDir`. A CSP is the cheapest hardening left.              |
-| **2**    | [2 — sessions cannot be revoked](#2-sessions-cannot-be-revoked)                             | Magic links are single-use and the token is out of `localStorage`; revocation is what is left. |
-| **3**    | [3 — non-UUID path parameters return 500](#3-non-uuid-path-parameters-return-500)           | Small and self-contained. A bad id should be a 400 or 404.                                     |
-| **4**    | [4 — ledger saves have no concurrency control](#4-ledger-saves-have-no-concurrency-control) | Two open tabs silently lose a month's edits.                                                   |
+| Priority | Item                                                                              | Why here                                                                                       |
+| -------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **1**    | [1 — no security headers](#1-no-security-headers)                                 | `next.config.ts` still sets only `distDir`. A CSP is the cheapest hardening left.              |
+| **2**    | [2 — sessions cannot be revoked](#2-sessions-cannot-be-revoked)                   | Magic links are single-use and the token is out of `localStorage`; revocation is what is left. |
+| **3**    | [3 — non-UUID path parameters return 500](#3-non-uuid-path-parameters-return-500) | Small and self-contained. A bad id should be a 400 or 404.                                     |
 
-**Deprioritised while this stays single-user:** items 5, 6 and 7.
+**Deprioritised while this stays single-user:** items 4, 5 and 6.
 
 ---
 
@@ -43,23 +42,12 @@ some threshold.
 `lib/oauth/store.ts` already has the guard this needs — a private `isUuid` — because the OAuth client lookup hit the
 same problem. Promote it and validate at the route boundary, returning 400 or 404.
 
-## 4. Ledger saves have no concurrency control
-
-`PUT /api/ledger` deletes and reinserts a whole month with no precondition. The assistant's path is protected by the
-fingerprint in `executeLedgerPayload`; the UI path is not, so two open tabs mean last-write-wins on a month's books.
-
-Add an `updated_at` precondition to the `UPDATE` and reject a stale save. See
-[architecture item 3](./architecture.md#3-the-ledger-is-edited-as-a-document-not-as-rows) for why the save works this
-way at all.
-
----
-
 ## Deprioritised while single-user
 
-### 5. `syncActionInMessages` reads every chat message in the database
+### 4. `syncActionInMessages` reads every chat message in the database
 
 ```ts
-// src/lib/finance-agent/repository.ts
+// src/lib/agent/repository.ts
 const rows = await getDb().select().from(financeAgentMessages);
 ```
 
@@ -67,14 +55,14 @@ No `WHERE`, no limit, on every action confirm and cancel — then an individual 
 round trip over Neon HTTP. Invisible at this size, degrades linearly forever. An `action_id` column, or a GIN index on
 `actions` with a `@>` query, makes it one statement.
 
-### 6. The login rate limiter does nothing in production
+### 5. The login rate limiter does nothing in production
 
 `const lastSentAt = new Map<string, number>()` at module scope in `src/app/api/finance-auth/login/route.ts` is
 per-instance on Vercel, so concurrency bypasses it, and it is an unbounded map keyed by client IP. With one recipient
 address the practical risk is mailbox flooding and SMTP quota burn rather than access. A real limit needs a shared
 store.
 
-### 7. Chat history round-trips through the client
+### 6. Chat history round-trips through the client
 
 The client POSTs the full `messages` array and `sanitizeHistory` validates it — but the server already persists every
 message in `financeAgentMessages`, and the request carries a `chatId`. Loading history server-side would remove a

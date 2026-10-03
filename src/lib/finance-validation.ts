@@ -90,6 +90,7 @@ export function validateSnapshotInput(value: unknown) {
 export function validateLedger(body: MonthlyLedgerPayload, categoryIds: ReadonlySet<string> = new Set()) {
   if (!body || !isMonth(body.month)) return 'Invalid month';
   if (!['draft', 'finalized'].includes(body.status)) return 'Invalid status';
+  if (Number.isNaN(new Date(body.updatedAt).getTime())) return 'updatedAt is required: reload the month and try again';
   if (!Array.isArray(body.accounts) || !Array.isArray(body.entries)) {
     return 'Accounts and entries are required';
   }

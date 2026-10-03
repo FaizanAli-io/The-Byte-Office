@@ -3,8 +3,8 @@ import {
   getConversation,
   listAgentMessages,
   saveAgentMessage,
-} from '@/lib/finance-agent/repository';
-import type { FinanceChatMessage } from '@/lib/finance-agent/types';
+} from '@/lib/agent/repository';
+import type { AgentChatMessage } from '@/lib/agent/types';
 import { ApiError, apiRoute, found, jsonBody, searchParam } from '@/lib/api';
 
 async function requireChat(id: string | null | undefined) {
@@ -34,7 +34,7 @@ export const DELETE = apiRoute(
   }
 );
 
-function parseMessage(value: unknown): FinanceChatMessage {
+function parseMessage(value: unknown): AgentChatMessage {
   if (
     typeof value !== 'object' ||
     value === null ||

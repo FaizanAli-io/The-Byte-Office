@@ -57,6 +57,7 @@ describe('validateLedger', () => {
   const base = (): MonthlyLedgerPayload => ({
     month: '2026-03',
     status: 'draft',
+    updatedAt: '2026-03-01T00:00:00.000Z',
     accounts: [
       { id: 'a', name: 'PKR bank', type: 'bank', currency: 'PKR', openingBalance: 0, exchangeRate: 1 },
       { id: 'b', name: 'USD bank', type: 'bank', currency: 'USD', openingBalance: 0, exchangeRate: 280 },

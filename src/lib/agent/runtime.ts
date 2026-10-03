@@ -2,7 +2,7 @@ import { executePersonalTool, personalToolNames } from '@/lib/agent/modules/pers
 import { executeTboTool, tboToolNames } from '@/lib/agent/modules/tbo';
 import { executeFinanceTool } from '@/lib/finance-agent/tools';
 import { groqTools } from '@/lib/agent/registry';
-import type { PendingAgentAction } from '@/lib/finance-agent/types';
+import type { PendingAgentAction } from '@/lib/agent/types';
 
 const agentTools = groqTools;
 

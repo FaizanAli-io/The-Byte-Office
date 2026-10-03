@@ -1,4 +1,4 @@
-import { cancelPendingAgentAction } from '@/lib/finance-agent/actions';
+import { cancelPendingAgentAction } from '@/lib/agent/actions';
 import { apiRoute } from '@/lib/api';
 
 export const POST = apiRoute(

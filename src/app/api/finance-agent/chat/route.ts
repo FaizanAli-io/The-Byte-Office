@@ -5,10 +5,10 @@ import {
   PRIMARY_MODEL,
   requestGroq,
   type GroqMessage,
-} from '@/lib/finance-agent/groq';
+} from '@/lib/agent/groq';
 import { getAgentRuntime } from '@/lib/agent/runtime';
-import type { FinanceAgentResponse, FinanceChatMessage, PendingAgentAction } from '@/lib/finance-agent/types';
-import { getConversation, logAgentToolCall, saveAgentMessage } from '@/lib/finance-agent/repository';
+import type { AgentResponse, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
+import { getConversation, logAgentToolCall, saveAgentMessage } from '@/lib/agent/repository';
 import { NextResponse } from 'next/server';
 
 // Worst case is MAX_TOOL_ROUNDS Groq calls, each with its own timeout.
@@ -23,7 +23,7 @@ const MAX_TOOL_CALLS = 8;
 type StreamEvent =
   | { type: 'status'; status: 'thinking' | 'reading' }
   | { type: 'delta'; content: string }
-  | { type: 'done'; response: FinanceAgentResponse }
+  | { type: 'done'; response: AgentResponse }
   | { type: 'error'; error: string };
 
 export async function POST(request: Request) {
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
 
           const content =
             streamedText || finalText || 'I reached the safe reasoning limit. Please try a more focused request.';
-          const response: FinanceAgentResponse = {
+          const response: AgentResponse = {
             message: {
               id: randomUUID(),
               role: 'assistant',
@@ -174,7 +174,7 @@ export async function POST(request: Request) {
   }
 }
 
-function sanitizeHistory(value: unknown): FinanceChatMessage[] {
+function sanitizeHistory(value: unknown): AgentChatMessage[] {
   if (!Array.isArray(value)) throw new RequestValidationError('Invalid chat');
 
   let total = 0;

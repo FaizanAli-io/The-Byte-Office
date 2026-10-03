@@ -11,10 +11,10 @@ import {
   updatePrayer,
   createPrayer,
 } from '@/lib/db/personal';
-import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
-import { createAgentAction, fingerprint } from '@/lib/finance-agent/repository';
+import { AgentActionError, pendingResult, toPublicAction } from '@/lib/agent/action-utils';
+import { createAgentAction, fingerprint } from '@/lib/agent/repository';
 import { toolNamesForModule } from '@/lib/agent/registry';
-import type { AgentActionPayload, PendingAgentAction } from '@/lib/finance-agent/types';
+import type { AgentActionPayload, PendingAgentAction } from '@/lib/agent/types';
 import { healthInputSchema, healthUpdateSchema, prayerSetSchema } from '@/lib/personal-validation';
 import { parseWith } from '@/lib/api';
 
@@ -38,15 +38,7 @@ export async function executePersonalTool(
     name === 'health_update' ||
     name === 'health_remove'
   ) {
-    const pendingAction = await proposePersonalAction(name, args);
-    return {
-      output: {
-        status: 'pending_confirmation',
-        action: pendingAction,
-        instruction: 'Tell the user to review the confirmation card. Do not claim the change was applied.',
-      },
-      pendingAction,
-    };
+    return pendingResult(await proposePersonalAction(name, args));
   }
   throw new Error(`Unknown personal tool: ${name}`);
 }

@@ -1,4 +1,4 @@
-import { deleteConversation, getConversation, renameConversation } from '@/lib/finance-agent/repository';
+import { deleteConversation, getConversation, renameConversation } from '@/lib/agent/repository';
 import { ApiError, apiRoute, found, jsonBody } from '@/lib/api';
 
 type Context = { params: Promise<{ id: string }> };

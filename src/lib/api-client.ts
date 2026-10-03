@@ -4,7 +4,7 @@ import { apiFetch, apiFetchOrNull } from './client-api';
 import type { FinanceDoc, FinanceSnapshot } from '@/types/finance';
 import type { HealthTracking, Prayer } from '@/types/personal';
 import type { CategoryKind, LedgerCategory, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
-import type { AgentConversation, FinanceChatMessage, PendingAgentAction } from '@/lib/finance-agent/types';
+import type { AgentConversation, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
 import type { heldFunds } from './ledger';
 
 /**
@@ -86,7 +86,7 @@ export const agentApi = {
   createChat: () => apiFetch<{ chat?: AgentConversation }>('/api/agent/chats', { body: {} }),
   deleteChat: (id: string) => apiFetch(`/api/agent/chats/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   messages: (chatId: string) =>
-    apiFetch<{ messages?: FinanceChatMessage[] }>(`/api/finance-agent/messages?chatId=${encodeURIComponent(chatId)}`),
+    apiFetch<{ messages?: AgentChatMessage[] }>(`/api/finance-agent/messages?chatId=${encodeURIComponent(chatId)}`),
   clearMessages: (chatId: string) =>
     apiFetch(`/api/finance-agent/messages?chatId=${encodeURIComponent(chatId)}`, { method: 'DELETE' }),
   resolveAction: (actionId: string, intent: 'confirm' | 'cancel', entry?: Record<string, unknown>) =>

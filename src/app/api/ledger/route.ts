@@ -49,7 +49,11 @@ export const PUT = apiRoute('PUT /api/ledger', 'Failed to save ledger', async (r
   if (existing.status === 'finalized' && body.status === 'finalized') {
     throw new ApiError('Reopen this month before editing it', 409);
   }
-  return saveLedger(existing, body);
+  return found(
+    await saveLedger(existing, body),
+    'This month was changed in another tab. Reload it before saving.',
+    409
+  );
 });
 
 function accountsFromFinance(finance: FinanceDoc): LedgerAccount[] {

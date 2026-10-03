@@ -2,7 +2,7 @@
 
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { FinanceChatMessage, PendingAgentAction } from '@/lib/finance-agent/types';
+import type { AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
 import { financeStyles } from '../../components/FinanceUI';
 import { LedgerEntryChatForm } from './LedgerEntryChatForm';
 
@@ -49,7 +49,7 @@ export function Message({
   onAction,
   onRetry,
 }: {
-  message: FinanceChatMessage;
+  message: AgentChatMessage;
   onAction: (id: string, intent: 'confirm' | 'cancel', entry?: Record<string, unknown>) => void;
   onRetry?: () => void;
 }) {

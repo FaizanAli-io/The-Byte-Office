@@ -1,4 +1,4 @@
-import { executeAgentAction } from '@/lib/finance-agent/actions';
+import { executeAgentAction } from '@/lib/agent/actions';
 import { executeAgentTool } from '@/lib/agent/runtime';
 import { mcpToolByName } from '@/lib/agent/registry';
 

@@ -1,4 +1,4 @@
-import type { AgentActionType, LedgerEntryFormState, PendingAgentAction } from '@/lib/finance-agent/types';
+import type { AgentActionType, LedgerEntryFormState, PendingAgentAction } from '@/lib/agent/types';
 
 export class AgentActionError extends Error {
   constructor(
@@ -29,4 +29,12 @@ export function toPublicAction(
     error: action.error,
     form,
   };
+}
+
+/** What a chat write tool returns: the card to render, and what the model may say about it. */
+export function pendingResult(
+  pendingAction: PendingAgentAction,
+  instruction = 'Tell the user to review the confirmation card. Do not claim the change was applied.'
+) {
+  return { output: { status: 'pending_confirmation', action: pendingAction, instruction }, pendingAction };
 }

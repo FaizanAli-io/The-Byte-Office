@@ -1,5 +1,5 @@
 import 'server-only';
-import type { GroqTool } from './tools';
+import type { GroqTool } from './registry';
 
 export type GroqMessage =
   | { role: 'system' | 'user'; content: string }

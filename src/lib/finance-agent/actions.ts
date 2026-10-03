@@ -1,25 +1,12 @@
 import { randomUUID } from 'crypto';
 import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
-import { executePersonalPayload } from '@/lib/agent/modules/personal';
-import { executeTboInquiry } from '@/lib/agent/modules/tbo-actions';
 import { listCategories, loadLedger, saveLedger } from '@/lib/db/queries';
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { resolveCategoryId } from '@/lib/ledger';
 import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory, type LedgerEntry } from '@/types/ledger';
-import {
-  addPortfolioItem,
-  cancelAgentAction,
-  claimAgentAction,
-  completeAgentAction,
-  createAgentAction,
-  failAgentAction,
-  fingerprint,
-  getAgentAction,
-  getPortfolioItem,
-  removePortfolioItem,
-  syncActionInMessages,
-  updatePortfolioItem,
-} from './repository';
+import { createAgentAction, fingerprint } from '@/lib/agent/repository';
+import type { AgentActionPayload, AgentActionType, PortfolioItemType } from '@/lib/agent/types';
+import { addPortfolioItem, getPortfolioItem, removePortfolioItem, updatePortfolioItem } from './portfolio';
 import {
   applyEntryOverride,
   assertLedgerStructure,
@@ -43,11 +30,14 @@ import {
   resolveAccountId,
   resolveEntryId,
 } from './action-parsing';
-import type { AgentActionPayload, AgentActionType, PortfolioItemType } from './types';
 
-export { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
+type FinancePayload = Exclude<
+  AgentActionPayload,
+  { actionType: 'prayer_set' | 'prayer_remove' | 'health_add' | 'health_update' | 'health_remove' | 'tbo_send_inquiry' }
+>;
+type LedgerPayload = Extract<FinancePayload, { actionType: `ledger_entry_${string}` }>;
 
-export async function proposeAgentAction(actionType: AgentActionType, rawArgs: unknown) {
+export async function proposeFinanceAction(actionType: AgentActionType, rawArgs: unknown) {
   const args = requireRecord(rawArgs);
 
   if (actionType === 'portfolio_item_add') {
@@ -232,52 +222,12 @@ export async function proposeAgentAction(actionType: AgentActionType, rawArgs: u
   );
 }
 
-export async function executeAgentAction(id: string, entryOverride?: unknown) {
-  const action = await claimAgentAction(id);
-  if (!action) {
-    const existing = await getAgentAction(id);
-    if (!existing) throw new AgentActionError('Action not found', 404);
-    if (existing.status === 'pending' && existing.expiresAt <= new Date()) {
-      await failAgentAction(id, 'Action expired before confirmation');
-      throw new AgentActionError('This confirmation has expired', 409);
-    }
-    throw new AgentActionError(`This action is already ${existing.status}`, 409);
-  }
-
-  try {
-    const result = await executePayload(
-      applyEntryOverride(action.payload as unknown as AgentActionPayload, entryOverride),
-      action.sourceFingerprint
-    );
-    const completed = await completeAgentAction(action.id);
-    if (!completed) {
-      throw new Error('Could not mark the action as completed');
-    }
-    const publicAction = toPublicAction(completed);
-    await syncActionInMessages(action.id, publicAction);
-    return { action: publicAction, result };
-  } catch (cause) {
-    const message = cause instanceof Error ? cause.message : 'Action execution failed';
-    await failAgentAction(action.id, message);
-    await syncActionInMessages(id, { status: 'failed', error: message });
-    throw cause instanceof AgentActionError ? cause : new AgentActionError(message, 409);
-  }
-}
-
-export async function cancelPendingAgentAction(id: string) {
-  const cancelled = await cancelAgentAction(id);
-  if (cancelled) {
-    const publicAction = toPublicAction(cancelled);
-    await syncActionInMessages(id, publicAction);
-    return publicAction;
-  }
-
-  const existing = await getAgentAction(id);
-  if (!existing) throw new AgentActionError('Action not found', 404);
-  throw new AgentActionError(`This action is already ${existing.status}`, 409);
-}
-
-async function executePayload(payload: AgentActionPayload, sourceFingerprint: string | null) {
+/** Runs a confirmed finance action. Personal and TBO payloads never reach here. */
+export async function executeFinancePayload(
+  payload: FinancePayload,
+  sourceFingerprint: string | null,
+  entryOverride?: unknown
+) {
   switch (payload.actionType) {
     case 'portfolio_item_add':
       parsePortfolioItem(payload.item as unknown as Record<string, unknown>);
@@ -296,7 +246,7 @@ async function executePayload(payload: AgentActionPayload, sourceFingerprint: st
     case 'ledger_entry_add':
     case 'ledger_entry_update':
     case 'ledger_entry_remove':
-      return executeLedgerPayload(payload, sourceFingerprint);
+      return executeLedgerPayload(applyEntryOverride(payload, entryOverride) as LedgerPayload, sourceFingerprint);
     case 'category_add':
       return addCategory({ name: payload.name, kind: payload.kind });
     case 'category_update':
@@ -304,26 +254,10 @@ async function executePayload(payload: AgentActionPayload, sourceFingerprint: st
     case 'category_remove':
       await discardCategory(payload.id);
       return { id: payload.id, name: payload.name, removed: true };
-    case 'prayer_set':
-    case 'prayer_remove':
-    case 'health_add':
-    case 'health_update':
-    case 'health_remove':
-      return executePersonalPayload(payload, sourceFingerprint);
-    case 'tbo_send_inquiry':
-      return executeTboInquiry(payload);
   }
 }
 
-async function executeLedgerPayload(
-  payload: Extract<
-    AgentActionPayload,
-    {
-      actionType: 'ledger_entry_add' | 'ledger_entry_update' | 'ledger_entry_remove';
-    }
-  >,
-  sourceFingerprint: string | null
-) {
+async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: string | null) {
   const ledger = await requireEditableLedger(payload.month);
   if (payload.actionType === 'ledger_entry_add') {
     assertLedgerStructure(ledger, sourceFingerprint);
@@ -363,13 +297,9 @@ async function executeLedgerPayload(
   }
 
   assertLedgerWithEntries(ledger, entries, new Set(categoryList.map((category) => category.id)));
-  return saveLedger(ledger, {
-    month: ledger.month,
-    status: ledger.status,
-    accounts: ledger.accounts,
-    entries,
-    finalizedAt: ledger.finalizedAt,
-  });
+  const saved = await saveLedger(ledger, { ...ledger, entries });
+  if (!saved) throw new AgentActionError('The ledger changed while saving. Ask the assistant to try again.', 409);
+  return saved;
 }
 
 /**

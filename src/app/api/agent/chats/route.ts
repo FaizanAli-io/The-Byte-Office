@@ -1,5 +1,5 @@
-import { createConversation, listConversations } from '@/lib/finance-agent/repository';
-import { parseAgentWorkspace } from '@/lib/finance-agent/types';
+import { createConversation, listConversations } from '@/lib/agent/repository';
+import { parseAgentWorkspace } from '@/lib/agent/types';
 import { apiRoute, created, optionalJsonBody, searchParam } from '@/lib/api';
 
 export const GET = apiRoute('GET /api/agent/chats', 'Failed to load chats', async (req: Request) => {

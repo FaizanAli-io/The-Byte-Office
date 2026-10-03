@@ -22,11 +22,19 @@ export function useLedger() {
   const [notice, setNotice] = useState('');
   const persistChain = useRef(Promise.resolve());
   const ledgerRef = useRef<MonthlyLedger | null>(null);
+  // The version the server last returned. Queued saves read it when they run,
+  // not when they were queued, or back-to-back saves would reject each other.
+  const versionRef = useRef<MonthlyLedger['updatedAt']>('');
   const [accountsDirty, setAccountsDirty] = useState(false);
   // Categories are global rather than per-month, so they load once and
   // survive a month change.
   const [categories, setCategories] = useState<LedgerCategory[]>([]);
   ledgerRef.current = ledger;
+
+  const adopt = useCallback((next: MonthlyLedger | null) => {
+    versionRef.current = next?.updatedAt ?? '';
+    setLedger(next);
+  }, []);
 
   const loadCategories = useCallback(async () => {
     setCategories(await categoriesApi.list());
@@ -36,19 +44,22 @@ export function useLedger() {
     loadCategories().catch((cause) => setError(errorMessage(cause, 'Could not load categories')));
   }, [loadCategories]);
 
-  const load = useCallback(async (selectedMonth: string) => {
-    setLoading(true);
-    setError('');
-    setNotice('');
-    try {
-      setLedger(await ledgerApi.load(selectedMonth));
-      setAccountsDirty(false);
-    } catch (cause) {
-      setError(errorMessage(cause, 'Could not load ledger'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (selectedMonth: string) => {
+      setLoading(true);
+      setError('');
+      setNotice('');
+      try {
+        adopt(await ledgerApi.load(selectedMonth));
+        setAccountsDirty(false);
+      } catch (cause) {
+        setError(errorMessage(cause, 'Could not load ledger'));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [adopt]
+  );
 
   useEffect(() => {
     load(month);
@@ -58,7 +69,7 @@ export function useLedger() {
     setSaving(true);
     setError('');
     try {
-      setLedger(await ledgerApi.create(month, importFinance));
+      adopt(await ledgerApi.create(month, importFinance));
       setNotice(importFinance ? 'Opening balances imported from the portfolio editor.' : 'Monthly ledger created.');
     } catch (cause) {
       setError(errorMessage(cause, 'Could not create ledger'));
@@ -81,8 +92,9 @@ export function useLedger() {
             accounts: next.accounts,
             entries: next.entries,
             finalizedAt: next.status === 'finalized' ? next.finalizedAt : undefined,
+            updatedAt: versionRef.current,
           };
-          setLedger(await ledgerApi.save(payload));
+          adopt(await ledgerApi.save(payload));
           setAccountsDirty(false);
           setNotice(successNotice);
         } catch (cause) {

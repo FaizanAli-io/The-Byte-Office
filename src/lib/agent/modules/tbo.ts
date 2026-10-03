@@ -1,7 +1,8 @@
+import { pendingResult } from '@/lib/agent/action-utils';
 import { company, faqs, processSteps, projects, services, whyChooseUs } from '@/content/site';
 import { proposeTboInquiry } from '@/lib/agent/modules/tbo-actions';
 import { toolNamesForModule } from '@/lib/agent/registry';
-import type { PendingAgentAction } from '@/lib/finance-agent/types';
+import type { PendingAgentAction } from '@/lib/agent/types';
 
 export const tboToolNames = toolNamesForModule('tbo');
 
@@ -13,15 +14,10 @@ export async function executeTboTool(
     return { output: tboKnowledge(typeof args.topic === 'string' ? args.topic : 'overview') };
   }
   if (name === 'tbo_send_inquiry') {
-    const pendingAction = await proposeTboInquiry(args);
-    return {
-      output: {
-        status: 'pending_confirmation',
-        action: pendingAction,
-        instruction: 'Tell the user to review the confirmation card. Do not claim the email was sent.',
-      },
-      pendingAction,
-    };
+    return pendingResult(
+      await proposeTboInquiry(args),
+      'Tell the user to review the confirmation card. Do not claim the email was sent.'
+    );
   }
   throw new Error(`Unknown TBO tool: ${name}`);
 }

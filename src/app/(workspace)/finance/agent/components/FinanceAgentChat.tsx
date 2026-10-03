@@ -3,10 +3,10 @@
 import { FormEvent, Fragment, useEffect, useRef, useState } from 'react';
 import type {
   AgentConversation,
-  FinanceAgentResponse,
-  FinanceChatMessage,
+  AgentResponse,
+  AgentChatMessage,
   PendingAgentAction,
-} from '@/lib/finance-agent/types';
+} from '@/lib/agent/types';
 import { agentApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import { FinanceToast, type FinanceToastState } from '../../components/FinanceToast';
@@ -31,11 +31,11 @@ const copy = {
 export function FinanceAgentChat() {
   const [chats, setChats] = useState<AgentConversation[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<FinanceChatMessage[]>([]);
+  const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<FinanceToastState>(null);
-  const [failedRequest, setFailedRequest] = useState<FinanceChatMessage[] | null>(null);
+  const [failedRequest, setFailedRequest] = useState<AgentChatMessage[] | null>(null);
   const [ready, setReady] = useState(false);
   const [thinking, setThinking] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
@@ -98,7 +98,7 @@ export function FinanceAgentChat() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  async function submit(content: string, historyOverride?: FinanceChatMessage[], retry = false) {
+  async function submit(content: string, historyOverride?: AgentChatMessage[], retry = false) {
     const text = content.trim();
     if (!text || loading || !chatId) return;
     const nextMessages = (
@@ -135,7 +135,7 @@ export function FinanceAgentChat() {
       const addOrUpdateAssistant = (content: string) => {
         setMessages((current) => {
           const existing = current.some((message) => message.id === assistantId);
-          const message: FinanceChatMessage = {
+          const message: AgentChatMessage = {
             id: assistantId,
             role: 'assistant',
             content,
@@ -158,7 +158,7 @@ export function FinanceAgentChat() {
           const item = JSON.parse(line.slice(5).trim()) as
             | { type: 'status'; status: 'thinking' | 'reading' }
             | { type: 'delta'; content: string }
-            | { type: 'done'; response: FinanceAgentResponse }
+            | { type: 'done'; response: AgentResponse }
             | { type: 'error'; error: string };
           if (item.type === 'status') {
             if (!streamedContent) {
@@ -190,7 +190,7 @@ export function FinanceAgentChat() {
       setChats(refreshed ?? chats);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Could not send message';
-      const errorMessage: FinanceChatMessage = {
+      const errorMessage: AgentChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: `I couldn't complete that request.\n\n${message}`,
@@ -438,7 +438,7 @@ export function FinanceAgentChat() {
   );
 }
 
-function historyForRetry(source: FinanceChatMessage[]) {
+function historyForRetry(source: AgentChatMessage[]) {
   let end = source.length;
   while (end > 0 && source[end - 1].isError) {
     end -= 1;
@@ -459,7 +459,7 @@ function historyForRetry(source: FinanceChatMessage[]) {
 }
 
 function mapAction(
-  messages: FinanceChatMessage[],
+  messages: AgentChatMessage[],
   actionId: string,
   update: (action: PendingAgentAction) => PendingAgentAction
 ) {

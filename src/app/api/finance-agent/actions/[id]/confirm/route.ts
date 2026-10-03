@@ -1,4 +1,4 @@
-import { executeAgentAction } from '@/lib/finance-agent/actions';
+import { executeAgentAction } from '@/lib/agent/actions';
 import { apiRoute, optionalJsonBody } from '@/lib/api';
 
 export const POST = apiRoute(

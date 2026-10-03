@@ -149,7 +149,7 @@ export type PendingAgentAction = {
   form?: LedgerEntryFormState;
 };
 
-export type FinanceChatMessage = {
+export type AgentChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
@@ -158,8 +158,8 @@ export type FinanceChatMessage = {
   isError?: boolean;
 };
 
-export type FinanceAgentResponse = {
-  message: FinanceChatMessage;
+export type AgentResponse = {
+  message: AgentChatMessage;
   model: string;
 };
 

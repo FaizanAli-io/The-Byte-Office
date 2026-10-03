@@ -84,8 +84,8 @@ export function parseWith<T>(schema: z.ZodType<T>, value: unknown): T {
   return result.data;
 }
 
-export function found<T>(value: T | null | undefined, message: string): T {
-  if (value === null || value === undefined) throw new ApiError(message, 404);
+export function found<T>(value: T | null | undefined, message: string, status = 404): T {
+  if (value === null || value === undefined) throw new ApiError(message, status);
   return value;
 }
 
