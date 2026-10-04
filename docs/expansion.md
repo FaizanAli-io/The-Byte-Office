@@ -70,9 +70,9 @@ The chat route no longer forces tool choice or repairs malformed tool arguments,
 Not needed today — the workspace has one user. If that changes, the shape of the work is known:
 
 - holdings, ledgers, prayers and health all need an owner column and every query needs scoping
-- the session becomes a real identity rather than a signed timestamp (see improvements item 2)
+- the session becomes a real identity rather than a signed timestamp (see improvements item 1)
 - OAuth clients gain an owner, so a token names a person as well as a client
-- the per-instance throttles become a shared store (improvements item 4)
+- the per-instance throttles become a shared store (improvements item 3)
 
 Worth doing in that order, and not before there is a second person.
 
