@@ -8,11 +8,13 @@ Built with Next.js 15, React, Tailwind CSS, and Neon Postgres.
 
 - Public marketing site: services, work, about, contact
 - Protected finance workspace at `/finance`
-  - Portfolio editor for banks and mutual funds
-  - Portfolio snapshots with allocation charts
-  - Monthly ledger with accounts, transactions, and reconciliation
+  - Portfolio editor for banks and mutual funds, kept in sync with the newest ledger month
+  - Portfolio snapshots with allocation charts, a balance-over-time chart and a comparison of any two
+  - Monthly ledger with accounts, transactions and reconciliation; finalizing a month snapshots the portfolio
   - AI finance assistant with tool calling, confirmation cards, and in-chat ledger forms
   - Assistant tool-call logs for debugging
+- MCP server at `/api/mcp` with OAuth, exposing the finance, personal and company tools — listed in
+  [`docs/mcp.md`](docs/mcp.md)
 
 ## Getting started
 
@@ -55,7 +57,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Finance assistant
 
-The assistant lives at `/finance/agent` and uses Groq with `openai/gpt-oss-20b`. Reads run immediately; writes create confirmation cards or in-chat ledger forms that must be submitted before data changes.
+The assistant lives at `/finance/agent` and uses Groq with `openai/gpt-oss-120b`, falling back to `openai/gpt-oss-20b` when rate limited. Reads run immediately; writes create confirmation cards or in-chat ledger forms that must be submitted before data changes.
 
 Setup and troubleshooting details are in [`docs/finance-agent.md`](docs/finance-agent.md).
 
@@ -68,11 +70,16 @@ Notes:
 ```bash
 npm run dev          # Start development server
 npm run build        # Production build
+npm run build:check  # Production build into .next-check, safe while dev is running
 npm run start        # Start production server
 npm test             # Run the unit tests
 npm run lint         # ESLint
 npm run lines        # Source line counts and the largest files
+npm run db:generate  # Generate a migration from schema.ts changes
 npm run db:migrate   # Apply Drizzle migrations
+npm run db:backup    # Dump the app's schemas to ./backups
+npm run db:restore   # Restore the newest (or a given) backup
+npm run mcp:smoke    # Smoke-test the MCP endpoint
 ```
 
 ## Deploy

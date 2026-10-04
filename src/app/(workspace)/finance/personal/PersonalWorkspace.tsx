@@ -19,6 +19,7 @@ const NAMAAZ_LABELS: Record<Namaaz, string> = {
 
 export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
   const [prayers, setPrayers] = useState<Prayer[]>([]);
+  const [prayersUpdatedAt, setPrayersUpdatedAt] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthTracking[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<FinanceToastState>(null);
@@ -31,7 +32,9 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
 
   const refresh = useCallback(async () => {
     if (view === 'prayers') {
-      setPrayers(await prayersApi.list());
+      const tracker = await prayersApi.list();
+      setPrayers(tracker.prayers);
+      setPrayersUpdatedAt(tracker.updatedAt);
       return;
     }
     setHealth(await healthApi.list());
@@ -48,7 +51,7 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
     () =>
       NAMAAZ_VALUES.map((namaaz) => {
         const row = prayers.find((prayer) => prayer.namaaz === namaaz);
-        return { namaaz, missed: row?.missed ?? 0, id: row?.id, updatedAt: row?.updatedAt };
+        return { namaaz, missed: row?.missed ?? 0, id: row?.id };
       }),
     [prayers]
   );
@@ -138,7 +141,12 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
         >
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
             <StatCard label="Missed prayers" value={String(totalMissed)} hint="Across all five namaaz" tone="amber" />
-            <StatCard label="Tracked namaaz" value={String(prayers.length)} hint="Rows saved so far" tone="cyan" />
+            <StatCard
+              label="Last updated"
+              value={prayersUpdatedAt ? new Date(prayersUpdatedAt).toLocaleDateString() : 'Never'}
+              hint={prayersUpdatedAt ? new Date(prayersUpdatedAt).toLocaleTimeString() : 'No change recorded yet'}
+              tone="cyan"
+            />
           </div>
           <FinanceCard title="Prayers" description="One row per namaaz. Increase or decrease missed counts.">
             <div className="grid gap-3">
@@ -147,12 +155,7 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
                   key={row.namaaz}
                   className={`${financeStyles.inset} flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between`}
                 >
-                  <div>
-                    <p className="font-semibold text-white">{NAMAAZ_LABELS[row.namaaz]}</p>
-                    <p className="text-xs text-slate-500">
-                      {row.updatedAt ? `Updated ${new Date(row.updatedAt).toLocaleString()}` : 'Not saved yet'}
-                    </p>
-                  </div>
+                  <p className="font-semibold text-white">{NAMAAZ_LABELS[row.namaaz]}</p>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"

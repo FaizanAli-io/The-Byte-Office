@@ -4,7 +4,7 @@ import {
   getHealthTracking,
   getPrayerByNamaaz,
   listHealthTracking,
-  listPrayers,
+  loadPrayerTracker,
   updateHealthTracking,
   updatePrayer,
   createPrayer,
@@ -23,7 +23,7 @@ export async function executePersonalTool(
   args: Record<string, unknown>
 ): Promise<{ output: unknown; pendingAction?: PendingAgentAction }> {
   if (name === 'prayers_list') {
-    return { output: await listPrayers() };
+    return { output: await loadPrayerTracker() };
   }
   if (name === 'health_list') {
     const metric = typeof args.metric === 'string' && args.metric.trim() ? args.metric.trim() : undefined;

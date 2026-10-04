@@ -2,7 +2,7 @@ import { asc, desc, eq } from 'drizzle-orm';
 import { idEq } from './ids';
 import type { HealthTrackingInput, HealthTrackingUpdate, PrayerInput, PrayerUpdate } from '@/types/personal';
 import { getDb } from './index';
-import { healthTracking, prayers } from './schema';
+import { NAMAAZ_VALUES, healthTracking, prayerHistory, prayers, type Namaaz } from './schema';
 
 /**
  * Drizzle writes an explicit `undefined` as a column value, so partial updates
@@ -14,6 +14,33 @@ function defined<T extends object>(input: T) {
 
 export async function listPrayers() {
   return getDb().select().from(prayers).orderBy(asc(prayers.namaaz));
+}
+
+/** The counts, and when they last changed: the newest history row, or `null` before the first change. */
+export async function loadPrayerTracker() {
+  const [rows, [latest]] = await Promise.all([
+    listPrayers(),
+    getDb().select().from(prayerHistory).orderBy(desc(prayerHistory.recordedAt)).limit(1),
+  ]);
+  return { prayers: rows, updatedAt: latest?.recordedAt ?? null };
+}
+
+/**
+ * Appends all five counts to the history after a prayer write. A write that
+ * changed nothing records nothing, so saving the same value again cannot move
+ * "last updated".
+ */
+async function recordPrayerHistory() {
+  const db = getDb();
+  const [rows, [latest]] = await Promise.all([
+    db.select().from(prayers),
+    db.select().from(prayerHistory).orderBy(desc(prayerHistory.recordedAt)).limit(1),
+  ]);
+  const counts = Object.fromEntries(
+    NAMAAZ_VALUES.map((namaaz) => [namaaz, rows.find((row) => row.namaaz === namaaz)?.missed ?? 0])
+  ) as Record<Namaaz, number>;
+  if (latest && NAMAAZ_VALUES.every((namaaz) => latest.counts[namaaz] === counts[namaaz])) return;
+  await db.insert(prayerHistory).values({ counts });
 }
 
 export async function getPrayer(id: string) {
@@ -34,20 +61,19 @@ export async function createPrayer(input: PrayerInput) {
       missed: input.missed ?? 0,
     })
     .returning();
+  await recordPrayerHistory();
   return row;
 }
 
 export async function updatePrayer(id: string, input: PrayerUpdate) {
-  const [row] = await getDb()
-    .update(prayers)
-    .set({ ...defined(input), updatedAt: new Date() })
-    .where(idEq(prayers.id, id))
-    .returning();
+  const [row] = await getDb().update(prayers).set(defined(input)).where(idEq(prayers.id, id)).returning();
+  if (row) await recordPrayerHistory();
   return row ?? null;
 }
 
 export async function deletePrayer(id: string) {
   const deleted = await getDb().delete(prayers).where(idEq(prayers.id, id)).returning({ id: prayers.id });
+  if (deleted.length) await recordPrayerHistory();
   return deleted.length > 0;
 }
 

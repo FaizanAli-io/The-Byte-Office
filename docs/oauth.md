@@ -1,7 +1,7 @@
 # OAuth for the MCP server
 
-How authentication to `/api/mcp` works. This is implemented; the one step left is applying migration `0010`, which
-creates the three tables below.
+How authentication to `/api/mcp` works. This is implemented, and the three tables below are part of the baseline
+migration.
 
 `/api/mcp` was previously guarded by a single shared bearer token, `MCP_API_KEY`. That worked for Claude and Cursor,
 which let you paste a header, but ChatGPT's connector flow offers only no-auth or OAuth, so the key could not get us
@@ -73,13 +73,13 @@ new metadata is needed — the scope check is a filter over a field that exists.
 One read and one write scope per module. Splitting by module rather than having a single global pair means a
 connector that only needs the portfolio never gains the ability to read prayer counts.
 
-| Scope            | Grants                                                     |
-| ---------------- | ---------------------------------------------------------- |
-| `finance:read`   | Portfolio, snapshots, ledgers, and all three MCP resources |
-| `finance:write`  | Add, edit and remove holdings and ledger entries           |
-| `personal:read`  | Missed prayer counts and health readings                   |
-| `personal:write` | Add, edit and remove prayer counts and health readings     |
-| `tbo:read`       | Public company information                                 |
+| Scope            | Grants                                                                     |
+| ---------------- | -------------------------------------------------------------------------- |
+| `finance:read`   | Portfolio, snapshots, ledgers, and all three MCP resources                 |
+| `finance:write`  | Add, edit and remove holdings, ledger accounts and entries, and categories |
+| `personal:read`  | Missed prayer counts and health readings                                   |
+| `personal:write` | Set prayer counts; add, edit and remove health readings                    |
+| `tbo:read`       | Public company information                                                 |
 
 The list is **derived from the exposed tools**, not written down, so a scope that would grant nothing cannot be
 advertised. `tbo:write` is absent for exactly that reason: `tbo_send_inquiry` sends real email and is deliberately
@@ -478,7 +478,7 @@ The pure parts are worth unit tests in the style of `tests/finance-auth.test.ts`
   for a different audience
 - PKCE: a correct verifier passes, a wrong one fails
 - redirect URI matching, including the near-misses — trailing slash, added query, different port, subdomain
-- scope filtering: a `finance:read` token sees exactly the five read tools in `tools/list`
+- scope filtering: a `finance:read` token sees exactly the eight finance read tools in `tools/list`
 
 The flow itself is easiest to check end to end against a local server with the MCP Inspector, which performs real
 discovery, registration and PKCE.

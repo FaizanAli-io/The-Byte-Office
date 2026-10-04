@@ -368,13 +368,23 @@ export const prayers = personal.table(
     id: uuid('id').defaultRandom().primaryKey(),
     namaaz: namaazEnum('namaaz').notNull(),
     missed: integer('missed').notNull().default(0),
-    updatedAt: updatedAt(),
   },
   (table) => [
     uniqueIndex('prayers_namaaz_uidx').on(table.namaaz),
     check('prayers_missed_non_negative', sql`${table.missed} >= 0`),
   ]
 );
+
+/**
+ * Every change to the prayer counts, as a snapshot of all five. The newest row
+ * is when the tracker was last updated; the rows before it are the record of
+ * how it got there. Append-only — nothing updates or deletes a row — so no
+ * later write can erase when a count was set.
+ */
+export const prayerHistory = personal.table('prayer_history', {
+  recordedAt: utc('recorded_at').primaryKey().defaultNow(),
+  counts: jsonb('counts').$type<Record<Namaaz, number>>().notNull(),
+});
 
 export const healthTracking = personal.table(
   'health_tracking',

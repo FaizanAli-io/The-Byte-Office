@@ -289,7 +289,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     name: 'prayers_list',
     title: 'List prayers',
     module: 'personal',
-    description: 'List missed-prayer counts for fajr, zuhr, asar, maghreb, and isha.',
+    description:
+      'List missed-prayer counts for fajr, zuhr, asar, maghreb, and isha, and when the counts were last changed.',
     schema: empty,
     mcp: true,
   },

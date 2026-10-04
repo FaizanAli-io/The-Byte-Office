@@ -67,7 +67,7 @@ export const snapshotsApi = {
 };
 
 export const prayersApi = {
-  list: () => apiFetch<Prayer[]>('/api/prayers'),
+  list: () => apiFetch<{ prayers: Prayer[]; updatedAt: string | null }>('/api/prayers'),
   create: (namaaz: string, missed: number) => apiFetch('/api/prayers', { body: { namaaz, missed } }),
   update: (id: string, missed: number) => apiFetch(`/api/prayers/${id}`, { method: 'PUT', body: { missed } }),
 };

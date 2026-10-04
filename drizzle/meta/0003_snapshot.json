@@ -1447,6 +1447,32 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "personal.prayer_history": {
+      "name": "prayer_history",
+      "schema": "personal",
+      "columns": {
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "now()"
+        },
+        "counts": {
+          "name": "counts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "personal.prayers": {
       "name": "prayers",
       "schema": "personal",
@@ -1471,13 +1497,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {
