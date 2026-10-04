@@ -1,5 +1,5 @@
 import { AgentActionError } from '@/lib/agent/action-utils';
-import { entryTypeSchema, itemTypeSchema } from '@/lib/agent/registry';
+import { entryTypeSchema, itemTypeSchema } from '@/lib/agent/fields';
 import { isRecord, validMoney, validName, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
 import { eligibleAccounts, monthBounds } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger } from '@/types/ledger';

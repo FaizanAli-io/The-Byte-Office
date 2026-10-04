@@ -292,3 +292,13 @@ function toPkr(amount: number, accountId: string, accounts: LedgerAccount[], exc
 export function entryUsesAccount(entry: LedgerEntry, id: string) {
   return entry.accountId === id || entry.destinationAccountId === id;
 }
+
+/** Display order for accounts, matching the portfolio: local banks, remote banks, then funds. */
+export function byAccountKind(
+  a: Pick<LedgerAccount, 'type' | 'currency'>,
+  b: Pick<LedgerAccount, 'type' | 'currency'>
+) {
+  const rank = (account: Pick<LedgerAccount, 'type' | 'currency'>) =>
+    account.type === 'fund' ? 2 : account.currency === 'USD' ? 1 : 0;
+  return rank(a) - rank(b);
+}

@@ -79,6 +79,17 @@ describe('planLedgerSave (ledger → portfolio)', () => {
     expect(accounts.find((account) => account.id === 'a-new')?.holdingId).toBe(changes.create[0].id);
   });
 
+  it('never recreates a holding for an account that lost its link to a removal', () => {
+    const orphan = { ...meezan, holdingId: undefined };
+    const { accounts, changes } = planLedgerSave(
+      ledger([orphan, deel, nbp]),
+      ledger([orphan, deel, nbp]),
+      holdings.slice(1)
+    );
+    expect(changes.create).toEqual([]);
+    expect(accounts[0]).toEqual(orphan);
+  });
+
   it('removes the holding of an account removed in the ledger', () => {
     const { accounts, changes } = planLedgerSave(ledger([meezan, deel, nbp]), ledger([meezan, nbp]), holdings);
     expect(changes.remove).toEqual([holdings[1]]);
@@ -134,7 +145,9 @@ describe('planPortfolioSync (portfolio → ledger)', () => {
     const remaining = [holdings[1], holdings[2]];
     const month = ledger([meezan, deel, nbp]);
     expect(planPortfolioSync(month, holdings, remaining)?.map((account) => account.id)).toEqual(['a-deel', 'a-nbp']);
-    expect(planPortfolioSync(ledger([meezan, deel, nbp], [expense(10)]), holdings, remaining)).toBeNull();
+    // Kept for the month's history, but unlinked: the database clears the link when the holding goes.
+    const kept = planPortfolioSync(ledger([meezan, deel, nbp], [expense(10)]), holdings, remaining);
+    expect(kept?.[0]).toEqual({ ...meezan, holdingId: undefined });
   });
 
   it('leaves both sides agreeing: a ledger save straight after changes nothing', () => {

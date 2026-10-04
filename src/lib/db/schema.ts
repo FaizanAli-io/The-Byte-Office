@@ -67,9 +67,6 @@ export const holdingKindEnum = finance.enum('holding_kind', ['local_bank', 'remo
  * PKR, except USD for a remote bank, which also carries its rate. A mutual
  * fund's `name` is the fund and `group_name` the bank it sits under; banks
  * have no group. Currency is not stored because the kind decides it.
- *
- * This replaces `local_banks`, `remote_banks` and `mutual_funds`, which stay
- * until the copy has been verified and are then dropped.
  */
 export const holdings = finance.table(
   'holdings',
@@ -91,35 +88,6 @@ export const holdings = finance.table(
     check('holdings_amount_non_negative', sql`${table.amount} >= 0`),
   ]
 );
-
-export const localBanks = finance.table('local_banks', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: text('name').notNull(),
-  amountPkr: money('amount_pkr').notNull().default(0),
-  sortOrder: sortOrder(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
-
-export const remoteBanks = finance.table('remote_banks', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: text('name').notNull(),
-  amountUsd: money('amount_usd').notNull().default(0),
-  exchangeRate: rate('exchange_rate').notNull().default(1),
-  sortOrder: sortOrder(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
-
-export const mutualFunds = finance.table('mutual_funds', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  bankName: text('bank_name').notNull(),
-  fundName: text('fund_name').notNull(),
-  value: money('value').notNull().default(0),
-  sortOrder: sortOrder(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
 
 export const ledgers = finance.table(
   'ledgers',
@@ -144,9 +112,9 @@ export const ledgerAccounts = finance.table(
     ledgerId: uuid('ledger_id')
       .notNull()
       .references(() => ledgers.id, { onDelete: 'cascade' }),
-    // The holding this account mirrors. Not a foreign key yet: holdings span
-    // three tables until they are merged into one.
-    holdingId: uuid('holding_id'),
+    // The holding this account mirrors. Deleting the holding clears the link
+    // rather than being refused: past months keep their accounts as history.
+    holdingId: uuid('holding_id').references(() => holdings.id, { onDelete: 'set null' }),
     name: text('name').notNull(),
     type: ledgerAccountTypeEnum('type').notNull(),
     currency: ledgerCurrencyEnum('currency').notNull(),

@@ -4,7 +4,7 @@ import { healthApi, prayersApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import { NAMAAZ_VALUES, type Namaaz } from '@/lib/db/schema';
 import type { HealthTracking, Prayer } from '@/types/personal';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FinanceToast, type FinanceToastState } from '../components/FinanceToast';
 import { FinanceCard, FinancePageShell, StatCard, financeStyles } from '../components/FinanceUI';
 import { HealthChart } from './HealthChart';
@@ -29,20 +29,20 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     if (view === 'prayers') {
       setPrayers(await prayersApi.list());
       return;
     }
     setHealth(await healthApi.list());
-  }
+  }, [view]);
 
   useEffect(() => {
     setLoading(true);
     void refresh()
       .catch((cause) => setToast({ tone: 'error', message: errorMessage(cause, 'Could not load personal data') }))
       .finally(() => setLoading(false));
-  }, [view]);
+  }, [refresh]);
 
   const prayerRows = useMemo(
     () =>

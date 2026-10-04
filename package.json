@@ -16,7 +16,6 @@
     "db:migrate": "drizzle-kit migrate",
     "db:backup": "node scripts/backup-db.mjs",
     "db:restore": "node scripts/restore-db.mjs",
-    "db:verify-holdings": "node scripts/verify-holdings.mjs",
     "mcp:smoke": "node scripts/mcp-smoke.mjs",
     "oauth:token": "tsx --conditions=react-server scripts/oauth-issue-token.mjs"
   },

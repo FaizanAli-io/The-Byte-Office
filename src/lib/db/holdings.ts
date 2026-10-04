@@ -4,7 +4,7 @@ import { getDb, getSql } from './index';
 import { holdings } from './schema';
 import type { FinanceDoc, FinanceFund } from '@/types/finance';
 import type { PortfolioItemInput, PortfolioItemType } from '@/lib/agent/types';
-import { FUND_SEPARATOR, type Holding, type HoldingChanges } from '@/lib/portfolio-sync';
+import { FUND_SEPARATOR, type Holding } from '@/lib/portfolio-sync';
 
 /**
  * Every read and write of the `holdings` table, in the three shapes callers
@@ -232,17 +232,24 @@ function holdingValues(holding: Holding): HoldingValues {
   };
 }
 
-export async function applyHoldingChanges({ create, update, remove }: HoldingChanges) {
-  const db = getDb();
-  for (const holding of create) {
+export async function createHoldings(created: Holding[]) {
+  for (const holding of created) {
     const values = holdingValues(holding);
-    await db.insert(holdings).values({ ...values, id: holding.id, sortOrder: await nextSortOrder(values.kind) });
+    await getDb()
+      .insert(holdings)
+      .values({ ...values, id: holding.id, sortOrder: await nextSortOrder(values.kind) });
   }
-  for (const holding of update) {
-    await db
+}
+
+export async function removeHoldings(removed: Holding[]) {
+  for (const holding of removed) await getDb().delete(holdings).where(idEq(holdings.id, holding.id));
+}
+
+export async function updateHoldings(updated: Holding[]) {
+  for (const holding of updated) {
+    await getDb()
       .update(holdings)
       .set({ ...holdingValues(holding), updatedAt: new Date() })
       .where(idEq(holdings.id, holding.id));
   }
-  for (const holding of remove) await db.delete(holdings).where(idEq(holdings.id, holding.id));
 }

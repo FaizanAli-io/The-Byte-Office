@@ -82,6 +82,7 @@ export function planLedgerSave(
   const changes: HoldingChanges = { create: [], update: [], remove: [] };
 
   const kept = new Set(after.accounts.map((account) => account.id));
+  const existed = new Set(before?.accounts.map((account) => account.id));
   for (const account of before?.accounts ?? []) {
     const holding = account.holdingId ? byId.get(account.holdingId) : undefined;
     if (holding && !kept.has(account.id)) changes.remove.push(holding);
@@ -89,6 +90,9 @@ export function planLedgerSave(
 
   const accounts = after.accounts.map((account) => {
     const amount = accountValue(account, after.entries);
+    // An account that was already here unlinked lost its holding to a removal
+    // and stays as history; only an account added in this save gets one.
+    if (!account.holdingId && existed.has(account.id)) return account;
     if (!account.holdingId) {
       const holding = {
         id: randomUUID(),
@@ -133,7 +137,7 @@ export function planLedgerSave(
  * account instead would also push values nobody touched — a portfolio that
  * is behind the ledger would overwrite the month's closing balances with its
  * stale figures. An account whose holding was removed goes with it, unless
- * entries still use it; then it stays for the month's history.
+ * entries still use it; then it stays, unlinked, for the month's history.
  */
 export function planPortfolioSync(ledger: LedgerState, before: Holding[], after: Holding[]): LedgerAccount[] | null {
   const previous = new Map(before.map((holding) => [holding.id, holding]));
@@ -144,7 +148,10 @@ export function planPortfolioSync(ledger: LedgerState, before: Holding[], after:
     const was = account.holdingId ? previous.get(account.holdingId) : undefined;
     const holding = account.holdingId ? current.get(account.holdingId) : undefined;
     if (was && !holding) {
-      if (ledger.entries.some((entry) => entryUsesAccount(entry, account.id))) return [account];
+      if (ledger.entries.some((entry) => entryUsesAccount(entry, account.id))) {
+        changed = true;
+        return [{ ...account, holdingId: undefined }];
+      }
       changed = true;
       return [];
     }

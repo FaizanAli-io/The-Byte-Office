@@ -11,6 +11,7 @@ import type {
   MonthlyLedgerPayload,
 } from '@/types/ledger';
 import { getDb, getSql } from './index';
+import { byAccountKind } from '@/lib/ledger';
 import { categories, financeSnapshots, ledgerAccounts, ledgerEntries, ledgers, type SnapshotHoldings } from './schema';
 
 /**
@@ -100,7 +101,8 @@ export async function loadLedger(month: string): Promise<MonthlyLedger | null> {
     db.select().from(ledgerEntries).where(eq(ledgerEntries.ledgerId, ledger.id)).orderBy(asc(ledgerEntries.sortOrder)),
   ]);
 
-  return toLedger(ledger, accounts.map(toAccount), entries.map(toEntry));
+  // Stable sort: within a kind, the stored order still holds.
+  return toLedger(ledger, accounts.map(toAccount).sort(byAccountKind), entries.map(toEntry));
 }
 
 export async function loadPreviousFinalizedLedger(month: string) {
