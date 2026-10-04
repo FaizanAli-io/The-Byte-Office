@@ -1,21 +1,16 @@
 import { createSnapshot, deleteSnapshot, listSnapshots } from '@/lib/db/queries';
-import { parsePortfolio, validateSnapshotInput } from '@/lib/finance-validation';
-import { ApiError, apiRoute, found, jsonBody } from '@/lib/api';
+import { parseSnapshotInput } from '@/lib/finance-validation';
+import { ApiError, apiRoute, bodyId, found, jsonBody } from '@/lib/api';
 
 export const GET = apiRoute('GET /api/snapshots', 'Failed to fetch snapshots', () => listSnapshots());
 
 export const POST = apiRoute('POST /api/snapshots', 'Failed to create snapshot', async (req: Request) => {
-  const body = await jsonBody<unknown>(req);
-  const validationError = validateSnapshotInput(body);
-  if (validationError) throw new ApiError(validationError);
-
-  const { data, grandTotal } = body as { data: unknown; grandTotal: number };
-  return { success: true, id: await createSnapshot(parsePortfolio(data)!, grandTotal) };
+  const input = parseSnapshotInput(await jsonBody<unknown>(req));
+  if (typeof input === 'string') throw new ApiError(input);
+  return { success: true, id: await createSnapshot(input.holdings, input.grandTotal) };
 });
 
 export const DELETE = apiRoute('DELETE /api/snapshots', 'Failed to delete snapshot', async (req: Request) => {
-  const { id } = await jsonBody<{ id?: string }>(req);
-  if (!id) throw new ApiError('Missing snapshot id');
-  found((await deleteSnapshot(id)) || null, 'Snapshot not found');
+  found((await deleteSnapshot(await bodyId(req, 'snapshot'))) || null, 'Snapshot not found');
   return { success: true };
 });

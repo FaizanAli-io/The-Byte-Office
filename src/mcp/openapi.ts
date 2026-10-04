@@ -9,47 +9,38 @@ const MODULE_TAGS = { finance: 'Finance', personal: 'Personal', tbo: 'The Byte O
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   'finance:read': 'Read the portfolio, snapshots and ledgers',
-  'finance:write': 'Create, update and remove holdings and ledger entries',
-  'personal:read': 'Read missed prayer counts and health readings',
-  'personal:write': 'Create, update and remove prayer counts and health readings',
+  'finance:write': 'Create, update and remove holdings, ledger accounts and entries, and categories',
+  'personal:read': 'Read missed prayer counts, health metrics and readings',
+  'personal:write': 'Set prayer counts; create, update and remove health metrics and readings',
   'tbo:read': 'Read public company information',
   'tbo:write': 'Send inquiry emails to The Byte Office',
 };
 
 export function buildOpenApiDocument(origin: string): OpenApiDocument {
+  const mcpOperation = (summary: string, description: string, ok: string) => ({
+    tags: ['MCP'],
+    summary,
+    description,
+    security: [{ oauth2: [] }],
+    responses: { '200': { description: ok }, '401': { description: 'Missing or invalid access token' } },
+  });
   const paths: Record<string, unknown> = {
     '/api/mcp': {
-      post: {
-        tags: ['MCP'],
-        summary: 'MCP Streamable HTTP endpoint',
-        description:
-          'Primary Model Context Protocol endpoint for ChatGPT, Claude, Cursor, and other MCP clients. Send JSON-RPC over Streamable HTTP.',
-        security: [{ oauth2: [] }],
-        responses: {
-          '200': { description: 'MCP JSON-RPC response or SSE stream' },
-          '401': { description: 'Missing or invalid access token' },
-        },
-      },
-      get: {
-        tags: ['MCP'],
-        summary: 'MCP Streamable HTTP endpoint (GET)',
-        description: 'Used by MCP clients for session/stream operations in legacy mode.',
-        security: [{ oauth2: [] }],
-        responses: {
-          '200': { description: 'MCP response' },
-          '401': { description: 'Missing or invalid access token' },
-        },
-      },
-      delete: {
-        tags: ['MCP'],
-        summary: 'MCP Streamable HTTP endpoint (DELETE)',
-        description: 'Used by MCP clients for session teardown in legacy mode.',
-        security: [{ oauth2: [] }],
-        responses: {
-          '200': { description: 'MCP response' },
-          '401': { description: 'Missing or invalid access token' },
-        },
-      },
+      post: mcpOperation(
+        'MCP Streamable HTTP endpoint',
+        'Primary Model Context Protocol endpoint for ChatGPT, Claude, Cursor, and other MCP clients. Send JSON-RPC over Streamable HTTP.',
+        'MCP JSON-RPC response or SSE stream'
+      ),
+      get: mcpOperation(
+        'MCP Streamable HTTP endpoint (GET)',
+        'Used by MCP clients for session/stream operations in legacy mode.',
+        'MCP response'
+      ),
+      delete: mcpOperation(
+        'MCP Streamable HTTP endpoint (DELETE)',
+        'Used by MCP clients for session teardown in legacy mode.',
+        'MCP response'
+      ),
     },
   };
 
@@ -76,25 +67,18 @@ export function buildOpenApiDocument(origin: string): OpenApiDocument {
       },
     };
 
-    const path = `/api/mcp/tools/${tool.name}`;
-    if (httpMethodFor(tool) === 'get') {
-      paths[path] = { get: operation };
-      continue;
-    }
-
-    paths[path] = {
-      post: {
-        ...operation,
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: z.toJSONSchema(tool.schema),
+    paths[`/api/mcp/tools/${tool.name}`] =
+      httpMethodFor(tool) === 'get'
+        ? { get: operation }
+        : {
+            post: {
+              ...operation,
+              requestBody: {
+                required: true,
+                content: { 'application/json': { schema: z.toJSONSchema(tool.schema) } },
+              },
             },
-          },
-        },
-      },
-    };
+          };
   }
 
   return {
@@ -118,7 +102,7 @@ export function buildOpenApiDocument(origin: string): OpenApiDocument {
         oauth2: {
           type: 'oauth2',
           description:
-            'Authorize with the workspace OAuth server. Swagger performs the authorization code flow with PKCE; write tools additionally need the finance:write scope.',
+            'Authorize with the workspace OAuth server. Swagger performs the authorization code flow with PKCE; write tools additionally need the write scope of their module.',
           flows: {
             authorizationCode: {
               authorizationUrl: `${origin}/oauth/authorize`,

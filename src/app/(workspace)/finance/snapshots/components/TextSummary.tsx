@@ -3,6 +3,7 @@
 import { bankFundAllocations, portfolioTotals, valuePkr } from '@/lib/finance';
 import { formatMoney } from '@/lib/ledger';
 import type { FinanceSnapshot, SnapshotHolding } from '@/types/finance';
+import { financeStyles } from '../../components/FinanceUI';
 
 export function TextSummary({ snapshot }: { snapshot: FinanceSnapshot }) {
   const { holdings } = snapshot.data;
@@ -13,7 +14,7 @@ export function TextSummary({ snapshot }: { snapshot: FinanceSnapshot }) {
       .map((holding) => ({ label: holding.name, value: valuePkr(holding) }));
 
   return (
-    <div className="rounded-xl border border-white/7 bg-slate-950/45 p-4">
+    <div className={`${financeStyles.inset} p-4`}>
       <h4 className="mb-4 text-sm font-bold text-slate-200">Portfolio summary</h4>
       <div className="grid gap-5 md:grid-cols-3">
         <SummaryGroup title="Local banks" tone="text-emerald-300" total={totals.local} items={rows('local_bank')} />

@@ -3,8 +3,6 @@ import { accountStats, entryUsesAccount, expectedBalance } from '@/lib/ledger';
 import type { HoldingKind } from '@/types/finance';
 import type { LedgerAccount, MonthlyLedger } from '@/types/ledger';
 
-export type { HoldingKind };
-
 export type HoldingIdentity = { id: string; kind: HoldingKind; name: string; group: string | null };
 
 export type HoldingValue = { amount: number; exchangeRate: number };
@@ -17,7 +15,7 @@ export type PortfolioChange = {
 
 type LedgerState = Pick<MonthlyLedger, 'accounts' | 'entries' | 'status'>;
 
-export const FUND_SEPARATOR = ' · ';
+const FUND_SEPARATOR = ' · ';
 
 const SHAPES = {
   local_bank: { type: 'bank', currency: 'PKR' },
@@ -27,7 +25,7 @@ const SHAPES = {
 
 export const shapeOf = (kind: HoldingKind) => SHAPES[kind];
 
-export function kindOf(account: Pick<LedgerAccount, 'type' | 'currency'>): HoldingKind {
+function kindOf(account: Pick<LedgerAccount, 'type' | 'currency'>): HoldingKind {
   if (account.type === 'fund') return 'mutual_fund';
   return account.currency === 'USD' ? 'remote_bank' : 'local_bank';
 }
@@ -42,7 +40,7 @@ export function splitName(kind: HoldingKind, display: string): Pick<HoldingIdent
   return { name: rest.join(FUND_SEPARATOR) || group, group: group };
 }
 
-export function accountValue(account: LedgerAccount, entries: MonthlyLedger['entries']) {
+function accountValue(account: LedgerAccount, entries: MonthlyLedger['entries']) {
   return account.actualClosingBalance ?? expectedBalance(account, entries);
 }
 
@@ -58,9 +56,9 @@ export function valuesFrom(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'> |
   return values;
 }
 
-const differs = (a: number, b: number) => Math.abs(a - b) >= 0.005;
+export const differs = (a: number, b: number) => Math.abs(a - b) >= 0.005;
 
-export function accountFor(holding: HoldingIdentity, value: HoldingValue, finalized = false): LedgerAccount {
+function accountFor(holding: HoldingIdentity, value: HoldingValue, finalized = false): LedgerAccount {
   const shape = shapeOf(holding.kind);
   return {
     id: randomUUID(),

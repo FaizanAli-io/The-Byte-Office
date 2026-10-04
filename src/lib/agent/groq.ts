@@ -15,7 +15,7 @@ export type GroqMessage =
       name: string;
     };
 
-export type GroqToolCall = {
+type GroqToolCall = {
   id: string;
   type: 'function';
   function: {
@@ -24,11 +24,23 @@ export type GroqToolCall = {
   };
 };
 
-export type GroqAssistantMessage = {
-  role: 'assistant';
-  content: string | null;
-  tool_calls?: GroqToolCall[];
+type GroqAssistantMessage = Extract<GroqMessage, { role: 'assistant' }>;
+
+type RawToolCall = {
+  index?: number;
+  id?: string;
+  type?: 'function';
+  function?: { name?: string; arguments?: unknown };
 };
+
+const merge = (current: string, part: string) => (part.startsWith(current) ? part : current + part);
+
+const sseData = (event: string) =>
+  event
+    .split('\n')
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trim())
+    .join('');
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 export const PRIMARY_MODEL = 'openai/gpt-oss-120b';
@@ -144,24 +156,8 @@ async function requestModel(input: {
     let chunk: {
       model?: string;
       choices?: Array<{
-        delta?: {
-          content?: string | null;
-          tool_calls?: Array<{
-            index?: number;
-            id?: string;
-            type?: 'function';
-            function?: { name?: string; arguments?: unknown };
-          }>;
-        };
-        message?: {
-          content?: string | null;
-          tool_calls?: Array<{
-            index?: number;
-            id?: string;
-            type?: 'function';
-            function?: { name?: string; arguments?: unknown };
-          }>;
-        };
+        delta?: { content?: string | null; tool_calls?: RawToolCall[] };
+        message?: { content?: string | null; tool_calls?: RawToolCall[] };
       }>;
     };
     try {
@@ -204,36 +200,15 @@ async function requestModel(input: {
         }
       }
 
-      if (call.id && !current.id) {
-        current.id = call.id;
-      }
-
       if (call.function?.name) {
-        const namePart = String(call.function.name);
-        if (!current.function.name) {
-          current.function.name = namePart;
-        } else if (current.function.name === namePart) {
-        } else if (namePart.startsWith(current.function.name)) {
-          current.function.name = namePart;
-        } else {
-          current.function.name += namePart;
-        }
+        current.function.name = merge(current.function.name, String(call.function.name));
       }
-
-      if (call.function?.arguments !== undefined && call.function?.arguments !== null) {
-        const rawArgs =
-          typeof call.function.arguments === 'object'
-            ? JSON.stringify(call.function.arguments)
-            : String(call.function.arguments);
-
-        if (!current.function.arguments) {
-          current.function.arguments = rawArgs;
-        } else if (current.function.arguments === rawArgs) {
-        } else if (rawArgs.startsWith(current.function.arguments)) {
-          current.function.arguments = rawArgs;
-        } else {
-          current.function.arguments += rawArgs;
-        }
+      const args = call.function?.arguments;
+      if (args !== undefined && args !== null) {
+        current.function.arguments = merge(
+          current.function.arguments,
+          typeof args === 'object' ? JSON.stringify(args) : String(args)
+        );
       }
     }
   };
@@ -244,23 +219,13 @@ async function requestModel(input: {
     const events = buffer.split('\n\n');
     buffer = events.pop() || '';
     for (const event of events) {
-      const data = event
-        .split('\n')
-        .filter((line) => line.startsWith('data:'))
-        .map((line) => line.slice(5).trim())
-        .join('');
+      const data = sseData(event);
       if (data) consume(data);
     }
     if (done) break;
   }
-  if (buffer.trim()) {
-    const data = buffer
-      .split('\n')
-      .filter((line) => line.startsWith('data:'))
-      .map((line) => line.slice(5).trim())
-      .join('');
-    if (data) consume(data);
-  }
+  const rest = sseData(buffer);
+  if (rest) consume(rest);
 
   const validToolCalls = toolCalls
     .map((tc) => ({

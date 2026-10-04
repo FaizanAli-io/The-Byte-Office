@@ -1,7 +1,18 @@
-﻿import BackgroundEffect from '@/components/site/BackgroundEffect';
+import BackgroundEffect from '@/components/site/BackgroundEffect';
 import SectionHeading from '@/components/site/SectionHeading';
-import { PrimaryCTAButton, QuietCTAButton, SecondaryCTAButton } from '@/components/site/CTAButtons';
-import { company, faqs, processSteps, projects, services, siteUrl, techGroups, whyChooseUs } from '@/content/site';
+import { CTAButton } from '@/components/site/CTAButtons';
+import {
+  caseStudyFields,
+  company,
+  faqs,
+  ordinal,
+  processSteps,
+  projects,
+  services,
+  siteUrl,
+  techGroups,
+  whyChooseUs,
+} from '@/content/site';
 import { createMetadata, jsonLd } from '@/lib/seo';
 
 export const metadata = createMetadata({
@@ -63,7 +74,7 @@ function ServiceCard({ service, index }: { service: (typeof services)[number]; i
   return (
     <article className="surface-card reveal p-6" style={{ animationDelay: `${index * 80}ms` }}>
       <span className="mb-6 flex h-11 w-11 items-center justify-center rounded-md bg-slate-950 text-sm font-black text-white">
-        {String(index + 1).padStart(2, '0')}
+        {ordinal(index)}
       </span>
       <h3 className="heading-md">{service.title}</h3>
       <p className="body-copy mt-3">{service.summary}</p>
@@ -82,7 +93,7 @@ function ServiceCard({ service, index }: { service: (typeof services)[number]; i
 }
 
 function ProjectCard({ project, featured = false }: { project: (typeof projects)[number]; featured?: boolean }) {
-  const content = (
+  return (
     <article
       className={`group h-full overflow-hidden rounded-lg border border-white/10 bg-slate-900 shadow-sm transition hover:-translate-y-1 hover:shadow-md ${
         featured ? 'lg:grid lg:grid-cols-[0.9fr_1.1fr]' : ''
@@ -112,18 +123,12 @@ function ProjectCard({ project, featured = false }: { project: (typeof projects)
       <div className="p-6">
         <p className="text-sm font-bold uppercase text-blue-800">{project.industry}</p>
         <dl className="mt-5 space-y-4">
-          <div>
-            <dt className="text-sm font-bold text-slate-100">Problem</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-400">{project.problem}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-bold text-slate-100">Solution</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-400">{project.solution}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-bold text-slate-100">Impact</dt>
-            <dd className="mt-1 text-sm leading-6 text-slate-400">{project.impact}</dd>
-          </div>
+          {caseStudyFields.map(({ key, label }) => (
+            <div key={key}>
+              <dt className="text-sm font-bold text-slate-100">{label}</dt>
+              <dd className="mt-1 text-sm leading-6 text-slate-400">{project[key]}</dd>
+            </div>
+          ))}
         </dl>
         <div className="mt-6 flex flex-wrap gap-2">
           {project.tech.map((tech) => (
@@ -135,8 +140,6 @@ function ProjectCard({ project, featured = false }: { project: (typeof projects)
       </div>
     </article>
   );
-
-  return content;
 }
 
 export default function Home() {
@@ -188,8 +191,8 @@ export default function Home() {
             cloud-ready software with the discipline of a production engineering team.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <PrimaryCTAButton href="/contact" label="Start a Project" />
-            <SecondaryCTAButton href="/projects" label="View Our Work" />
+            <CTAButton href="/contact" label="Start a Project" />
+            <CTAButton href="/projects" label="View Our Work" variant="secondary" />
           </div>
         </div>
         <HeroVisual />
@@ -217,7 +220,7 @@ export default function Home() {
             title="Practical engineering for products, AI, and operations."
             subtitle="The Byte Office focuses on software that improves workflows, launches products faster, and gives teams systems they can depend on."
           />
-          <QuietCTAButton href="/services" label="Explore services" />
+          <CTAButton href="/services" label="Explore services" variant="quiet" />
         </div>
         <div className="mt-12 grid gap-5 md:grid-cols-2">
           {services.map((service, index) => (
@@ -230,16 +233,12 @@ export default function Home() {
         <div className="container-page">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="eyebrow border-white/10 bg-white/10 text-blue-100">Featured work</p>
+              <p className="eyebrow">Featured work</p>
               <h2 className="mt-5 text-balance text-3xl font-extrabold leading-tight text-white md:text-5xl">
                 Case-study style work across AI, automation, and web platforms.
               </h2>
             </div>
-            <SecondaryCTAButton
-              href="/projects"
-              label="See all projects"
-              className="border-white/25 bg-white/10 text-white hover:bg-white/10 hover:text-slate-100"
-            />
+            <CTAButton href="/projects" label="See all projects" variant="secondary" />
           </div>
           <div className="mt-12 grid gap-5">
             <ProjectCard project={featuredProjects[0]} featured />
@@ -262,8 +261,8 @@ export default function Home() {
         <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {whyChooseUs.map((item) => (
             <article key={item.title} className="surface-card p-6">
-              <h3 className="heading-md text-xl">{item.title}</h3>
-              <p className="body-copy mt-3 text-sm">{item.text}</p>
+              <h3 className="heading-md">{item.title}</h3>
+              <p className="body-copy mt-3">{item.text}</p>
             </article>
           ))}
         </div>
@@ -280,10 +279,10 @@ export default function Home() {
             {processSteps.map((step, index) => (
               <article key={step.title} className="surface-card grid gap-4 p-5 sm:grid-cols-[4rem_1fr]">
                 <span className="flex h-12 w-12 items-center justify-center rounded-md bg-slate-950 text-sm font-black text-white">
-                  {String(index + 1).padStart(2, '0')}
+                  {ordinal(index)}
                 </span>
                 <div>
-                  <h3 className="heading-md text-xl">{step.title}</h3>
+                  <h3 className="heading-md">{step.title}</h3>
                   <p className="body-copy mt-2">{step.text}</p>
                 </div>
               </article>
@@ -295,7 +294,7 @@ export default function Home() {
       <section className="container-page section-tight">
         <div className="dark-panel grid gap-10 p-6 sm:p-8 lg:grid-cols-[0.75fr_1.25fr]">
           <div>
-            <p className="eyebrow border-white/10 bg-white/10 text-blue-100">Technology</p>
+            <p className="eyebrow">Technology</p>
             <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-4xl">
               Modern stack, grouped by purpose.
             </h2>
@@ -356,7 +355,7 @@ export default function Home() {
           {faqs.map((faq) => (
             <article key={faq.question} className="surface-card p-6">
               <h2 className="text-lg font-extrabold text-slate-100">{faq.question}</h2>
-              <p className="body-copy mt-3 text-sm">{faq.answer}</p>
+              <p className="body-copy mt-3">{faq.answer}</p>
             </article>
           ))}
         </div>
@@ -364,7 +363,7 @@ export default function Home() {
 
       <section className="container-page section">
         <div className="dark-panel overflow-hidden p-8 text-center sm:p-12">
-          <p className="eyebrow mx-auto border-white/10 bg-white/10 text-blue-100">Start the conversation</p>
+          <p className="eyebrow mx-auto">Start the conversation</p>
           <h2 className="mx-auto mt-6 max-w-3xl text-balance text-3xl font-extrabold leading-tight text-white md:text-5xl">
             Have a product, AI workflow, or automation that needs to be built properly?
           </h2>
@@ -373,16 +372,8 @@ export default function Home() {
             pitch.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <PrimaryCTAButton
-              href="/contact"
-              label="Book a Discovery Call"
-              className="bg-slate-900 text-slate-100 hover:bg-slate-800"
-            />
-            <SecondaryCTAButton
-              href={`mailto:${company.email}`}
-              label="Email The Byte Office"
-              className="border-white/25 bg-white/10 text-white hover:bg-white/10 hover:text-slate-100"
-            />
+            <CTAButton href="/contact" label="Book a Discovery Call" />
+            <CTAButton href={`mailto:${company.email}`} label="Email The Byte Office" variant="secondary" />
           </div>
         </div>
       </section>

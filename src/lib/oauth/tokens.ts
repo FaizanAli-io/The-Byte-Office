@@ -49,7 +49,7 @@ export async function signAccessToken(clientId: string, scopes: string[], resour
   return `${TOKEN_PREFIX}.${expiresAt}.${clientId}.${encodedScopes}.${signature}`;
 }
 
-export type VerifiedAccessToken = {
+type VerifiedAccessToken = {
   token: string;
   clientId: string;
   scopes: string[];

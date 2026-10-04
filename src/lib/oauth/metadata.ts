@@ -6,6 +6,10 @@ export function mcpResourceUrl(source: Request | Headers) {
   return `${appOrigin(source)}/api/mcp`;
 }
 
+export function sameResource(a: string, b: string) {
+  return a.replace(/\/+$/, '') === b.replace(/\/+$/, '');
+}
+
 // Origin comes from the request; safe because the resource is signed into every token.
 export function authorizationServerMetadata(source: Request | Headers): OAuthMetadata {
   const origin = appOrigin(source);
@@ -28,7 +32,7 @@ export function protectedResourceMetadata(source: Request | Headers) {
   const origin = appOrigin(source);
   return buildOAuthProtectedResourceMetadata({
     oauthMetadata: authorizationServerMetadata(source),
-    resourceServerUrl: new URL(`${origin}/api/mcp`),
+    resourceServerUrl: new URL(mcpResourceUrl(source)),
     resourceName: 'The Byte Office',
     scopesSupported: [...OAUTH_SCOPES],
     dangerouslyAllowInsecureIssuerUrl: origin.startsWith('http://'),

@@ -1,10 +1,9 @@
 // Runs in the edge middleware: no database driver imports here or in hmac.ts.
+import type { NextResponse } from 'next/server';
 import { constantTimeEqual, hmacHex } from '@/lib/hmac';
+import { FINANCE_SIGNED_IN_COOKIE } from './finance-session-client';
 
 export const FINANCE_SESSION_COOKIE = 'finance_session';
-
-export { FINANCE_SIGNED_IN_COOKIE } from './finance-session-client';
-
 export const FINANCE_SESSION_MAX_AGE = 3600 * 24 * 14;
 export const FINANCE_MAGIC_LINK_MAX_AGE = 60 * 15;
 
@@ -12,49 +11,37 @@ export function getSessionSecret() {
   return process.env.FINANCE_SESSION_SECRET;
 }
 
-export async function createFinanceSession() {
+function sign(value: string) {
   const secret = getSessionSecret();
   if (!secret) throw new Error('FINANCE_SESSION_SECRET is not configured');
+  return hmacHex(`finance:${value}`, secret);
+}
 
+async function verifySigned(expiresValue: string, value: string, signature: string) {
+  const expires = Number(expiresValue);
+  if (!Number.isSafeInteger(expires) || expires <= Date.now() || !getSessionSecret()) return false;
+  return constantTimeEqual(signature, await sign(value));
+}
+
+export async function createFinanceSession() {
   const expires = Date.now() + FINANCE_SESSION_MAX_AGE * 1000;
-  const signature = await sign(`session:${expires}`, secret);
-  return `${expires}.${signature}`;
+  return `${expires}.${await sign(`session:${expires}`)}`;
 }
 
 export async function verifyFinanceSession(token?: string) {
-  if (!token) return false;
-  const [expiresValue, signature, ...extra] = token.split('.');
+  const [expiresValue, signature, ...extra] = token?.split('.') ?? [];
   if (!expiresValue || !signature || extra.length) return false;
-
-  const expires = Number(expiresValue);
-  if (!Number.isSafeInteger(expires) || expires <= Date.now()) return false;
-
-  const secret = getSessionSecret();
-  if (!secret) return false;
-  const expected = await sign(`session:${expiresValue}`, secret);
-  return constantTimeEqual(signature, expected);
+  return verifySigned(expiresValue, `session:${expiresValue}`, signature);
 }
 
 export async function signMagicLink(nonce: string, expires: number) {
-  const secret = getSessionSecret();
-  if (!secret) throw new Error('FINANCE_SESSION_SECRET is not configured');
-
-  const signature = await sign(`magic:${expires}:${nonce}`, secret);
-  return `magic.${expires}.${nonce}.${signature}`;
+  return `magic.${expires}.${nonce}.${await sign(`magic:${expires}:${nonce}`)}`;
 }
 
 export async function verifyMagicLinkSignature(token?: string) {
-  if (!token) return null;
-  const [prefix, expiresValue, nonce, signature, ...extra] = token.split('.');
+  const [prefix, expiresValue, nonce, signature, ...extra] = token?.split('.') ?? [];
   if (prefix !== 'magic' || !expiresValue || !nonce || !signature || extra.length) return null;
-
-  const expires = Number(expiresValue);
-  if (!Number.isSafeInteger(expires) || expires <= Date.now()) return null;
-
-  const secret = getSessionSecret();
-  if (!secret) return null;
-  const expected = await sign(`magic:${expiresValue}:${nonce}`, secret);
-  return constantTimeEqual(signature, expected) ? nonce : null;
+  return (await verifySigned(expiresValue, `magic:${expiresValue}:${nonce}`, signature)) ? nonce : null;
 }
 
 export function appOrigin(source: Request | Headers) {
@@ -65,20 +52,15 @@ export function appOrigin(source: Request | Headers) {
   return `${protocol}://${host}`;
 }
 
-export function sessionCookieOptions(maxAge = FINANCE_SESSION_MAX_AGE) {
-  return {
+export function setSessionCookies(response: NextResponse, session: string | null) {
+  const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
-    maxAge,
     path: '/',
+    ...(session ? { maxAge: FINANCE_SESSION_MAX_AGE } : { maxAge: 0, expires: new Date(0) }),
   };
-}
-
-export function signedInCookieOptions(maxAge = FINANCE_SESSION_MAX_AGE) {
-  return { ...sessionCookieOptions(maxAge), httpOnly: false };
-}
-
-async function sign(value: string, secret: string) {
-  return hmacHex(`finance:${value}`, secret);
+  response.cookies.set(FINANCE_SESSION_COOKIE, session ?? '', options);
+  response.cookies.set(FINANCE_SIGNED_IN_COOKIE, session ? '1' : '', { ...options, httpOnly: false });
+  return response;
 }

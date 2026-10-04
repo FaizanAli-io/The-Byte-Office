@@ -1,5 +1,5 @@
-import { PersonalWorkspace } from '../PersonalWorkspace';
+import { HealthWorkspace } from '../HealthWorkspace';
 
 export default function PersonalHealthPage() {
-  return <PersonalWorkspace view="health" />;
+  return <HealthWorkspace />;
 }

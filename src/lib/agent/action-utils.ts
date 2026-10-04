@@ -1,11 +1,14 @@
-import type { AgentActionType, LedgerEntryFormState, PendingAgentAction } from '@/lib/agent/types';
+import { createHash } from 'crypto';
+import { ApiError } from '@/lib/api';
+import type { ActionPreview, AgentActionType, LedgerEntryFormState, PendingAgentAction } from '@/lib/agent/types';
 
-export class AgentActionError extends Error {
-  constructor(
-    message: string,
-    public status = 400
-  ) {
-    super(message);
+export function fingerprint(value: unknown) {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+export function assertUnchanged(current: string, expected: string | null, label: string) {
+  if (current !== expected) {
+    throw new ApiError(`The ${label} changed after this proposal. Ask the assistant to try again.`, 409);
   }
 }
 
@@ -13,8 +16,8 @@ export function toPublicAction(
   action: {
     id: string;
     actionType: string;
-    preview: { title: string; before?: unknown; after?: unknown };
-    status: 'pending' | 'executing' | 'completed' | 'cancelled' | 'failed';
+    preview: ActionPreview;
+    status: PendingAgentAction['status'];
     expiresAt: Date;
     error: string | null;
   },

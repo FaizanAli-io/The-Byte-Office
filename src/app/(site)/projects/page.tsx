@@ -1,6 +1,6 @@
-﻿import BackgroundEffect from '@/components/site/BackgroundEffect';
-import { PrimaryCTAButton, SecondaryCTAButton } from '@/components/site/CTAButtons';
-import { company, projects, siteUrl } from '@/content/site';
+import BackgroundEffect from '@/components/site/BackgroundEffect';
+import { CTAButton } from '@/components/site/CTAButtons';
+import { caseStudyFields, company, ordinal, projects, siteUrl } from '@/content/site';
 import { createMetadata, jsonLd } from '@/lib/seo';
 
 export const metadata = createMetadata({
@@ -50,59 +50,51 @@ export default function ProjectsPage() {
 
       <section className="container-page section">
         <div className="grid gap-6">
-          {projects.map((project, index) => {
-            return (
-              <article
-                key={project.title}
-                className="surface-card overflow-hidden transition hover:-translate-y-1 hover:shadow-md"
-              >
-                <div className="grid gap-0 lg:grid-cols-[0.42fr_0.58fr]">
-                  <div className="flex min-h-72 flex-col justify-between bg-slate-950 p-6 text-white sm:p-8">
-                    <div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="rounded-full border border-white/15 px-3 py-1 text-xs font-bold uppercase text-slate-300">
-                          {project.category}
-                        </span>
-                        <span className="text-sm font-bold text-slate-400">{String(index + 1).padStart(2, '0')}</span>
-                      </div>
-                      <h2 className="mt-7 text-3xl font-extrabold leading-tight md:text-4xl">{project.title}</h2>
-                      <p className="mt-4 text-sm font-semibold text-blue-100">{project.industry}</p>
+          {projects.map((project, index) => (
+            <article
+              key={project.title}
+              className="surface-card overflow-hidden transition hover:-translate-y-1 hover:shadow-md"
+            >
+              <div className="grid gap-0 lg:grid-cols-[0.42fr_0.58fr]">
+                <div className="flex min-h-72 flex-col justify-between bg-slate-950 p-6 text-white sm:p-8">
+                  <div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="rounded-full border border-white/15 px-3 py-1 text-xs font-bold uppercase text-slate-300">
+                        {project.category}
+                      </span>
+                      <span className="text-sm font-bold text-slate-400">{ordinal(index)}</span>
                     </div>
-                    <div className="mt-8">
-                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Core stack</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {project.tech.slice(0, 4).map((tech) => (
-                          <span
-                            key={tech}
-                            className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-200"
-                          >
-                            {tech}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    <h2 className="mt-7 text-3xl font-extrabold leading-tight md:text-4xl">{project.title}</h2>
+                    <p className="mt-4 text-sm font-semibold text-blue-100">{project.industry}</p>
                   </div>
-
-                  <div className="p-6 sm:p-8">
-                    <dl className="grid gap-6 md:grid-cols-3">
-                      <div>
-                        <dt className="text-sm font-extrabold text-slate-100">Problem</dt>
-                        <dd className="mt-2 text-sm leading-6 text-slate-400">{project.problem}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-extrabold text-slate-100">Solution</dt>
-                        <dd className="mt-2 text-sm leading-6 text-slate-400">{project.solution}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-extrabold text-slate-100">Impact</dt>
-                        <dd className="mt-2 text-sm leading-6 text-slate-400">{project.impact}</dd>
-                      </div>
-                    </dl>
+                  <div className="mt-8">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Core stack</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {project.tech.slice(0, 4).map((tech) => (
+                        <span
+                          key={tech}
+                          className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-200"
+                        >
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </article>
-            );
-          })}
+
+                <div className="p-6 sm:p-8">
+                  <dl className="grid gap-6 md:grid-cols-3">
+                    {caseStudyFields.map(({ key, label }) => (
+                      <div key={key}>
+                        <dt className="text-sm font-extrabold text-slate-100">{label}</dt>
+                        <dd className="mt-2 text-sm leading-6 text-slate-400">{project[key]}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -118,16 +110,8 @@ export default function ProjectsPage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <PrimaryCTAButton
-              href="/contact"
-              label="Start a Project"
-              className="bg-slate-900 text-slate-100 hover:bg-slate-800"
-            />
-            <SecondaryCTAButton
-              href="/services"
-              label="Explore Services"
-              className="border-white/25 bg-white/10 text-white hover:bg-white/10 hover:text-slate-100"
-            />
+            <CTAButton href="/contact" label="Start a Project" />
+            <CTAButton href="/services" label="Explore Services" variant="secondary" />
           </div>
         </div>
       </section>

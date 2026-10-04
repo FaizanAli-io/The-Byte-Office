@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, Fragment, useEffect, useRef, useState } from 'react';
-import type { AgentConversation, AgentResponse, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
+import type { AgentConversation, AgentChatMessage, AgentStreamEvent, PendingAgentAction } from '@/lib/agent/types';
 import { agentApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import { FinanceToast, type FinanceToastState } from '../../components/FinanceToast';
@@ -35,6 +35,11 @@ export function FinanceAgentChat() {
   const [thinking, setThinking] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  function activate(id: string) {
+    setChatId(id);
+    window.localStorage.setItem(ACTIVE_CHAT_KEY, id);
+  }
 
   async function loadChats() {
     const { chats: loaded } = await agentApi.listChats();
@@ -70,10 +75,7 @@ export function FinanceAgentChat() {
       })
       .catch((cause) => {
         if (cancelled) return;
-        setToast({
-          tone: 'error',
-          message: cause instanceof Error ? cause.message : 'Could not load chat',
-        });
+        setToast({ tone: 'error', message: errorMessage(cause, 'Could not load chat') });
       })
       .finally(() => {
         if (!cancelled) setReady(true);
@@ -154,11 +156,7 @@ export function FinanceAgentChat() {
         for (const event of events) {
           const line = event.split('\n').find((item) => item.startsWith('data:'));
           if (!line) continue;
-          const item = JSON.parse(line.slice(5).trim()) as
-            | { type: 'status'; status: 'thinking' | 'reading' }
-            | { type: 'delta'; content: string }
-            | { type: 'done'; response: AgentResponse }
-            | { type: 'error'; error: string };
+          const item = JSON.parse(line.slice(5).trim()) as AgentStreamEvent;
           if (item.type === 'status') {
             if (!streamedContent) {
               setThinking(item.status === 'reading' ? 'Reading workspace data…' : 'Thinking…');
@@ -188,8 +186,8 @@ export function FinanceAgentChat() {
       const { chats: refreshed } = await agentApi.listChats();
       setChats(refreshed ?? chats);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Could not send message';
-      const errorMessage: AgentChatMessage = {
+      const message = errorMessage(cause, 'Could not send message');
+      const failure: AgentChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: `I couldn't complete that request.\n\n${message}`,
@@ -197,11 +195,8 @@ export function FinanceAgentChat() {
         isError: true,
       };
       setFailedRequest(nextMessages);
-      setMessages((current) => [...current, errorMessage].slice(-MAX_STORED_MESSAGES));
-      setToast({
-        tone: 'error',
-        message,
-      });
+      setMessages((current) => [...current, failure].slice(-MAX_STORED_MESSAGES));
+      setToast({ tone: 'error', message });
     } finally {
       setLoading(false);
       setThinking(null);
@@ -237,7 +232,7 @@ export function FinanceAgentChat() {
         message: intent === 'confirm' ? 'Change applied.' : 'Action cancelled.',
       });
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Action request failed';
+      const message = errorMessage(cause, 'Action request failed');
       setMessages((current) =>
         mapAction(current, actionId, (action) => ({
           ...action,
@@ -274,8 +269,7 @@ export function FinanceAgentChat() {
     }
     const newChat = chat;
     setChats((current) => [newChat, ...current]);
-    setChatId(newChat.id);
-    window.localStorage.setItem(ACTIVE_CHAT_KEY, newChat.id);
+    activate(newChat.id);
     setMessages([]);
     setFailedRequest(null);
   }
@@ -293,25 +287,19 @@ export function FinanceAgentChat() {
       return;
     }
     setChats(remaining);
-    const nextId = remaining[0].id;
-    setChatId(nextId);
-    window.localStorage.setItem(ACTIVE_CHAT_KEY, nextId);
-    await loadMessages(nextId);
+    activate(remaining[0].id);
+    await loadMessages(remaining[0].id);
   }
 
   async function selectChat(id: string) {
     if (id === chatId || loading) return;
-    setChatId(id);
-    window.localStorage.setItem(ACTIVE_CHAT_KEY, id);
+    activate(id);
     setFailedRequest(null);
     setReady(false);
     try {
       await loadMessages(id);
     } catch (cause) {
-      setToast({
-        tone: 'error',
-        message: cause instanceof Error ? cause.message : 'Could not load chat',
-      });
+      setToast({ tone: 'error', message: errorMessage(cause, 'Could not load chat') });
     } finally {
       setReady(true);
     }

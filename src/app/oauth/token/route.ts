@@ -1,5 +1,5 @@
 import { formBody, oauthError, oauthJson } from '@/lib/oauth/http';
-import { mcpResourceUrl } from '@/lib/oauth/metadata';
+import { mcpResourceUrl, sameResource } from '@/lib/oauth/metadata';
 import { consumeAuthorizationCode, issueRefreshToken, rotateRefreshToken, touchClient } from '@/lib/oauth/store';
 import { OAUTH_ACCESS_TOKEN_MAX_AGE, signAccessToken, verifyCodeChallenge } from '@/lib/oauth/tokens';
 
@@ -26,17 +26,14 @@ async function exchangeCode(form: URLSearchParams, request: Request) {
 
   // Claim before checking: a code is spent by the attempt. Every failure is a flat invalid_grant.
   const claimed = await consumeAuthorizationCode(code);
-  if (!claimed) return oauthError('invalid_grant', 'Authorization code is invalid, expired or already used');
-
-  if (claimed.clientId !== clientId || claimed.redirectUri !== redirectUri) {
-    return oauthError('invalid_grant', 'Authorization code is invalid, expired or already used');
-  }
-  if (!(await verifyCodeChallenge(codeVerifier, claimed.codeChallenge))) {
-    return oauthError('invalid_grant', 'Authorization code is invalid, expired or already used');
-  }
-
-  const requestedResource = form.get('resource');
-  if (requestedResource && requestedResource.replace(/\/+$/, '') !== claimed.resource.replace(/\/+$/, '')) {
+  const resource = form.get('resource');
+  if (
+    !claimed ||
+    claimed.clientId !== clientId ||
+    claimed.redirectUri !== redirectUri ||
+    !(await verifyCodeChallenge(codeVerifier, claimed.codeChallenge)) ||
+    (resource && !sameResource(resource, claimed.resource))
+  ) {
     return oauthError('invalid_grant', 'Authorization code is invalid, expired or already used');
   }
 

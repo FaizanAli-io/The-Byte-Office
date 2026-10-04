@@ -1,33 +1,32 @@
+import { ApiError } from '@/lib/api';
 import { randomUUID } from 'crypto';
-import { AgentActionError } from '@/lib/agent/action-utils';
-import { listCategories, loadLedger } from '@/lib/db/queries';
+import { assertUnchanged, fingerprint } from '@/lib/agent/action-utils';
+import { listCategories } from '@/lib/db/queries';
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { resolveCategoryId } from '@/lib/ledger';
 import { type CategoryKind, type LedgerCategory, type MonthlyLedger } from '@/types/ledger';
-import { fingerprint } from '@/lib/agent/repository';
 import type { AgentActionPayload, AgentActionType, AgentProposal, PersonalActionType } from '@/lib/agent/types';
 import { applyAccountAction, isAccountAction, planAccountAction } from './ledger-accounts';
+import { requireLedger } from './tools';
 import { changeLedgerEntry } from '@/lib/ledger-entries';
 import { addHolding, getHolding, removeHolding, saveLedgerSynced, updateHolding } from '@/lib/db/portfolio';
 import {
   applyEntryOverride,
-  assertLedgerStructure,
   assertLedger,
   defaultEntryDate,
+  definedFields,
   firstAccountId,
   isEntryType,
   ledgerFingerprint,
   ledgerForm,
   ledgerStructureFingerprint,
-  optionalAccountId,
-  optionalPositive,
-  optionalString,
   parseHolding,
   parseLedgerEntry,
   holdingLabel,
   requireString,
   resolveAccountId,
   resolveEntryId,
+  serialFor,
 } from './action-parsing';
 
 type FinancePayload = Exclude<AgentActionPayload, { actionType: PersonalActionType | 'tbo_send_inquiry' }>;
@@ -35,10 +34,8 @@ type LedgerPayload = Extract<FinancePayload, { actionType: `ledger_${string}` }>
 
 export async function proposeFinanceAction(
   actionType: AgentActionType,
-  rawArgs: Record<string, unknown>
+  args: Record<string, unknown>
 ): Promise<AgentProposal> {
-  const args = rawArgs as Record<string, unknown>;
-
   if (actionType === 'portfolio_item_add') {
     const item = parseHolding(args);
     return {
@@ -51,7 +48,7 @@ export async function proposeFinanceAction(
   if (actionType === 'portfolio_item_update' || actionType === 'portfolio_item_remove') {
     const id = args.id as string;
     const current = await getHolding(id);
-    if (!current) throw new AgentActionError('Holding not found. Call portfolio_get for the ids.', 404);
+    if (!current) throw new ApiError('Holding not found. Call portfolio_get for the ids.', 404);
 
     if (actionType === 'portfolio_item_remove') {
       return {
@@ -84,7 +81,7 @@ export async function proposeFinanceAction(
     const id = args.id as string;
     const current = (await listCategories()).find((category) => category.id === id);
     if (!current) {
-      throw new AgentActionError('Category not found. Call categories_list for the current ids.', 404);
+      throw new ApiError('Category not found. Call categories_list for the current ids.', 404);
     }
 
     if (actionType === 'category_remove') {
@@ -95,13 +92,13 @@ export async function proposeFinanceAction(
       };
     }
 
-    const changes = {
-      ...(args.name === undefined ? {} : { name: args.name as string }),
-      ...(args.kind === undefined ? {} : { kind: args.kind as CategoryKind }),
-      ...(typeof args.archived === 'boolean' ? { archived: args.archived } : {}),
+    const changes = definedFields(args, ['name', 'kind', 'archived'] as const) as {
+      name?: string;
+      kind?: CategoryKind;
+      archived?: boolean;
     };
     if (!Object.keys(changes).length) {
-      throw new AgentActionError('Nothing to change: pass a new name, a kind, or archived');
+      throw new ApiError('Nothing to change: pass a new name, a kind, or archived');
     }
     return {
       actionType,
@@ -123,41 +120,36 @@ export async function proposeFinanceAction(
   }
 
   if (actionType === 'ledger_entry_add') {
-    const date = defaultEntryDate(month, typeof args.date === 'string' ? args.date : undefined);
+    const given = <T>(key: string) => (args[key] ?? undefined) as T | undefined;
     const type = isEntryType(args.type) ? args.type : 'expense';
-    const accountIdFromName = resolveAccountId(ledger.accounts, args.accountName);
-    const accountId =
-      typeof args.accountId === 'string' && ledger.accounts.some((account) => account.id === args.accountId)
-        ? args.accountId
-        : accountIdFromName
-          ? accountIdFromName
-          : firstAccountId(ledger.accounts, type);
     const entry = {
       id: randomUUID(),
-      date,
+      date: defaultEntryDate(month, given<string>('date')),
       type,
-      accountId,
-      destinationAccountId: optionalAccountId(args.destinationAccountId),
-      amount: optionalPositive(args.amount),
-      destinationAmount: optionalPositive(args.destinationAmount),
-      exchangeRate: optionalPositive(args.exchangeRate),
+      accountId:
+        ledger.accounts.find((account) => account.id === args.accountId)?.id ??
+        resolveAccountId(ledger.accounts, args.accountName) ??
+        firstAccountId(ledger.accounts, type),
+      destinationAccountId: given<string>('destinationAccountId'),
+      amount: given<number>('amount'),
+      destinationAmount: given<number>('destinationAmount'),
+      exchangeRate: given<number>('exchangeRate'),
       categoryId: resolveCategoryArg(categoryList, args.category) ?? undefined,
-      note: optionalString(args.note),
+      counterparty: given<string>('counterparty'),
+      note: given<string>('note'),
     };
     return {
       actionType,
       payload: { actionType, month, entry },
       preview: { title: 'Add ledger entry' },
       sourceFingerprint,
-      form: ledgerForm('ledger_entry_add', month, ledger.accounts, categoryList, {
-        ...entry,
-      }),
+      form: ledgerForm('ledger_entry_add', month, ledger.accounts, categoryList, entry),
     };
   }
 
   const entryId = resolveEntryId(ledger, args);
   const current = ledger.entries.find((entry) => entry.id === entryId);
-  if (!current) throw new AgentActionError('Ledger entry not found', 404);
+  if (!current) throw new ApiError('Ledger entry not found', 404);
 
   if (actionType === 'ledger_entry_remove') {
     assertLedger({ ...ledger, entries: ledger.entries.filter((entry) => entry.id !== entryId) }, categoryIds);
@@ -169,26 +161,13 @@ export async function proposeFinanceAction(
     };
   }
 
+  const { exchangeRate: _rate, ...formEntry } = current;
   return {
     actionType,
     payload: { actionType: 'ledger_entry_update', month, entryId, entry: current },
-    preview: {
-      title: 'Update ledger entry',
-      before: current,
-    },
+    preview: { title: 'Update ledger entry', before: current },
     sourceFingerprint,
-    form: ledgerForm('ledger_entry_update', month, ledger.accounts, categoryList, {
-      id: current.id,
-      date: current.date,
-      type: current.type,
-      accountId: current.accountId,
-      destinationAccountId: current.destinationAccountId,
-      amount: current.amount,
-      destinationAmount: current.destinationAmount,
-      categoryId: current.categoryId,
-      counterparty: current.counterparty,
-      note: current.note,
-    }),
+    form: ledgerForm('ledger_entry_update', month, ledger.accounts, categoryList, formEntry),
   };
 }
 
@@ -218,7 +197,7 @@ export async function executeFinancePayload(
       return { id: payload.id, name: payload.name, removed: true };
     default: {
       const unrouted: never = payload;
-      throw new AgentActionError(`No executor for ${(unrouted as { actionType: string }).actionType}`, 500);
+      throw new ApiError(`No executor for ${(unrouted as { actionType: string }).actionType}`, 500);
     }
   }
 }
@@ -233,16 +212,16 @@ async function executePortfolioPayload(
     const { kind: _kind, ...changes } = parseHolding(payload.changes, current);
     return updateHolding(payload.id, changes);
   }
-  if (!(await removeHolding(payload.id))) throw new AgentActionError('Holding no longer exists', 409);
+  if (!(await removeHolding(payload.id))) throw new ApiError('Holding no longer exists', 409);
   return { id: payload.id, removed: true };
 }
 
 async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: string | null) {
   const ledger = await requireEditableLedger(payload.month);
   if (payload.actionType === 'ledger_entry_add') {
-    assertLedgerStructure(ledger, sourceFingerprint);
-  } else if (ledgerFingerprint(ledger) !== sourceFingerprint) {
-    throw new AgentActionError('The ledger changed after this proposal. Ask the assistant to try again.', 409);
+    assertUnchanged(ledgerStructureFingerprint(ledger), sourceFingerprint, 'ledger accounts');
+  } else {
+    assertUnchanged(ledgerFingerprint(ledger), sourceFingerprint, 'ledger');
   }
 
   const categoryList = await listCategories();
@@ -253,13 +232,10 @@ async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: s
     return { ...rest, categoryId: resolveCategoryArg(categoryList, category) };
   };
 
-  if (payload.actionType === 'ledger_entry_add') {
+  if (payload.actionType === 'ledger_entry_add' || payload.actionType === 'ledger_entry_update') {
     const entry = parseLedgerEntry(withCategory(payload.entry), { id: payload.entry.id });
-    return ledgerWriteResult(payload, await changeLedgerEntry(payload.month, { kind: 'add', entry }));
-  }
-  if (payload.actionType === 'ledger_entry_update') {
-    const entry = parseLedgerEntry(withCategory(payload.entry), { id: payload.entryId });
-    return ledgerWriteResult(payload, await changeLedgerEntry(payload.month, { kind: 'update', entry }));
+    const kind = payload.actionType === 'ledger_entry_add' ? 'add' : 'update';
+    return ledgerWriteResult(payload, await changeLedgerEntry(payload.month, { kind, entry }));
   }
   if (payload.actionType === 'ledger_entry_remove') {
     return ledgerWriteResult(payload, await changeLedgerEntry(payload.month, { kind: 'remove', id: payload.entryId }));
@@ -268,7 +244,7 @@ async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: s
   const accounts = applyAccountAction(payload, ledger);
   assertLedger({ ...ledger, accounts }, new Set(categoryList.map((category) => category.id)));
   const saved = await saveLedgerSynced(ledger, { ...ledger, accounts });
-  if (!saved) throw new AgentActionError('The ledger changed while saving. Ask the assistant to try again.', 409);
+  if (!saved) throw new ApiError('The ledger changed while saving. Ask the assistant to try again.', 409);
   return ledgerWriteResult(payload, saved);
 }
 
@@ -281,9 +257,8 @@ function ledgerWriteResult(payload: LedgerPayload, saved: MonthlyLedger) {
       return { month, accountId: payload.accountId, removed: true };
     case 'ledger_entry_add':
     case 'ledger_entry_update': {
-      const id = payload.actionType === 'ledger_entry_add' ? payload.entry.id : payload.entryId;
-      const index = saved.entries.findIndex((entry) => entry.id === id);
-      return { month, entry: { ...saved.entries[index], serial: String(index + 1).padStart(4, '0') } };
+      const index = saved.entries.findIndex((entry) => entry.id === payload.entry.id);
+      return { month, entry: { ...saved.entries[index], serial: serialFor(index) } };
     }
     default: {
       const id = payload.actionType === 'ledger_account_add' ? payload.account.id : payload.accountId;
@@ -304,7 +279,7 @@ function resolveCategoryArg(categoryList: LedgerCategory[], value: unknown): str
     .filter((category) => !category.archivedAt)
     .map((category) => category.name)
     .filter((candidate) => candidate.toLowerCase().includes(name.toLowerCase()));
-  throw new AgentActionError(
+  throw new ApiError(
     near.length
       ? `"${name}" matches more than one category: ${near.join(', ')}. Use the exact name.`
       : `No category is called "${name}". Call categories_list for the valid names.`,
@@ -314,18 +289,15 @@ function resolveCategoryArg(categoryList: LedgerCategory[], value: unknown): str
 
 async function requireCurrentHolding(id: string, sourceFingerprint: string | null) {
   const current = await getHolding(id);
-  if (!current) throw new AgentActionError('Holding no longer exists', 409);
-  if (fingerprint(current) !== sourceFingerprint) {
-    throw new AgentActionError('The holding changed after this proposal. Ask the assistant to try again.', 409);
-  }
+  if (!current) throw new ApiError('Holding no longer exists', 409);
+  assertUnchanged(fingerprint(current), sourceFingerprint, 'holding');
   return current;
 }
 
 async function requireEditableLedger(month: string) {
-  const ledger = await loadLedger(month);
-  if (!ledger) throw new AgentActionError('Ledger not found', 404);
+  const ledger = await requireLedger(month);
   if (ledger.status === 'finalized') {
-    throw new AgentActionError('Finalized ledgers cannot be edited', 409);
+    throw new ApiError('Finalized ledgers cannot be edited', 409);
   }
   return ledger;
 }

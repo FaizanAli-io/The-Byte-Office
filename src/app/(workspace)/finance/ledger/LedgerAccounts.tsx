@@ -9,8 +9,8 @@ import {
   variancePct,
 } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
-import { useState, type ReactNode } from 'react';
-import { FinanceCard, financeStyles } from '../components/FinanceUI';
+import { useState } from 'react';
+import { FinanceCard, Field, financeStyles } from '../components/FinanceUI';
 
 export function LedgerAccounts({
   month,
@@ -61,17 +61,13 @@ export function LedgerAccounts({
     setShowAdd(false);
   }
 
-  function forceReconcile(account: LedgerAccount) {
-    const stats = accountStats(account, entries);
-    if (account.type !== 'bank' || stats.difference === undefined || Math.abs(stats.difference) < 0.01) {
-      return;
-    }
+  function forceReconcile(account: LedgerAccount, difference: number) {
     onAddEntry({
       id: crypto.randomUUID(),
       date: reconcileDate(month),
-      type: stats.difference > 0 ? 'income' : 'expense',
+      type: difference > 0 ? 'income' : 'expense',
       accountId: account.id,
-      amount: Math.round(Math.abs(stats.difference) * 100) / 100,
+      amount: Math.round(Math.abs(difference) * 100) / 100,
       exchangeRate: account.exchangeRate,
       categoryId: categories.find((category) => category.name === RECONCILIATION_CATEGORY)?.id,
       note: 'Force reconcile',
@@ -150,17 +146,16 @@ export function LedgerAccounts({
       ) : null}
 
       {accounts.length === 0 ? (
-        <Empty message="No accounts yet. Import the portfolio or add one manually." />
+        <div className={`${financeStyles.inset} p-8 text-center text-sm text-slate-500`}>
+          No accounts yet. Import the portfolio or add one manually.
+        </div>
       ) : (
         <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3">
           {accounts.map((account) => {
             const stats = accountStats(account, entries);
-            const variance = variancePct(stats.difference, stats.expected);
-            const canForceReconcile =
-              !readOnly &&
-              account.type === 'bank' &&
-              stats.difference !== undefined &&
-              Math.abs(stats.difference) >= 0.01;
+            const { difference } = stats;
+            const reconciled = difference !== undefined && Math.abs(difference) < 0.01;
+            const canForceReconcile = !readOnly && account.type === 'bank' && difference !== undefined && !reconciled;
             return (
               <div key={account.id} className={`${financeStyles.inset} w-[min(34rem,85%)] shrink-0 snap-start p-5`}>
                 <div className="mb-4 flex items-start justify-between gap-4">
@@ -225,9 +220,9 @@ export function LedgerAccounts({
                       value={
                         account.type === 'fund'
                           ? formatMoney(stats.netInvested, account.currency)
-                          : stats.difference === undefined
+                          : difference === undefined
                             ? 'Not reconciled'
-                            : formatMoney(stats.difference, account.currency)
+                            : formatMoney(difference, account.currency)
                       }
                     />
                     <Metric
@@ -237,13 +232,9 @@ export function LedgerAccounts({
                           ? stats.gainLoss === undefined
                             ? 'Add current value'
                             : formatMoney(stats.gainLoss, account.currency)
-                          : formatVariancePct(variance)
+                          : formatVariancePct(variancePct(difference, stats.expected))
                       }
-                      positive={
-                        account.type === 'fund'
-                          ? (stats.gainLoss ?? 0) >= 0
-                          : stats.difference !== undefined && Math.abs(stats.difference) < 0.01
-                      }
+                      positive={account.type === 'fund' ? (stats.gainLoss ?? 0) >= 0 : reconciled}
                     />
                   </div>
                   {account.type === 'bank' && !readOnly ? (
@@ -256,7 +247,7 @@ export function LedgerAccounts({
                           ? 'Add a transaction so expected closing matches the actual'
                           : 'Enter an actual closing that differs from expected'
                       }
-                      onClick={() => forceReconcile(account)}
+                      onClick={() => difference !== undefined && forceReconcile(account, difference)}
                     >
                       Force reconcile
                     </button>
@@ -268,16 +259,6 @@ export function LedgerAccounts({
         </div>
       )}
     </FinanceCard>
-  );
-}
-
-export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <label>
-      <span className={financeStyles.label}>{label}</span>
-      {children}
-      {hint ? <span className="mt-1 block text-[11px] leading-4 text-slate-600">{hint}</span> : null}
-    </label>
   );
 }
 
@@ -319,44 +300,6 @@ function Metric({ label, value, positive }: { label: string; value: string; posi
     <div>
       <p className="text-xs text-slate-600">{label}</p>
       <p className={`mt-1 font-semibold ${positive ? 'text-emerald-300' : 'text-slate-300'}`}>{value}</p>
-    </div>
-  );
-}
-
-function Empty({ message }: { message: string }) {
-  return <div className={`${financeStyles.inset} p-8 text-center text-sm text-slate-500`}>{message}</div>;
-}
-
-export function CollapseToggle({
-  open,
-  title,
-  subtitle,
-  onToggle,
-  action,
-}: {
-  open: boolean;
-  title: string;
-  subtitle: string;
-  onToggle: () => void;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-3 p-4">
-      <button type="button" className="min-w-0 flex-1 text-left" aria-expanded={open} onClick={onToggle}>
-        <h3 className="text-sm font-bold text-slate-100">{title}</h3>
-        <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
-      </button>
-      <div className="flex shrink-0 items-center gap-2">
-        {action}
-        <button
-          type="button"
-          className="text-xs font-semibold text-slate-500 hover:text-slate-300"
-          aria-expanded={open}
-          onClick={onToggle}
-        >
-          {open ? 'Hide' : 'Show'}
-        </button>
-      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { heldFundsApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import { formatMoney, type heldFunds } from '@/lib/ledger';
+import { financeStyles } from '../components/FinanceUI';
 import { Modal } from '../components/Modal';
 
 type HeldFunds = ReturnType<typeof heldFunds>;
@@ -45,25 +46,25 @@ export function HeldFundsModal({ open, onClose }: { open: boolean; onClose: () =
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] border-separate border-spacing-0 text-left text-sm">
             <thead>
-              <tr className="text-xs uppercase tracking-[0.12em] text-slate-600">
-                <th className="border-b border-white/8 px-3 py-3 font-semibold">Counterparty</th>
-                <th className="border-b border-white/8 px-3 py-3 text-right font-semibold">Received</th>
-                <th className="border-b border-white/8 px-3 py-3 text-right font-semibold">Returned</th>
-                <th className="border-b border-white/8 px-3 py-3 text-right font-semibold">Outstanding</th>
+              <tr className={financeStyles.tableHead}>
+                <th className={financeStyles.th}>Counterparty</th>
+                <th className={`${financeStyles.th} text-right`}>Received</th>
+                <th className={`${financeStyles.th} text-right`}>Returned</th>
+                <th className={`${financeStyles.th} text-right`}>Outstanding</th>
               </tr>
             </thead>
             <tbody>
               {held.byCounterparty.map((row) => (
                 <tr key={row.counterparty}>
-                  <td className="border-b border-white/5 px-3 py-3 font-semibold text-slate-100">{row.counterparty}</td>
-                  <td className="border-b border-white/5 px-3 py-3 text-right text-slate-400">
+                  <td className={`${financeStyles.td} font-semibold text-slate-100`}>{row.counterparty}</td>
+                  <td className={`${financeStyles.td} text-right text-slate-400`}>
                     {formatMoney(row.received, 'PKR')}
                   </td>
-                  <td className="border-b border-white/5 px-3 py-3 text-right text-slate-400">
+                  <td className={`${financeStyles.td} text-right text-slate-400`}>
                     {row.returned ? formatMoney(row.returned, 'PKR') : '—'}
                   </td>
                   <td
-                    className={`border-b border-white/5 px-3 py-3 text-right font-bold ${
+                    className={`${financeStyles.td} text-right font-bold ${
                       row.amount < 0 ? 'text-rose-300' : 'text-cyan-300'
                     }`}
                   >

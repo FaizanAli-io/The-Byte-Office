@@ -1,17 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import type { CategoryInput } from '@/lib/api-client';
 import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory } from '@/types/ledger';
-import { FinanceCard, financeStyles } from '../components/FinanceUI';
-import { CollapseToggle } from './LedgerAccounts';
+import { CollapseToggle, FinanceCard, financeStyles } from '../components/FinanceUI';
 
 const KIND_LABELS: Record<CategoryKind, string> = {
   income: 'Income only',
   expense: 'Expense only',
   both: 'Either',
 };
-
-type SaveInput = { id?: string; name?: string; kind?: CategoryKind; archived?: boolean };
 
 export function LedgerCategories({
   categories,
@@ -23,7 +21,7 @@ export function LedgerCategories({
   categories: LedgerCategory[];
   saving: boolean;
   readOnly: boolean;
-  onSave: (input: SaveInput) => void;
+  onSave: (input: CategoryInput) => void;
   onRemove: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -58,18 +56,18 @@ export function LedgerCategories({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-[0.12em] text-slate-600">
-                    <th className="border-b border-white/8 px-3 py-3 font-semibold">Name</th>
-                    <th className="border-b border-white/8 px-3 py-3 font-semibold">Applies to</th>
-                    <th className="border-b border-white/8 px-3 py-3 font-semibold">Status</th>
-                    <th className="w-px border-b border-white/8 px-3 py-3 text-center font-semibold">Used</th>
-                    <th className="border-b border-white/8 px-3 py-3 text-right font-semibold" />
+                  <tr className={financeStyles.tableHead}>
+                    <th className={financeStyles.th}>Name</th>
+                    <th className={financeStyles.th}>Applies to</th>
+                    <th className={financeStyles.th}>Status</th>
+                    <th className={`${financeStyles.th} w-px text-center`}>Used</th>
+                    <th className={`${financeStyles.th} text-right`} />
                   </tr>
                 </thead>
                 <tbody>
                   {!readOnly ? (
                     <tr>
-                      <td className="border-b border-white/5 px-3 py-3">
+                      <td className={financeStyles.td}>
                         <input
                           className={financeStyles.input}
                           value={name}
@@ -81,12 +79,12 @@ export function LedgerCategories({
                           }}
                         />
                       </td>
-                      <td className="border-b border-white/5 px-3 py-3">
+                      <td className={financeStyles.td}>
                         <KindSelect value={kind} disabled={saving} onChange={setKind} />
                       </td>
-                      <td className="border-b border-white/5 px-3 py-3 text-xs text-slate-600">New</td>
-                      <td className="w-px border-b border-white/5 px-3 py-3" />
-                      <td className="border-b border-white/5 px-3 py-3 text-right">
+                      <td className={`${financeStyles.td} text-xs text-slate-600`}>New</td>
+                      <td className={`${financeStyles.td} w-px`} />
+                      <td className={`${financeStyles.td} text-right`}>
                         <button
                           type="button"
                           className={financeStyles.primary}
@@ -140,7 +138,7 @@ function CategoryRow({
   saving: boolean;
   readOnly: boolean;
   confirmingDelete: boolean;
-  onSave: (input: SaveInput) => void;
+  onSave: (input: CategoryInput) => void;
   onDelete: () => void;
 }) {
   const [draftName, setDraftName] = useState(category.name);
@@ -148,7 +146,7 @@ function CategoryRow({
 
   return (
     <tr className={archived ? 'opacity-60' : ''}>
-      <td className="border-b border-white/5 px-3 py-3">
+      <td className={financeStyles.td}>
         <input
           className={financeStyles.input}
           value={draftName}
@@ -164,19 +162,19 @@ function CategoryRow({
           }}
         />
       </td>
-      <td className="border-b border-white/5 px-3 py-3">
+      <td className={financeStyles.td}>
         <KindSelect
           value={category.kind}
           disabled={saving || readOnly}
           onChange={(kind) => onSave({ id: category.id, kind })}
         />
       </td>
-      <td className="border-b border-white/5 px-3 py-3">
+      <td className={financeStyles.td}>
         <span className={`text-xs font-semibold ${archived ? 'text-slate-500' : 'text-emerald-300'}`}>
           {archived ? 'Archived' : 'Active'}
         </span>
       </td>
-      <td className="w-px border-b border-white/5 px-3 py-3 text-center">
+      <td className={`${financeStyles.td} w-px text-center`}>
         <span
           title={`${category.entryCount} ${category.entryCount === 1 ? 'entry uses' : 'entries use'} this category`}
           className={`inline-flex min-w-7 justify-center rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums ${
@@ -188,7 +186,7 @@ function CategoryRow({
           {category.entryCount}
         </span>
       </td>
-      <td className="border-b border-white/5 px-3 py-3 text-right">
+      <td className={`${financeStyles.td} text-right`}>
         {!readOnly ? (
           <div className="flex justify-end gap-3">
             <button

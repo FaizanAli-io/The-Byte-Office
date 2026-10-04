@@ -1,7 +1,7 @@
-﻿import BackgroundEffect from '@/components/site/BackgroundEffect';
+import BackgroundEffect from '@/components/site/BackgroundEffect';
 import SectionHeading from '@/components/site/SectionHeading';
-import { PrimaryCTAButton, SecondaryCTAButton } from '@/components/site/CTAButtons';
-import { company, processSteps, services, whyChooseUs } from '@/content/site';
+import { CTAButton } from '@/components/site/CTAButtons';
+import { company, ordinal, processSteps, services, whyChooseUs } from '@/content/site';
 import { createMetadata, jsonLd } from '@/lib/seo';
 
 export const metadata = createMetadata({
@@ -40,7 +40,7 @@ export default function AboutPage() {
       <section className="container-page section">
         <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="dark-panel p-8">
-            <p className="eyebrow border-white/10 bg-white/10 text-blue-100">Mission</p>
+            <p className="eyebrow">Mission</p>
             <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white">
               Make advanced software practical, reliable, and useful.
             </h2>
@@ -76,8 +76,8 @@ export default function AboutPage() {
         <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {whyChooseUs.map((item) => (
             <article key={item.title} className="surface-card p-6">
-              <h2 className="heading-md text-xl">{item.title}</h2>
-              <p className="body-copy mt-3 text-sm">{item.text}</p>
+              <h2 className="heading-md">{item.title}</h2>
+              <p className="body-copy mt-3">{item.text}</p>
             </article>
           ))}
         </div>
@@ -86,7 +86,7 @@ export default function AboutPage() {
       <section className="section bg-slate-950 text-white">
         <div className="container-page grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
-            <p className="eyebrow border-white/10 bg-white/10 text-blue-100">Capability map</p>
+            <p className="eyebrow">Capability map</p>
             <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-5xl">
               From product frontends to AI workflows and backend systems.
             </h2>
@@ -107,9 +107,9 @@ export default function AboutPage() {
         <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {processSteps.map((step, index) => (
             <article key={step.title} className="surface-card p-6">
-              <span className="text-sm font-black text-blue-800">{String(index + 1).padStart(2, '0')}</span>
+              <span className="text-sm font-black text-blue-800">{ordinal(index)}</span>
               <h2 className="heading-md mt-4">{step.title}</h2>
-              <p className="body-copy mt-3 text-sm">{step.text}</p>
+              <p className="body-copy mt-3">{step.text}</p>
             </article>
           ))}
         </div>
@@ -125,8 +125,8 @@ export default function AboutPage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <PrimaryCTAButton href="/contact" label="Start a Project" />
-            <SecondaryCTAButton href="/projects" label="View Work" />
+            <CTAButton href="/contact" label="Start a Project" />
+            <CTAButton href="/projects" label="View Work" variant="secondary" />
           </div>
         </div>
       </section>

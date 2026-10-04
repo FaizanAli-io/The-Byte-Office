@@ -121,6 +121,14 @@ export const projects = [
   },
 ];
 
+export const caseStudyFields = [
+  { key: 'problem', label: 'Problem' },
+  { key: 'solution', label: 'Solution' },
+  { key: 'impact', label: 'Impact' },
+] as const;
+
+export const ordinal = (index: number) => String(index + 1).padStart(2, '0');
+
 export const processSteps = [
   {
     title: 'Discovery',

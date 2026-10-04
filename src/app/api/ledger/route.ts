@@ -1,21 +1,19 @@
-import { isMonth } from '@/lib/ledger';
 import { validateLedger } from '@/lib/finance-validation';
 import { createLedger, listCategories, loadLedger, loadPreviousLedger, listLedgerSummaries } from '@/lib/db/queries';
 import { ApiError, apiRoute, created, found, jsonBody, searchParam } from '@/lib/api';
 import { loadHoldingIdentities, saveLedgerSynced } from '@/lib/db/portfolio';
 import { accountsForNewMonth } from '@/lib/accounts';
+import { requireMonth } from '@/lib/ledger-entries';
 import type { MonthlyLedgerPayload } from '@/types/ledger';
 
 export const GET = apiRoute('GET /api/ledger', 'Failed to load ledger', async (req: Request) => {
   const month = searchParam(req, 'month');
   if (!month) return listLedgerSummaries();
-  if (!isMonth(month)) throw new ApiError('Invalid month');
-  return found(await loadLedger(month), 'Ledger not found');
+  return found(await loadLedger(requireMonth(month)), 'Ledger not found');
 });
 
 export const POST = apiRoute('POST /api/ledger', 'Failed to create ledger', async (req: Request) => {
-  const { month } = await jsonBody<{ month?: string }>(req);
-  if (!month || !isMonth(month)) throw new ApiError('Invalid month');
+  const month = requireMonth((await jsonBody<{ month?: string }>(req)).month);
 
   const existing = await loadLedger(month);
   if (existing) return existing;

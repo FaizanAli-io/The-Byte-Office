@@ -1,16 +1,9 @@
 'use client';
 
-import { categoriesApi, ledgerApi } from '@/lib/api-client';
+import { categoriesApi, ledgerApi, type CategoryInput } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import { currentMonth, entryUsesAccount } from '@/lib/ledger';
-import type {
-  CategoryKind,
-  LedgerAccount,
-  LedgerCategory,
-  LedgerEntry,
-  MonthlyLedger,
-  MonthlyLedgerPayload,
-} from '@/types/ledger';
+import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useLedger() {
@@ -62,18 +55,26 @@ export function useLedger() {
     load(month);
   }, [load, month]);
 
-  async function create() {
+  async function run(action: () => Promise<unknown>, successNotice: string, failure: string) {
     setSaving(true);
     setError('');
+    setNotice('');
     try {
-      adopt(await ledgerApi.create(month));
-      setNotice('Monthly ledger created from the portfolio.');
+      await action();
+      setNotice(successNotice);
     } catch (cause) {
-      setError(errorMessage(cause, 'Could not create ledger'));
+      setError(errorMessage(cause, failure));
     } finally {
       setSaving(false);
     }
   }
+
+  const create = () =>
+    run(
+      async () => adopt(await ledgerApi.create(month)),
+      'Monthly ledger created from the portfolio.',
+      'Could not create ledger'
+    );
 
   async function enqueue(month: string, write: () => Promise<MonthlyLedger>, successNotice: string) {
     persistChain.current = persistChain.current
@@ -181,37 +182,27 @@ export function useLedger() {
     });
   }
 
-  async function saveCategory(input: { id?: string; name?: string; kind?: CategoryKind; archived?: boolean }) {
-    setSaving(true);
-    setError('');
-    setNotice('');
-    try {
-      await (input.id
-        ? categoriesApi.update({ ...input, id: input.id })
-        : categoriesApi.create({ name: input.name ?? '', kind: input.kind ?? 'both' }));
-      await loadCategories();
-      setNotice(input.id ? 'Category updated.' : 'Category added.');
-    } catch (cause) {
-      setError(errorMessage(cause, 'Could not save category'));
-    } finally {
-      setSaving(false);
-    }
-  }
+  const saveCategory = (input: CategoryInput) =>
+    run(
+      async () => {
+        await (input.id
+          ? categoriesApi.update({ ...input, id: input.id })
+          : categoriesApi.create({ name: input.name ?? '', kind: input.kind ?? 'both' }));
+        await loadCategories();
+      },
+      input.id ? 'Category updated.' : 'Category added.',
+      'Could not save category'
+    );
 
-  async function removeCategory(id: string) {
-    setSaving(true);
-    setError('');
-    setNotice('');
-    try {
-      await categoriesApi.remove(id);
-      await loadCategories();
-      setNotice('Category deleted.');
-    } catch (cause) {
-      setError(errorMessage(cause, 'Could not delete category'));
-    } finally {
-      setSaving(false);
-    }
-  }
+  const removeCategory = (id: string) =>
+    run(
+      async () => {
+        await categoriesApi.remove(id);
+        await loadCategories();
+      },
+      'Category deleted.',
+      'Could not delete category'
+    );
 
   function changeEntries(
     update: (entries: LedgerEntry[]) => LedgerEntry[],

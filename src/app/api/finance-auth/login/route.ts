@@ -1,20 +1,17 @@
 import { appOrigin, getSessionSecret } from '@/lib/finance-auth';
 import { issueMagicLink } from '@/lib/finance-magic-link';
 import { FINANCE_LOGIN_EMAIL } from '@/lib/finance-constants';
-import { sendFinanceLoginEmail } from '@/lib/finance-email';
-import { ApiError, apiRoute, optionalJsonBody } from '@/lib/api';
+import { sendFinanceLoginEmail } from '@/lib/mail';
+import { ApiError, apiRoute, ipThrottle, optionalJsonBody } from '@/lib/api';
 
 export const runtime = 'nodejs';
 
-const lastSentAt = new Map<string, number>();
+const throttle = ipThrottle(30_000, 'Please wait a moment before requesting another link');
 
 export const POST = apiRoute('POST /api/finance-auth/login', 'Unable to send login link', async (request: Request) => {
   if (!getSessionSecret()) throw new ApiError('Finance authentication is not configured', 503);
 
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
-  if (Date.now() - (lastSentAt.get(ip) ?? 0) < 30_000) {
-    throw new ApiError('Please wait a moment before requesting another link', 429);
-  }
+  const markSent = throttle(request);
 
   const { next } = await optionalJsonBody<{ next?: string }>(request);
   const nextPath = next?.startsWith('/finance') && !next.startsWith('//') ? next : '';
@@ -29,7 +26,7 @@ export const POST = apiRoute('POST /api/finance-auth/login', 'Unable to send log
   } catch (cause) {
     console.error('Finance login email failed:', cause);
   }
-  lastSentAt.set(ip, Date.now());
+  markSent();
 
   const isProduction = process.env.NODE_ENV === 'production';
   if (!emailed && isProduction) throw new ApiError('Email delivery is not configured', 503);

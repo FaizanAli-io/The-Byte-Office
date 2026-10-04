@@ -17,7 +17,26 @@ export const financeStyles = {
     'inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-bold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50',
   danger:
     'inline-flex min-h-9 items-center justify-center rounded-lg border border-rose-400/15 bg-rose-400/8 px-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-400/15 disabled:opacity-50',
+  th: 'border-b border-white/8 px-3 py-3 font-semibold',
+  td: 'border-b border-white/5 px-3 py-3',
+  tableHead: 'text-xs uppercase tracking-[0.12em] text-slate-600',
 };
+
+export const chartTooltip = {
+  contentStyle: {
+    background: '#ffffff',
+    border: '1px solid #e2e8f0',
+    borderRadius: 10,
+    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18)',
+  },
+  itemStyle: { color: '#0f172a', fontWeight: 700 },
+  labelStyle: { color: '#475569', fontWeight: 700 },
+};
+
+export const deltaTone = (value: number, neutral = '') =>
+  value > 0 ? 'text-emerald-300' : value < 0 ? 'text-rose-300' : neutral;
+
+export const signed = (value: number, text: string) => `${value > 0 ? '+' : ''}${text}`;
 
 const sectionLinks = {
   finance: [
@@ -34,13 +53,6 @@ const sectionLinks = {
     { href: '/finance/agent/logs', label: 'Assistant logs' },
   ],
 } as const;
-
-function isWorkspaceLinkActive(pathname: string, href: string) {
-  if (href === '/finance' || href === '/finance/agent' || href === '/finance/personal') {
-    return pathname === href;
-  }
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 export function FinancePageShell({
   title,
@@ -77,7 +89,8 @@ export function FinancePageShell({
         className="mb-8 flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl border border-white/8 bg-slate-950/55 p-1"
       >
         {links.map((link) => {
-          const active = isWorkspaceLinkActive(pathname, link.href);
+          const active =
+            pathname === link.href || (link.href !== links[0].href && pathname.startsWith(`${link.href}/`));
           return (
             <Link
               key={link.href}
@@ -149,6 +162,69 @@ export function StatCard({
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <p className={`mt-3 text-2xl font-bold tracking-tight ${tones[tone]}`}>{value}</p>
       {hint ? <p className="mt-2 text-xs text-slate-600">{hint}</p> : null}
+    </div>
+  );
+}
+
+export function MessageCard({ title, message }: { title: string; message: string }) {
+  return (
+    <div className={`${financeStyles.card} p-12 text-center`}>
+      <p className="font-bold text-white">{title}</p>
+      <p className="mt-2 text-sm text-slate-500">{message}</p>
+    </div>
+  );
+}
+
+export function Field({
+  label,
+  hint,
+  className,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className={className}>
+      <span className={financeStyles.label}>{label}</span>
+      {children}
+      {hint ? <span className="mt-1 block text-[11px] leading-4 text-slate-600">{hint}</span> : null}
+    </label>
+  );
+}
+
+export function CollapseToggle({
+  open,
+  title,
+  subtitle,
+  onToggle,
+  action,
+}: {
+  open: boolean;
+  title: string;
+  subtitle: string;
+  onToggle: () => void;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3 p-4">
+      <button type="button" className="min-w-0 flex-1 text-left" aria-expanded={open} onClick={onToggle}>
+        <h3 className="text-sm font-bold text-slate-100">{title}</h3>
+        <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+      </button>
+      <div className="flex shrink-0 items-center gap-2">
+        {action}
+        <button
+          type="button"
+          className="text-xs font-semibold text-slate-500 hover:text-slate-300"
+          aria-expanded={open}
+          onClick={onToggle}
+        >
+          {open ? 'Hide' : 'Show'}
+        </button>
+      </div>
     </div>
   );
 }

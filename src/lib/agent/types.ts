@@ -1,27 +1,6 @@
+import type { Namaaz } from '@/types/personal';
 import type { Holding } from '@/types/finance';
 import type { CategoryKind, LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
-
-export type AgentActionType =
-  | 'portfolio_item_add'
-  | 'portfolio_item_update'
-  | 'portfolio_item_remove'
-  | 'ledger_entry_add'
-  | 'ledger_entry_update'
-  | 'ledger_entry_remove'
-  | 'ledger_account_add'
-  | 'ledger_account_update'
-  | 'ledger_account_remove'
-  | 'category_add'
-  | 'category_update'
-  | 'category_remove'
-  | 'prayer_set'
-  | 'health_add'
-  | 'health_update'
-  | 'health_remove'
-  | 'health_metric_add'
-  | 'health_metric_update'
-  | 'health_metric_remove'
-  | 'tbo_send_inquiry';
 
 export type HoldingInput = Omit<Holding, 'id'>;
 
@@ -95,7 +74,7 @@ export type AgentActionPayload =
     }
   | {
       actionType: 'prayer_set';
-      namaaz: 'fajr' | 'zuhr' | 'asar' | 'maghreb' | 'isha';
+      namaaz: Namaaz;
       missed: number;
     }
   | {
@@ -126,6 +105,8 @@ export type AgentActionPayload =
       service?: string;
       message: string;
     };
+
+export type AgentActionType = AgentActionPayload['actionType'];
 
 export type ActionPreview = {
   title: string;
@@ -172,6 +153,12 @@ export type AgentResponse = {
   message: AgentChatMessage;
   model: string;
 };
+
+export type AgentStreamEvent =
+  | { type: 'status'; status: 'thinking' | 'reading' }
+  | { type: 'delta'; content: string }
+  | { type: 'done'; response: AgentResponse }
+  | { type: 'error'; error: string };
 
 export type AgentWorkspace = 'finance' | 'personal';
 

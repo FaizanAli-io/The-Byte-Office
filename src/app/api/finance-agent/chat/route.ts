@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
 import { formatGroqErrorForUser, GroqError, PRIMARY_MODEL, requestGroq, type GroqMessage } from '@/lib/agent/groq';
 import { getAgentRuntime } from '@/lib/agent/runtime';
-import type { AgentResponse, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
+import type { AgentResponse, AgentChatMessage, AgentStreamEvent, PendingAgentAction } from '@/lib/agent/types';
+import { ApiError } from '@/lib/api';
 import { getConversation, listAgentMessages, logAgentToolCall, saveAgentMessage } from '@/lib/agent/repository';
 import { NextResponse } from 'next/server';
 
@@ -12,12 +13,6 @@ const MAX_MESSAGE_CHARS = 4_000;
 const MAX_TOTAL_CHARS = 24_000;
 const MAX_TOOL_ROUNDS = 6;
 const MAX_TOOL_CALLS = 8;
-
-type StreamEvent =
-  | { type: 'status'; status: 'thinking' | 'reading' }
-  | { type: 'delta'; content: string }
-  | { type: 'done'; response: AgentResponse }
-  | { type: 'error'; error: string };
 
 export async function POST(request: Request) {
   try {
@@ -33,7 +28,8 @@ export async function POST(request: Request) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (event: StreamEvent) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        const send = (event: AgentStreamEvent) =>
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         try {
           send({ type: 'status', status: 'thinking' });
 
@@ -98,7 +94,7 @@ export async function POST(request: Request) {
                 model,
                 toolCallId: call.id,
                 toolName,
-                arguments: toolError ? { raw: call.function.arguments ?? null, parsed: toolArgs } : toolArgs,
+                arguments: toolError ? { raw: call.function.arguments, parsed: toolArgs } : toolArgs,
                 result: toolError ? undefined : toolOutput,
                 error: toolError,
                 durationMs: Date.now() - startedAt,
@@ -156,8 +152,7 @@ export async function POST(request: Request) {
     });
   } catch (cause) {
     console.error('POST /api/finance-agent/chat error:', cause);
-    if (cause instanceof RequestValidationError) return error(cause.message, cause.status);
-    if (cause instanceof GroqError) return error(cause.message, cause.status);
+    if (cause instanceof ApiError || cause instanceof GroqError) return error(cause.message, cause.status);
     return error('The assistant is temporarily unavailable', 500);
   }
 }
@@ -166,7 +161,7 @@ function parseUserMessage(value: unknown): AgentChatMessage {
   const message = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
   const content = typeof message.content === 'string' ? message.content.trim() : '';
   if (!content || content.length > MAX_MESSAGE_CHARS) {
-    throw new RequestValidationError('Chat message is empty or too long');
+    throw new ApiError('Chat message is empty or too long');
   }
   return {
     id: typeof message.id === 'string' && message.id ? message.id : randomUUID(),
@@ -188,14 +183,9 @@ async function loadHistory(chatId: string) {
   return kept;
 }
 
-function parseToolArguments(raw: unknown): Record<string, unknown> {
-  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
-    return raw as Record<string, unknown>;
-  }
-  if (typeof raw !== 'string') return {};
-
+function parseToolArguments(raw: string): Record<string, unknown> {
   const text = raw.trim();
-  if (!text || text === '{}' || text === 'null' || text === 'undefined' || text === 'None') return {};
+  if (!text || text === 'null' || text === 'undefined' || text === 'None') return {};
 
   try {
     const parsed: unknown = JSON.parse(text);
@@ -209,15 +199,6 @@ function parseToolArguments(raw: unknown): Record<string, unknown> {
 function safeJson(value: unknown) {
   const json = JSON.stringify(value);
   return json.length <= 12_000 ? json : JSON.stringify({ error: 'Tool result was too large; narrow the request' });
-}
-
-class RequestValidationError extends Error {
-  constructor(
-    message: string,
-    public status = 400
-  ) {
-    super(message);
-  }
 }
 
 function error(message: string, status: number) {

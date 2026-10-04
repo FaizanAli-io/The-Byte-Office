@@ -1,9 +1,9 @@
 import 'server-only';
 import { getClient } from './store';
-import { mcpResourceUrl } from './metadata';
-import { parseScopes, type OAuthScope } from './tokens';
+import { mcpResourceUrl, sameResource } from './metadata';
+import { OAUTH_SCOPES, parseScopes, type OAuthScope } from './tokens';
 
-export type AuthorizationRequest = {
+type AuthorizationRequest = {
   clientId: string;
   clientName: string;
   redirectUri: string;
@@ -13,7 +13,7 @@ export type AuthorizationRequest = {
   resource: string;
 };
 
-export type AuthorizationParse =
+type AuthorizationParse =
   | { status: 'ok'; request: AuthorizationRequest }
   | { status: 'error'; message: string }
   | { status: 'redirect'; url: string };
@@ -60,12 +60,12 @@ export async function parseAuthorizationRequest(
 
   const scopes = parseScopes(params.get('scope'));
   if (!scopes) {
-    return fail('invalid_scope', 'Supported scopes are finance:read and finance:write');
+    return fail('invalid_scope', `Supported scopes are ${OAUTH_SCOPES.join(', ')}`);
   }
 
   const resource = mcpResourceUrl(headers);
   const requested = params.get('resource');
-  if (requested && normalise(requested) !== normalise(resource)) {
+  if (requested && !sameResource(requested, resource)) {
     return fail('invalid_target', 'resource does not name this MCP server');
   }
 
@@ -89,8 +89,4 @@ export function decisionRedirect(redirectUri: string, state: string, result: { c
   else url.searchParams.set('error', result.error);
   url.searchParams.set('state', state);
   return url.toString();
-}
-
-function normalise(value: string) {
-  return value.replace(/\/+$/, '');
 }

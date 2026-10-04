@@ -1,5 +1,5 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/server';
-import { executeFinanceTool } from '@/lib/agent/modules/finance/tools';
+import { executeAgentTool } from '@/lib/agent/runtime';
 import { jsonResource } from '@/mcp/result';
 
 export function registerResources(server: McpServer, scopes: string[]) {
@@ -62,6 +62,5 @@ export function registerResources(server: McpServer, scopes: string[]) {
 }
 
 async function readFinance(name: string, args: unknown = {}) {
-  const { output } = await executeFinanceTool(name, args);
-  return output;
+  return (await executeAgentTool(name, args)).output;
 }

@@ -1,12 +1,12 @@
+import { ApiError } from '@/lib/api';
 import { randomUUID } from 'crypto';
-import { AgentActionError } from '@/lib/agent/action-utils';
 import type { ActionPreview, AgentActionPayload, AgentActionType, LedgerAccountChanges } from '@/lib/agent/types';
 import { accountStats, entryUsesAccount } from '@/lib/ledger';
 import type { LedgerAccount, MonthlyLedger } from '@/types/ledger';
-import { requireString, resolveAccountId } from './action-parsing';
+import { definedFields, resolveAccountId } from './action-parsing';
 
 type AccountActionType = 'ledger_account_add' | 'ledger_account_update' | 'ledger_account_remove';
-export type AccountPayload = Extract<AgentActionPayload, { actionType: AccountActionType }>;
+type AccountPayload = Extract<AgentActionPayload, { actionType: AccountActionType }>;
 
 const CHANGE_KEYS = ['name', 'openingBalance', 'exchangeRate', 'actualClosingBalance', 'openingCostBasis'] as const;
 
@@ -36,11 +36,11 @@ export function planAccountAction(
   if (actionType === 'ledger_account_add') {
     const currency = args.currency === 'USD' ? 'USD' : 'PKR';
     if (currency === 'USD' && args.exchangeRate === undefined) {
-      throw new AgentActionError('exchangeRate is required for a USD account');
+      throw new ApiError('exchangeRate is required for a USD account');
     }
     const account = {
       id: randomUUID(),
-      name: requireString(args.name, 'name'),
+      name: args.name,
       type: args.type === 'fund' ? 'fund' : 'bank',
       currency,
       openingBalance: args.openingBalance ?? 0,
@@ -62,14 +62,12 @@ export function planAccountAction(
     };
   }
 
-  const changes: LedgerAccountChanges = Object.fromEntries(
-    CHANGE_KEYS.filter((key) => args[key] !== undefined).map((key) => [key, args[key]])
-  );
+  const changes = definedFields(args, CHANGE_KEYS) as LedgerAccountChanges;
   if (account.currency === 'PKR' && changes.exchangeRate !== undefined) {
-    throw new AgentActionError('PKR accounts have no exchange rate');
+    throw new ApiError('PKR accounts have no exchange rate');
   }
   if (!Object.keys(changes).length) {
-    throw new AgentActionError(`Nothing to change: pass one of ${CHANGE_KEYS.join(', ')}`);
+    throw new ApiError(`Nothing to change: pass one of ${CHANGE_KEYS.join(', ')}`);
   }
   return {
     payload: { actionType, month, accountId: account.id, changes },
@@ -81,17 +79,17 @@ export function applyAccountAction(payload: AccountPayload, ledger: MonthlyLedge
   const { accounts } = ledger;
   if (payload.actionType === 'ledger_account_add') {
     if (accounts.some((account) => account.id === payload.account.id)) {
-      throw new AgentActionError('This account was already added.', 409);
+      throw new ApiError('This account was already added.', 409);
     }
     return [...accounts, payload.account];
   }
 
   if (!accounts.some((account) => account.id === payload.accountId)) {
-    throw new AgentActionError('Ledger account no longer exists', 409);
+    throw new ApiError('Ledger account no longer exists', 409);
   }
   if (payload.actionType === 'ledger_account_remove') {
     if (ledger.entries.some((entry) => entryUsesAccount(entry, payload.accountId))) {
-      throw new AgentActionError('Delete entries for this account before removing it.', 409);
+      throw new ApiError('Delete entries for this account before removing it.', 409);
     }
     return accounts.filter((account) => account.id !== payload.accountId);
   }
@@ -110,7 +108,7 @@ function findAccount(ledger: MonthlyLedger, args: Record<string, unknown>) {
   const id = typeof args.accountId === 'string' ? args.accountId : resolveAccountId(ledger.accounts, args.accountName);
   const account = ledger.accounts.find((item) => item.id === id);
   if (!account) {
-    throw new AgentActionError(
+    throw new ApiError(
       'Account not found. Call ledger_accounts_list for ids, or use a name that matches one account.',
       404
     );

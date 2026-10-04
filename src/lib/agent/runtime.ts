@@ -1,10 +1,13 @@
-import { executePersonalTool, personalToolNames } from '@/lib/agent/modules/personal';
-import { executeTboTool, tboToolNames } from '@/lib/agent/modules/tbo';
-import { executeFinanceTool } from '@/lib/agent/modules/finance/tools';
-import { groqTools, parseToolArgs } from '@/lib/agent/registry';
-import type { PendingAgentAction } from '@/lib/agent/types';
+import { pendingResult } from '@/lib/agent/action-utils';
+import { proposeAgentAction } from '@/lib/agent/actions';
+import { readPersonalTool } from '@/lib/agent/modules/personal';
+import { readTboTool } from '@/lib/agent/modules/tbo';
+import { readFinanceTool } from '@/lib/agent/modules/finance/tools';
+import { agentToolByName, groqTools, parseToolArgs } from '@/lib/agent/registry';
+import { saveProposal } from '@/lib/agent/repository';
+import type { AgentActionType, PendingAgentAction } from '@/lib/agent/types';
 
-const agentTools = groqTools;
+const readers = { finance: readFinanceTool, personal: readPersonalTool, tbo: readTboTool };
 
 const SYSTEM_PROMPT = `You are the private assistant for The Byte Office.
 You have three cleanly separate modules. Use only the module that matches the user's request.
@@ -31,10 +34,14 @@ For responses with multiple values, prefer Markdown headings, lists, and tables.
 
 export function getAgentRuntime() {
   return {
-    tools: agentTools,
+    tools: groqTools,
     systemPrompt: SYSTEM_PROMPT,
     execute: executeAgentTool,
   };
+}
+
+export function readAgentTool(name: string, input: Record<string, unknown>): Promise<unknown> {
+  return readers[agentToolByName.get(name)!.module](name, input);
 }
 
 export async function executeAgentTool(
@@ -42,7 +49,12 @@ export async function executeAgentTool(
   args: unknown
 ): Promise<{ output: unknown; pendingAction?: PendingAgentAction }> {
   const input = parseToolArgs(name, args);
-  if (tboToolNames.has(name)) return executeTboTool(name, input);
-  if (personalToolNames.has(name)) return executePersonalTool(name, input);
-  return executeFinanceTool(name, input);
+  const tool = agentToolByName.get(name)!;
+  if (!tool.write) return { output: await readAgentTool(name, input) };
+  return pendingResult(
+    await saveProposal(await proposeAgentAction(name as AgentActionType, input)),
+    tool.module === 'tbo'
+      ? 'Tell the user to review the confirmation card. Do not claim the email was sent.'
+      : undefined
+  );
 }

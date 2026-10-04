@@ -1,5 +1,5 @@
-import { PersonalWorkspace } from './PersonalWorkspace';
+import { PrayersWorkspace } from './PrayersWorkspace';
 
 export default function PersonalPage() {
-  return <PersonalWorkspace view="prayers" />;
+  return <PrayersWorkspace />;
 }

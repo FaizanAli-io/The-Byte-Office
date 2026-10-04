@@ -1,11 +1,8 @@
-import { ApiError, apiRoute, searchParam } from '@/lib/api';
+import { ApiError, apiRoute, searchParam, type IdContext } from '@/lib/api';
 import { isUuid } from '@/lib/db/ids';
-import { isMonth } from '@/lib/ledger';
-import { changeLedgerEntry, readEntryBody } from '@/lib/ledger-entries';
+import { changeLedgerEntry, readEntryBody, requireMonth } from '@/lib/ledger-entries';
 
-type Context = { params: Promise<{ id: string }> };
-
-async function entryId(ctx: Context) {
+async function entryId(ctx: IdContext) {
   const { id } = await ctx.params;
   if (!isUuid(id)) throw new ApiError('Ledger entry not found', 404);
   return id;
@@ -14,7 +11,7 @@ async function entryId(ctx: Context) {
 export const PUT = apiRoute(
   'PUT /api/ledger/entries/[id]',
   'Failed to update ledger entry',
-  async (req: Request, ctx: Context) => {
+  async (req: Request, ctx: IdContext) => {
     const id = await entryId(ctx);
     const { month, entry } = await readEntryBody(req);
     return changeLedgerEntry(month, { kind: 'update', entry: { ...entry, id } });
@@ -24,10 +21,8 @@ export const PUT = apiRoute(
 export const DELETE = apiRoute(
   'DELETE /api/ledger/entries/[id]',
   'Failed to delete ledger entry',
-  async (req: Request, ctx: Context) => {
+  async (req: Request, ctx: IdContext) => {
     const id = await entryId(ctx);
-    const month = searchParam(req, 'month');
-    if (!month || !isMonth(month)) throw new ApiError('Invalid month');
-    return changeLedgerEntry(month, { kind: 'remove', id });
+    return changeLedgerEntry(requireMonth(searchParam(req, 'month')), { kind: 'remove', id });
   }
 );

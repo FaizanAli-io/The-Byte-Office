@@ -1,12 +1,13 @@
 import { fundGroups, valuePkr } from '@/lib/finance';
 import type { Holding } from '@/types/finance';
-import { HoldingRow, type IndexedHolding } from './HoldingSection';
-import { DeleteButton, Field, SectionCard, SectionTotal, styleClasses } from './shared';
+import { financeStyles } from '../FinanceUI';
+import { HoldingRow, type HoldingField, type IndexedHolding } from './HoldingSection';
+import { DeleteButton, Field, SectionCard, SectionTotal, addButtonClass } from './shared';
 
-const FUND_FIELDS = [
+const FUND_FIELDS: HoldingField[] = [
   { key: 'name', label: 'Fund Name', placeholder: 'Fund name' },
   { key: 'amount', label: 'Value (PKR)', money: true },
-] as const;
+];
 
 const fund = (bank: string): Holding => ({ kind: 'mutual_fund', name: '', group: bank, amount: 0, exchangeRate: 1 });
 const total = (funds: IndexedHolding[]) => funds.reduce((sum, item) => sum + valuePkr(item), 0);
@@ -37,7 +38,7 @@ export function MutualFundsSection({
       footer={<SectionTotal value={total(groups.flatMap((group) => group.funds))} />}
     >
       {groups.map(({ bank, funds }, groupIndex) => (
-        <div key={groupIndex} className="mb-4 rounded-xl border border-white/7 bg-slate-950/45 p-4">
+        <div key={groupIndex} className={`${financeStyles.inset} mb-4 p-4`}>
           <div className="mb-4 flex items-end gap-3">
             <div className="min-w-0 flex-1">
               <Field
@@ -55,7 +56,7 @@ export function MutualFundsSection({
               <HoldingRow
                 key={item.id ?? `new-${item.index}`}
                 holding={item}
-                fields={[...FUND_FIELDS]}
+                fields={FUND_FIELDS}
                 className="grid gap-3 rounded-lg border border-white/6 bg-white/[0.025] p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
                 onChange={onChange}
                 onDelete={onDelete}
@@ -64,7 +65,7 @@ export function MutualFundsSection({
           </div>
 
           <div className="mt-5 flex flex-col gap-3 border-t border-white/6 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <button onClick={() => onAdd(fund(bank))} className={styleClasses.addBtnClass}>
+            <button onClick={() => onAdd(fund(bank))} className={addButtonClass}>
               + Add Fund
             </button>
             <SectionTotal label="Bank Total" value={total(funds)} />

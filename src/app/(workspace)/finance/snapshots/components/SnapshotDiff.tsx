@@ -3,7 +3,7 @@
 import { snapshotDiff } from '@/lib/finance';
 import { formatMoney } from '@/lib/ledger';
 import type { FinanceSnapshot } from '@/types/finance';
-import { financeStyles } from '../../components/FinanceUI';
+import { deltaTone, financeStyles, signed } from '../../components/FinanceUI';
 
 export function formatSnapshotTime(timestamp: FinanceSnapshot['timestamp']) {
   return new Date(timestamp).toLocaleString('en-US', {
@@ -18,8 +18,11 @@ export function formatSnapshotTime(timestamp: FinanceSnapshot['timestamp']) {
 const money = (value: number | null) => (value === null ? '—' : formatMoney(value, 'PKR'));
 
 function Delta({ value }: { value: number }) {
-  const tone = value > 0 ? 'text-emerald-300' : value < 0 ? 'text-rose-300' : 'text-slate-500';
-  return <span className={`font-bold ${tone}`}>{`${value > 0 ? '+' : ''}${formatMoney(value, 'PKR')}`}</span>;
+  return (
+    <span className={`font-bold ${deltaTone(value, 'text-slate-500')}`}>
+      {signed(value, formatMoney(value, 'PKR'))}
+    </span>
+  );
 }
 
 export function SnapshotDiff({ pair, onClear }: { pair: [FinanceSnapshot, FinanceSnapshot]; onClear: () => void }) {

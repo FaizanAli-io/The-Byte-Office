@@ -1,6 +1,7 @@
 'use client';
 
 import { formatMoney, ledgerSummary } from '@/lib/ledger';
+import type { ReactNode } from 'react';
 import { FinancePageShell, StatCard, financeStyles } from '../components/FinanceUI';
 import { LedgerAccounts } from './LedgerAccounts';
 import { LedgerCategories } from './LedgerCategories';
@@ -8,8 +9,6 @@ import { LedgerEntries } from './LedgerEntries';
 import { useLedger } from './useLedger';
 
 export default function LedgerPage() {
-  const ledgerState = useLedger();
-
   const {
     month,
     setMonth,
@@ -31,7 +30,7 @@ export default function LedgerPage() {
     categories,
     saveCategory,
     removeCategory,
-  } = ledgerState;
+  } = useLedger();
   const summary = ledger ? ledgerSummary(ledger) : null;
   const isFinalized = ledger?.status === 'finalized';
   const canFinalize =
@@ -168,7 +167,7 @@ export default function LedgerPage() {
   );
 }
 
-function Alert({ tone, children }: { tone: 'error' | 'success'; children: React.ReactNode }) {
+function Alert({ tone, children }: { tone: 'error' | 'success'; children: ReactNode }) {
   return (
     <div
       role="status"

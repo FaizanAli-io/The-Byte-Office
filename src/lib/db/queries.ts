@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { idEq } from './ids';
 import { asc, desc, eq, inArray, lt, max, sql } from 'drizzle-orm';
-import type { FinanceSnapshot, Holding } from '@/types/finance';
+import type { FinanceSnapshot, SnapshotHolding } from '@/types/finance';
 import type {
   CategoryKind,
   LedgerAccount,
@@ -12,27 +12,7 @@ import type {
 } from '@/types/ledger';
 import { getDb, getSql } from './index';
 import { displayName, shapeOf } from '@/lib/accounts';
-import {
-  categories,
-  financeSnapshots,
-  holdings,
-  ledgerAccounts,
-  ledgerEntries,
-  ledgers,
-  type SnapshotHoldings,
-} from './schema';
-
-export function toSnapshotHoldings(holdings: Omit<Holding, 'id'>[]): SnapshotHoldings {
-  return {
-    holdings: holdings.map(({ kind, name, group, amount, exchangeRate }) => ({
-      kind,
-      name,
-      group,
-      amount,
-      exchangeRate,
-    })),
-  };
-}
+import { categories, financeSnapshots, holdings, ledgerAccounts, ledgerEntries, ledgers } from './schema';
 
 function toAccount(row: typeof ledgerAccounts.$inferSelect, holding: typeof holdings.$inferSelect): LedgerAccount {
   return {
@@ -123,6 +103,16 @@ export async function loadPreviousLedger(month: string) {
 
 type Sql = ReturnType<typeof getSql>;
 
+async function guardedTransaction(sql: Sql, statements: ReturnType<Sql>[]) {
+  try {
+    await sql.transaction(statements);
+    return true;
+  } catch (cause) {
+    if ((cause as { code?: string }).code === '22012') return false;
+    throw cause;
+  }
+}
+
 function insertLedgerAccount(sql: Sql, ledgerId: string, account: LedgerAccount, actualClosingBalance: number | null) {
   return sql`INSERT INTO finance.ledger_accounts (id, ledger_id, holding_id, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate)
     VALUES (${account.id}, ${ledgerId}, ${account.holdingId}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${actualClosingBalance}, ${account.exchangeRate})`;
@@ -173,13 +163,7 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
     ),
   ];
 
-  try {
-    await sql.transaction(statements);
-  } catch (cause) {
-    if ((cause as { code?: string }).code === '22012') return null;
-    throw cause;
-  }
-  return loadLedger(existing.month);
+  return (await guardedTransaction(sql, statements)) ? loadLedger(existing.month) : null;
 }
 
 export type EntryWrite = { kind: 'add' | 'update'; entry: LedgerEntry } | { kind: 'remove'; id: string };
@@ -207,13 +191,7 @@ export async function writeLedgerEntry(ledger: MonthlyLedger, write: EntryWrite)
       WHERE id = ${entry.id} AND ledger_id = ${ledgerId}`;
   }
 
-  try {
-    await sql.transaction([bump, change]);
-  } catch (cause) {
-    if ((cause as { code?: string }).code === '22012') return null;
-    throw cause;
-  }
-  return loadLedger(ledger.month);
+  return (await guardedTransaction(sql, [bump, change])) ? loadLedger(ledger.month) : null;
 }
 
 function toCategory(row: typeof categories.$inferSelect, entryCount = 0): LedgerCategory {
@@ -317,14 +295,7 @@ export async function loadHoldMovements() {
 }
 
 export async function listSnapshots(): Promise<FinanceSnapshot[]> {
-  const rows = await getDb().select().from(financeSnapshots).orderBy(desc(financeSnapshots.timestamp)).limit(50);
-
-  return rows.map((row) => ({
-    id: row.id,
-    timestamp: row.timestamp,
-    grandTotal: row.grandTotal,
-    data: row.data,
-  }));
+  return getDb().select().from(financeSnapshots).orderBy(desc(financeSnapshots.timestamp)).limit(50);
 }
 
 export async function listSnapshotSummaries() {
@@ -332,21 +303,22 @@ export async function listSnapshotSummaries() {
   return rows.map(({ id, timestamp, grandTotal }) => ({ id, timestamp, grandTotal }));
 }
 
-export async function getSnapshot(id: string) {
+export async function getSnapshot(id: string): Promise<FinanceSnapshot | null> {
   const [row] = await getDb().select().from(financeSnapshots).where(idEq(financeSnapshots.id, id)).limit(1);
-  if (!row) return null;
-  return {
-    id: row.id,
-    timestamp: row.timestamp,
-    grandTotal: row.grandTotal,
-    data: row.data,
-  };
+  return row ?? null;
 }
 
-export async function createSnapshot(holdings: Omit<Holding, 'id'>[], grandTotal: number) {
+export async function createSnapshot(holdings: SnapshotHolding[], grandTotal: number) {
+  const data = holdings.map(({ kind, name, group, amount, exchangeRate }) => ({
+    kind,
+    name,
+    group,
+    amount,
+    exchangeRate,
+  }));
   const [row] = await getDb()
     .insert(financeSnapshots)
-    .values({ data: toSnapshotHoldings(holdings), grandTotal })
+    .values({ data: { holdings: data }, grandTotal })
     .returning({ id: financeSnapshots.id });
   return row.id;
 }

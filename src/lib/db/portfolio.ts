@@ -6,10 +6,12 @@ import {
   loadActiveHoldings,
   updateHoldingIdentities,
   type HoldingRow,
+  type IdentityUpdate,
 } from './holdings';
 import { createLedger, createSnapshot, listLedgerSummaries, loadLedger, saveLedger } from './queries';
 import {
   accountsForNewMonth,
+  differs,
   planLedgerHoldings,
   planPortfolioAccounts,
   valuesFrom,
@@ -22,7 +24,6 @@ import { currentMonth, nextMonth } from '@/lib/ledger';
 import type { Holding } from '@/types/finance';
 import type { MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 
-type IdentityUpdate = { id: string } & Partial<Pick<HoldingRow, 'name' | 'group' | 'sortOrder'>>;
 type PortfolioRow = HoldingValue & { row: HoldingRow };
 
 const identity = (row: HoldingRow): HoldingIdentity => ({
@@ -32,12 +33,13 @@ const identity = (row: HoldingRow): HoldingIdentity => ({
   group: row.group,
 });
 
-const differs = (a: number, b: number) => Math.abs(a - b) >= 0.005;
-
 async function newestLedger() {
   const [newest] = await listLedgerSummaries();
   return newest ? loadLedger(newest.month) : null;
 }
+
+const rateFor = (holding: Pick<Holding, 'kind' | 'exchangeRate'>) =>
+  holding.kind === 'remote_bank' ? holding.exchangeRate : 1;
 
 async function loadPortfolio(): Promise<PortfolioRow[]> {
   const [rows, ledger] = await Promise.all([loadActiveHoldings(), newestLedger()]);
@@ -49,7 +51,7 @@ export async function loadPortfolioHoldings(): Promise<Holding[]> {
   return (await loadPortfolio()).map(({ row, amount, exchangeRate }) => ({
     ...identity(row),
     amount,
-    exchangeRate: row.kind === 'remote_bank' ? exchangeRate : 1,
+    exchangeRate: rateFor({ kind: row.kind, exchangeRate }),
   }));
 }
 
@@ -62,12 +64,11 @@ export async function loadHoldingIdentities() {
 }
 
 async function targetLedger(): Promise<MonthlyLedger> {
-  const [newest] = await listLedgerSummaries();
-  if (newest?.status === 'draft') return (await loadLedger(newest.month))!;
-  const previous = newest ? await loadLedger(newest.month) : null;
+  const newest = await newestLedger();
+  if (newest?.status === 'draft') return newest;
   return createLedger({
     month: newest ? nextMonth(newest.month) : currentMonth(),
-    accounts: accountsForNewMonth(await loadHoldingIdentities(), previous),
+    accounts: accountsForNewMonth(await loadHoldingIdentities(), newest),
   });
 }
 
@@ -85,9 +86,6 @@ async function applyPortfolioChange(change: PortfolioChange, identities: Identit
   }
   throw new Error(`The ${ledger.month} ledger kept changing while saving the portfolio. Try again.`);
 }
-
-const rateFor = (holding: Pick<Holding, 'kind' | 'exchangeRate'>) =>
-  holding.kind === 'remote_bank' ? holding.exchangeRate : 1;
 
 export async function savePortfolio(next: Holding[]) {
   const current = new Map((await loadPortfolio()).map((p) => [p.row.id, p]));

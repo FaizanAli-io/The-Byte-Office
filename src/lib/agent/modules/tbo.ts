@@ -1,26 +1,27 @@
-import { pendingResult } from '@/lib/agent/action-utils';
+import { ApiError } from '@/lib/api';
 import { company, faqs, processSteps, projects, services, whyChooseUs } from '@/content/site';
-import { proposeTboInquiry } from '@/lib/agent/modules/tbo-actions';
-import { toolNamesForModule } from '@/lib/agent/registry';
-import { saveProposal } from '@/lib/agent/repository';
-import type { PendingAgentAction } from '@/lib/agent/types';
+import { parseInquiry, sendInquiryEmail } from '@/lib/inquiry-email';
+import type { AgentActionPayload, AgentProposal } from '@/lib/agent/types';
 
-export const tboToolNames = toolNamesForModule('tbo');
-
-export async function executeTboTool(
-  name: string,
-  args: Record<string, unknown>
-): Promise<{ output: unknown; pendingAction?: PendingAgentAction }> {
-  if (name === 'tbo_info') {
-    return { output: tboKnowledge(typeof args.topic === 'string' ? args.topic : 'overview') };
-  }
-  if (name === 'tbo_send_inquiry') {
-    return pendingResult(
-      await saveProposal(await proposeTboInquiry(args)),
-      'Tell the user to review the confirmation card. Do not claim the email was sent.'
-    );
-  }
+export async function readTboTool(name: string, args: Record<string, unknown>) {
+  if (name === 'tbo_info') return tboKnowledge(args.topic as string);
   throw new Error(`Unknown TBO tool: ${name}`);
+}
+
+export async function proposeTboInquiry(args: Record<string, unknown>): Promise<AgentProposal> {
+  const inquiry = parseInquiry(args);
+  return {
+    actionType: 'tbo_send_inquiry',
+    payload: { actionType: 'tbo_send_inquiry', ...inquiry },
+    preview: { title: 'Send inquiry email to The Byte Office', after: inquiry },
+  };
+}
+
+export async function executeTboInquiry(payload: Extract<AgentActionPayload, { actionType: 'tbo_send_inquiry' }>) {
+  if (!(await sendInquiryEmail(payload))) {
+    throw new ApiError('Email is not configured, so the inquiry could not be sent.', 503);
+  }
+  return { sent: true };
 }
 
 function tboKnowledge(topic: string) {

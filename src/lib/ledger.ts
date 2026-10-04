@@ -149,14 +149,13 @@ export function accountStats(account: LedgerAccount, entries: LedgerEntry[]) {
 }
 
 export function ledgerSummary(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'>) {
-  const income = ledger.entries
-    .filter((entry) => entry.type === 'income')
-    .reduce((total, entry) => total + toPkr(entry.amount, entry.accountId, ledger.accounts, entry.exchangeRate), 0);
-  const expenses = ledger.entries
-    .filter((entry) => entry.type === 'expense')
-    .reduce((total, entry) => total + toPkr(entry.amount, entry.accountId, ledger.accounts, entry.exchangeRate), 0);
+  const pkr = (entry: LedgerEntry) => toPkr(entry.amount, entry.accountId, ledger.accounts, entry.exchangeRate);
+  const totalOf = (type: LedgerEntryType) =>
+    ledger.entries.filter((entry) => entry.type === type).reduce((total, entry) => total + pkr(entry), 0);
+  const income = totalOf('income');
+  const expenses = totalOf('expense');
   const fundFlow = ledger.entries.reduce((total, entry) => {
-    const amount = toPkr(entry.amount, entry.accountId, ledger.accounts, entry.exchangeRate);
+    const amount = pkr(entry);
     if (entry.type === 'fund_contribution') return total + amount;
     if (entry.type === 'fund_withdrawal') return total - amount;
     if (entry.type === 'transfer') {
@@ -174,7 +173,7 @@ export function ledgerSummary(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'
     ledger.entries.map((entry) => ({
       type: entry.type,
       counterparty: entry.counterparty,
-      amountPkr: toPkr(entry.amount, entry.accountId, ledger.accounts, entry.exchangeRate),
+      amountPkr: pkr(entry),
     }))
   ).total;
 
@@ -204,7 +203,7 @@ export function ledgerCategoryTotals(
 
 export const UNATTRIBUTED_HOLD = 'Unattributed';
 
-export type HoldMovement = {
+type HoldMovement = {
   type: LedgerEntryType;
   counterparty?: string | null;
   amountPkr: number;

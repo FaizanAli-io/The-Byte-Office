@@ -1,4 +1,4 @@
-import { pendingResult } from '@/lib/agent/action-utils';
+import { ApiError } from '@/lib/api';
 import {
   getSnapshot,
   listCategories,
@@ -10,76 +10,54 @@ import {
 import { loadPortfolioHoldings } from '@/lib/db/portfolio';
 import { portfolioTotals, valuePkr } from '@/lib/finance';
 import { categoryName, heldFunds, ledgerCategoryTotals, ledgerSummary } from '@/lib/ledger';
-import { agentToolRegistry } from '@/lib/agent/registry';
-import { saveProposal } from '@/lib/agent/repository';
-import { proposeFinanceAction } from './actions';
+import { serialFor } from './action-parsing';
 import { accountBalances } from './ledger-accounts';
-import type { AgentActionType, PendingAgentAction } from '@/lib/agent/types';
 
-export async function executeFinanceTool(
-  name: string,
-  args: unknown
-): Promise<{ output: unknown; pendingAction?: PendingAgentAction }> {
-  const input = asObject(args);
-
-  if (name === 'portfolio_get') {
-    const [holdings, movements] = await Promise.all([loadPortfolioHoldings(), loadHoldMovements()]);
-    const held = heldFunds(movements);
-    const totals = portfolioTotals(holdings, held.total);
-    return {
-      output: {
+export async function readFinanceTool(name: string, args: Record<string, unknown>) {
+  switch (name) {
+    case 'portfolio_get': {
+      const [holdings, movements] = await Promise.all([loadPortfolioHoldings(), loadHoldMovements()]);
+      const held = heldFunds(movements);
+      const totals = portfolioTotals(holdings, held.total);
+      return {
         holdings: holdings.map((holding) => ({ ...holding, valuePkr: valuePkr(holding) })),
         grandTotalPkr: totals.grandTotal,
         heldForOthersPkr: totals.held,
         netTotalPkr: totals.net,
         heldForOthers: held.byCounterparty,
-      },
-    };
-  }
-  if (name === 'snapshots_list') {
-    return { output: await listSnapshotSummaries() };
-  }
-  if (name === 'snapshot_get') {
-    const snapshot = await getSnapshot(requireArg(input, 'id'));
-    if (!snapshot) throw new Error('Snapshot not found');
-    return { output: snapshot };
-  }
-  if (name === 'categories_list') {
-    return { output: await listCategories() };
-  }
-  if (name === 'ledgers_list') {
-    return { output: await listLedgerSummaries() };
-  }
-  if (name === 'ledger_get') {
-    const month = requireArg(input, 'month');
-    const [ledger, categoryList] = await Promise.all([loadLedger(month), listCategories()]);
-    if (!ledger) throw new Error('Ledger not found');
-    return {
-      output: {
+      };
+    }
+    case 'snapshots_list':
+      return listSnapshotSummaries();
+    case 'snapshot_get': {
+      const snapshot = await getSnapshot(args.id as string);
+      if (!snapshot) throw new ApiError('Snapshot not found', 404);
+      return snapshot;
+    }
+    case 'categories_list':
+      return listCategories();
+    case 'ledgers_list':
+      return listLedgerSummaries();
+    case 'ledger_get': {
+      const [ledger, categoryList] = await Promise.all([requireLedger(args.month), listCategories()]);
+      return {
         ...ledger,
         entries: ledger.entries.map((entry, index) => ({
           ...entry,
           category: categoryName(categoryList, entry.categoryId) || undefined,
-          serial: String(index + 1).padStart(4, '0'),
+          serial: serialFor(index),
         })),
-      },
-    };
-  }
-
-  if (name === 'ledger_accounts_list') {
-    const ledger = await loadLedger(requireArg(input, 'month'));
-    if (!ledger) throw new Error('Ledger not found');
-    return { output: { month: ledger.month, status: ledger.status, accounts: accountBalances(ledger) } };
-  }
-
-  if (name === 'ledger_summary') {
-    const month = requireArg(input, 'month');
-    const [ledger, categoryList] = await Promise.all([loadLedger(month), listCategories()]);
-    if (!ledger) throw new Error('Ledger not found');
-    const totals = ledgerSummary(ledger);
-    const balances = accountBalances(ledger);
-    return {
-      output: {
+      };
+    }
+    case 'ledger_accounts_list': {
+      const ledger = await requireLedger(args.month);
+      return { month: ledger.month, status: ledger.status, accounts: accountBalances(ledger) };
+    }
+    case 'ledger_summary': {
+      const [ledger, categoryList] = await Promise.all([requireLedger(args.month), listCategories()]);
+      const totals = ledgerSummary(ledger);
+      const balances = accountBalances(ledger);
+      return {
         month: ledger.month,
         status: ledger.status,
         entryCount: ledger.entries.length,
@@ -98,29 +76,14 @@ export async function executeFinanceTool(
             (account) => account.difference !== undefined && Math.abs(account.difference) < 0.01
           ).length,
         },
-      },
-    };
+      };
+    }
   }
-
-  if (isWriteTool(name)) {
-    return pendingResult(await saveProposal(await proposeFinanceAction(name, input)));
-  }
-
   throw new Error(`Unknown tool: ${name}`);
 }
 
-function isWriteTool(name: string): name is AgentActionType {
-  return agentToolRegistry.some((tool) => tool.name === name && tool.module === 'finance' && tool.write);
-}
-
-function asObject(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
-function requireArg(args: Record<string, unknown>, key: string) {
-  const value = args[key];
-  if (typeof value !== 'string' || !value) {
-    throw new Error(`${key} is required`);
-  }
-  return value;
+export async function requireLedger(month: unknown) {
+  const ledger = await loadLedger(month as string);
+  if (!ledger) throw new ApiError('Ledger not found', 404);
+  return ledger;
 }

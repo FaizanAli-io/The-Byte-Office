@@ -1,5 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
-import { mcpToolRegistry, type AgentToolDefinition } from '@/lib/agent/registry';
+import { mcpToolRegistry, takesNoArgs, type AgentToolDefinition } from '@/lib/agent/registry';
 import { scopeForTool } from '@/lib/oauth/tokens';
 import { invokeAgentTool } from './invoke';
 import { runTool } from './result';
@@ -25,7 +25,7 @@ export function registerTools(server: McpServer, scopes: string[], clientId?: st
     const invoke = (args: unknown) => runTool(() => invokeAgentTool(tool.name, args ?? {}, clientId));
 
     // Without an inputSchema the callback receives `extra` as its first argument.
-    if (Object.keys(tool.schema.shape).length === 0) {
+    if (takesNoArgs(tool)) {
       server.registerTool(tool.name, config, async () => invoke({}));
       continue;
     }

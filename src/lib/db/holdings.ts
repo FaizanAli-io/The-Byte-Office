@@ -1,9 +1,11 @@
 import { asc, eq, inArray, isNull, max } from 'drizzle-orm';
 import { getDb } from './index';
 import { holdings } from './schema';
-import type { HoldingIdentity, HoldingKind } from '@/lib/accounts';
+import type { HoldingIdentity } from '@/lib/accounts';
+import type { HoldingKind } from '@/types/finance';
 
 export type HoldingRow = typeof holdings.$inferSelect;
+export type IdentityUpdate = { id: string } & Partial<Pick<HoldingRow, 'name' | 'group' | 'sortOrder'>>;
 
 export async function loadActiveHoldings() {
   return getDb()
@@ -38,9 +40,7 @@ export async function insertHoldings(created: (HoldingIdentity & { archived?: bo
   }
 }
 
-export async function updateHoldingIdentities(
-  updated: ({ id: string } & Partial<Pick<HoldingRow, 'name' | 'group' | 'sortOrder'>>)[]
-) {
+export async function updateHoldingIdentities(updated: IdentityUpdate[]) {
   for (const { id, ...fields } of updated) {
     await getDb()
       .update(holdings)

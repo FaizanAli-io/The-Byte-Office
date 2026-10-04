@@ -6,9 +6,11 @@ import { announceFinanceAuthChange } from '@/lib/finance-session-client';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+const signingIn = <p className="px-4 pt-32 text-center text-sm text-slate-400">Signing you in…</p>;
+
 export default function FinanceVerifyPage() {
   return (
-    <Suspense fallback={<p className="px-4 pt-32 text-center text-sm text-slate-400">Signing you in…</p>}>
+    <Suspense fallback={signingIn}>
       <VerifySession />
     </Suspense>
   );
@@ -36,9 +38,7 @@ function VerifySession() {
         const destination = next?.startsWith('/finance') && !next.startsWith('//') ? next : '/finance';
         router.replace(destination);
       } catch (cause) {
-        if (!cancelled) {
-          setError(errorMessage(cause, 'Unable to complete sign-in'));
-        }
+        if (!cancelled) setError(errorMessage(cause, 'Unable to complete sign-in'));
       }
     })();
 
@@ -63,5 +63,5 @@ function VerifySession() {
     );
   }
 
-  return <p className="px-4 pt-32 text-center text-sm text-slate-400">Signing you in…</p>;
+  return signingIn;
 }

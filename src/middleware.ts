@@ -27,7 +27,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/finance',
     '/finance/:path*',
     '/api/finance',
     '/api/finance-agent/:path*',
@@ -35,10 +34,9 @@ export const config = {
     '/api/ledger/:path*',
     '/api/held-funds',
     '/api/categories',
-    '/api/prayers',
     '/api/prayers/:path*',
-    '/api/health-tracking',
     '/api/health-tracking/:path*',
+    '/api/health-metrics',
     '/api/agent/:path*',
     '/docs',
     '/api/openapi',

@@ -11,7 +11,6 @@ export class ApiError extends Error {
 }
 
 function statusOf(error: unknown): number | null {
-  if (error instanceof ApiError) return error.status;
   if (error instanceof Error && 'status' in error) {
     const status = (error as { status: unknown }).status;
     if (typeof status === 'number' && status >= 400 && status < 600) return status;
@@ -47,6 +46,23 @@ export async function optionalJsonBody<T = Record<string, unknown>>(request: Req
   return (await request.json().catch(() => ({}))) as Partial<T>;
 }
 
+export async function bodyId(request: Request, noun: string) {
+  const { id } = await jsonBody<{ id?: string }>(request);
+  if (!id) throw new ApiError(`Missing ${noun} id`);
+  return id;
+}
+
+export type IdContext = { params: Promise<{ id: string }> };
+
+export function ipThrottle(windowMs: number, message: string) {
+  const lastSentAt = new Map<string, number>();
+  return (request: Request) => {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
+    if (Date.now() - (lastSentAt.get(ip) ?? 0) < windowMs) throw new ApiError(message, 429);
+    return () => void lastSentAt.set(ip, Date.now());
+  };
+}
+
 export function searchParam(request: Request, name: string) {
   return new URL(request.url).searchParams.get(name);
 }
@@ -76,17 +92,15 @@ export function idResource<Row, Update>(config: {
   schema: z.ZodType<Update>;
   mapError?: (cause: unknown) => ApiError | null;
 }) {
-  type Context = { params: Promise<{ id: string }> };
-
   const rethrow = (cause: unknown): never => {
     throw config.mapError?.(cause) ?? cause;
   };
 
   return {
-    GET: apiRoute(`GET ${config.path}`, `Failed to load ${config.noun}`, async (_req: Request, ctx: Context) =>
+    GET: apiRoute(`GET ${config.path}`, `Failed to load ${config.noun}`, async (_req: Request, ctx: IdContext) =>
       found(await config.get((await ctx.params).id), config.notFound)
     ),
-    PUT: apiRoute(`PUT ${config.path}`, `Failed to update ${config.noun}`, async (req: Request, ctx: Context) => {
+    PUT: apiRoute(`PUT ${config.path}`, `Failed to update ${config.noun}`, async (req: Request, ctx: IdContext) => {
       const { id } = await ctx.params;
       const data = parseWith(config.schema, await jsonBody(req));
       const row = await config.update(id, data).catch(rethrow);
@@ -95,7 +109,7 @@ export function idResource<Row, Update>(config: {
     DELETE: apiRoute(
       `DELETE ${config.path}`,
       `Failed to delete ${config.noun}`,
-      async (_req: Request, ctx: Context) => {
+      async (_req: Request, ctx: IdContext) => {
         found((await config.remove((await ctx.params).id)) || null, config.notFound);
         return { success: true };
       }

@@ -57,11 +57,12 @@ function validHoldingId(value: unknown, seen: Set<string>) {
   return true;
 }
 
-export function validateSnapshotInput(value: unknown) {
+export function parseSnapshotInput(value: unknown): { holdings: Holding[]; grandTotal: number } | string {
   if (!isRecord(value)) return 'Invalid snapshot';
-  if (!parsePortfolio(value.data)) return 'Invalid portfolio data';
+  const holdings = parsePortfolio(value.data);
+  if (!holdings) return 'Invalid portfolio data';
   if (!validMoney(value.grandTotal)) return 'Invalid portfolio total';
-  return null;
+  return { holdings, grandTotal: value.grandTotal };
 }
 
 export function validateLedger(body: LedgerDraft, categoryIds: ReadonlySet<string> = new Set()) {
@@ -123,11 +124,11 @@ export function validateLedger(body: LedgerDraft, categoryIds: ReadonlySet<strin
   return null;
 }
 
-export function validName(value: unknown): value is string {
+function validName(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-export function validMoney(value: unknown): value is number {
+function validMoney(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 

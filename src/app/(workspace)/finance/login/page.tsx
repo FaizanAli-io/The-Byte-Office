@@ -54,17 +54,9 @@ export default function FinanceLoginPage() {
             A login link was sent to {FINANCE_LOGIN_EMAIL}. It expires in 15 minutes.
           </p>
         ) : null}
-        {sent && !emailed && loginLink ? (
+        {sent && loginLink ? (
           <p className="mt-3 text-sm leading-6 text-slate-400">
-            Email is not configured yet, so use this link:{' '}
-            <a className="text-cyan-300 underline" href={loginLink}>
-              Open finance workspace
-            </a>
-          </p>
-        ) : null}
-        {sent && emailed && loginLink ? (
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            Local backup link:{' '}
+            {emailed ? 'Local backup link:' : 'Email is not configured yet, so use this link:'}{' '}
             <a className="text-cyan-300 underline" href={loginLink}>
               Open finance workspace
             </a>

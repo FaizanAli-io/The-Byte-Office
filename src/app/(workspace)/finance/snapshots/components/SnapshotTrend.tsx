@@ -5,7 +5,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { snapshotSeries } from '@/lib/finance';
 import { formatMoney } from '@/lib/ledger';
 import type { FinanceSnapshot } from '@/types/finance';
-import { financeStyles } from '../../components/FinanceUI';
+import { Field, deltaTone, financeStyles, signed } from '../../components/FinanceUI';
 
 const GROUPS = ['Totals', 'Bank accounts', 'Fund institutions', 'Funds'];
 const TOTAL = 'Totals\u0000Total';
@@ -51,9 +51,8 @@ export function SnapshotTrend({ snapshots }: { snapshots: FinanceSnapshot[] }) {
           <h3 className="font-bold text-white">Balance over time</h3>
           <p className="mt-1 text-sm text-slate-500">
             {selected.name} · {formatMoney(last, 'PKR')}{' '}
-            <span className={delta > 0 ? 'text-emerald-300' : delta < 0 ? 'text-rose-300' : ''}>
-              ({delta > 0 ? '+' : ''}
-              {formatMoney(delta, 'PKR')} since{' '}
+            <span className={deltaTone(delta)}>
+              ({signed(delta, formatMoney(delta, 'PKR'))} since{' '}
               {new Date(data[0].time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
             </span>
           </p>
@@ -63,8 +62,7 @@ export function SnapshotTrend({ snapshots }: { snapshots: FinanceSnapshot[] }) {
 
       {open ? (
         <div className="space-y-4 border-t border-white/7 p-5 sm:p-6">
-          <label className="block max-w-sm">
-            <span className={financeStyles.label}>Show</span>
+          <Field label="Show" className="block max-w-sm">
             <select className={financeStyles.input} value={activeKey} onChange={(event) => setKey(event.target.value)}>
               {GROUPS.map((group) => {
                 const entries = [...options].filter(([, option]) => option.kind === group);
@@ -79,7 +77,7 @@ export function SnapshotTrend({ snapshots }: { snapshots: FinanceSnapshot[] }) {
                 ) : null;
               })}
             </select>
-          </label>
+          </Field>
 
           <div className="h-64 w-full sm:h-80">
             <ResponsiveContainer width="100%" height="100%">

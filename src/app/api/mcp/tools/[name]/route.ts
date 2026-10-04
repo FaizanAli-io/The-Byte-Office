@@ -25,9 +25,9 @@ async function resolve(request: Request, context: RouteContext, method: 'get' | 
       ),
     };
   }
-  if (httpMethodFor(tool) !== method) {
-    const expected = httpMethodFor(tool).toUpperCase();
-    return { error: NextResponse.json({ error: `${name} expects ${expected}` }, { status: 405 }) };
+  const expected = httpMethodFor(tool);
+  if (expected !== method) {
+    return { error: NextResponse.json({ error: `${name} expects ${expected.toUpperCase()}` }, { status: 405 }) };
   }
 
   return { name, clientId: auth.clientId };
@@ -38,7 +38,7 @@ async function run(name: string, args: unknown, clientId: string) {
     return NextResponse.json({ tool: name, result: await invokeAgentTool(name, args, clientId) });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Tool execution failed';
-    const status = message.startsWith('Unknown tool') ? 404 : message.includes('required') ? 400 : 500;
+    const status = error instanceof Error && 'status' in error && typeof error.status === 'number' ? error.status : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

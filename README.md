@@ -13,8 +13,9 @@ Built with Next.js 15, React, Tailwind CSS, and Neon Postgres.
   - Monthly ledger with accounts, transactions and reconciliation; finalizing a month snapshots the portfolio
   - AI finance assistant with tool calling, confirmation cards, and in-chat ledger forms
   - Assistant tool-call logs for debugging
+  - Personal tracker: missed prayers with history, health metrics and readings
 - MCP server at `/api/mcp` with OAuth, exposing the finance, personal and company tools — listed in
-  [`docs/mcp.md`](docs/mcp.md)
+  [`docs/mcp-documentation.md`](docs/mcp-documentation.md)
 
 ## Getting started
 
@@ -39,7 +40,7 @@ SMTP_PASS=
 `OAUTH_SIGNING_SECRET` signs the OAuth access tokens that guard `/api/mcp` and
 `/api/mcp/tools/*`. Those endpoints return 401 for every request until it is
 set. There is no API key: clients authenticate with OAuth 2.1, described in
-[`docs/oauth.md`](docs/oauth.md).
+[`docs/mcp-documentation.md`](docs/mcp-documentation.md).
 
 3. Apply database migrations:
 
@@ -57,13 +58,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Finance assistant
 
-The assistant lives at `/finance/agent` and uses Groq with `openai/gpt-oss-120b`, falling back to `openai/gpt-oss-20b` when rate limited. Reads run immediately; writes create confirmation cards or in-chat ledger forms that must be submitted before data changes.
-
-Setup and troubleshooting details are in [`docs/finance-agent.md`](docs/finance-agent.md).
-
-Notes:
-
-- Never expose `GROQ_API_KEY` through a `NEXT_PUBLIC_` variable.
+The assistant lives at `/finance/agent` and uses Groq with `openai/gpt-oss-120b`, falling back to `openai/gpt-oss-20b` when rate limited. Reads run immediately; writes create confirmation cards or in-chat ledger forms that must be submitted before data changes. Never expose `GROQ_API_KEY` through a `NEXT_PUBLIC_` variable.
 
 ## Scripts
 

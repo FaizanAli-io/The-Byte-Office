@@ -1,15 +1,16 @@
 'use client';
 
-import { accountMovement, categoryName, ENTRY_LABELS, monthBounds } from '@/lib/ledger';
+import { accountMovement, monthBounds } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
-import { draftIncomplete, emptyDraft, EntryFields } from './EntryFields';
+import { draftFromEntry, draftIncomplete, emptyDraft, EntryFields } from './EntryFields';
 import { Modal } from '../components/Modal';
 import { HeldFundsModal } from './HeldFundsModal';
 import { EntryCards, entryDetail, EntryTable, type EntryRow } from './EntryRows';
 import { PAGE_SIZES, Pagination } from './Pagination';
 import {
+  applyEntryFilters,
   emptyFilters,
   EntryFiltersPanel,
   rememberFilters,
@@ -73,48 +74,10 @@ export function LedgerEntries({
     [categories, entries]
   );
 
-  const visibleEntries = useMemo(() => {
-    const query = filters.query.trim().toLowerCase();
-    const filtered = entries.filter((entry) => {
-      if (
-        filters.accountId !== 'all' &&
-        entry.accountId !== filters.accountId &&
-        entry.destinationAccountId !== filters.accountId
-      ) {
-        return false;
-      }
-      if (filters.type !== 'all' && entry.type !== filters.type) return false;
-      if (filters.category !== 'all' && (entry.categoryId ?? '') !== filters.category) return false;
-      if (filters.dateFrom && entry.date < filters.dateFrom) return false;
-      if (filters.dateTo && entry.date > filters.dateTo) return false;
-      if (query) {
-        const accountName = accounts.find((account) => account.id === entry.accountId)?.name ?? '';
-        const destinationName = accounts.find((account) => account.id === entry.destinationAccountId)?.name ?? '';
-        const haystack = [entryDetail(entry, categories), entry.note, accountName, destinationName]
-          .join(' ')
-          .toLowerCase();
-        if (!haystack.includes(query)) return false;
-      }
-      return true;
-    });
-
-    return filtered.sort((a, b) => {
-      const direction = filters.sortDir === 'asc' ? 1 : -1;
-      const compare =
-        filters.sortBy === 'amount'
-          ? a.amount - b.amount
-          : filters.sortBy === 'type'
-            ? ENTRY_LABELS[a.type].localeCompare(ENTRY_LABELS[b.type])
-            : filters.sortBy === 'account'
-              ? (accounts.find((account) => account.id === a.accountId)?.name ?? '').localeCompare(
-                  accounts.find((account) => account.id === b.accountId)?.name ?? ''
-                )
-              : filters.sortBy === 'category'
-                ? categoryName(categories, a.categoryId).localeCompare(categoryName(categories, b.categoryId))
-                : a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
-      return compare * direction;
-    });
-  }, [accounts, categories, entries, filters]);
+  const visibleEntries = useMemo(
+    () => applyEntryFilters(entries, filters, accounts, categories),
+    [accounts, categories, entries, filters]
+  );
   optionsRef.current = {
     accounts: ['all', ...accounts.map((account) => account.id)],
     categories: ['all', ...usedCategories.map((category) => category.id)],
@@ -180,38 +143,23 @@ export function LedgerEntries({
     };
     if (editingId) onUpdate(entry);
     else onAdd(entry);
-    setDraft({ ...emptyDraft(draft.date), type: draft.type, accountId: draft.accountId });
-    setEditingId(null);
-    setEntryOpen(false);
+    showEntry(false, { ...emptyDraft(draft.date), type: draft.type, accountId: draft.accountId });
   }
 
-  function openAdd() {
-    setEditingId(null);
-    setDraft(emptyDraft(draft.date));
-    setEntryOpen(true);
+  function showEntry(open: boolean, next = emptyDraft(draft.date), id: string | null = null) {
+    setEntryOpen(open);
+    setEditingId(id);
+    setDraft(next);
   }
 
-  function closeEntry() {
-    setEntryOpen(false);
-    setEditingId(null);
-    setDraft(emptyDraft(draft.date));
-  }
-
-  function editEntry(entry: LedgerEntry) {
-    setEntryOpen(true);
-    setEditingId(entry.id);
-    setDraft({
-      date: entry.date,
-      type: entry.type,
-      accountId: entry.accountId,
-      destinationAccountId: entry.destinationAccountId ?? '',
-      amount: String(entry.amount),
-      destinationAmount: entry.destinationAmount === undefined ? '' : String(entry.destinationAmount),
-      categoryId: entry.categoryId ?? '',
-      counterparty: entry.counterparty ?? '',
-      note: entry.note ?? '',
-    });
-  }
+  const closeEntry = () => showEntry(false);
+  const rowProps = {
+    rows: pageRows,
+    readOnly,
+    runningCurrency,
+    onEdit: (entry: LedgerEntry) => showEntry(true, draftFromEntry(entry), entry.id),
+    onRemove,
+  };
 
   return (
     <FinanceCard
@@ -220,7 +168,7 @@ export function LedgerEntries({
       action={
         <div className="flex flex-wrap gap-2">
           {!readOnly ? (
-            <button type="button" className={financeStyles.primary} onClick={openAdd}>
+            <button type="button" className={financeStyles.primary} onClick={() => showEntry(true)}>
               Add transaction
             </button>
           ) : null}
@@ -276,21 +224,8 @@ export function LedgerEntries({
         totalCount={entries.length}
       />
 
-      <EntryCards
-        rows={pageRows}
-        readOnly={readOnly}
-        runningCurrency={runningCurrency}
-        onEdit={editEntry}
-        onRemove={onRemove}
-      />
-      <EntryTable
-        rows={pageRows}
-        showRunning={showRunning}
-        readOnly={readOnly}
-        runningCurrency={runningCurrency}
-        onEdit={editEntry}
-        onRemove={onRemove}
-      />
+      <EntryCards {...rowProps} />
+      <EntryTable {...rowProps} showRunning={showRunning} />
       {visibleEntries.length === 0 ? (
         <p className="py-10 text-center text-sm text-slate-600">No transactions for this view.</p>
       ) : (

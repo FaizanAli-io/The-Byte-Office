@@ -14,6 +14,11 @@ type FormData = {
   website: string;
 };
 
+type FieldChange = React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
+
+const fieldClass =
+  'mt-2 w-full rounded-md border border-white/10 bg-slate-950/70 px-3 text-slate-100 shadow-sm focus:border-cyan-400';
+
 const initialForm: FormData = {
   name: '',
   email: '',
@@ -44,12 +49,7 @@ export default function ContactForm() {
     return `mailto:${company.email}?subject=${subject}&body=${body}`;
   }, [formData]);
 
-  const updateField = (
-    event:
-      | React.ChangeEvent<HTMLInputElement>
-      | React.ChangeEvent<HTMLTextAreaElement>
-      | React.ChangeEvent<HTMLSelectElement>
-  ) => {
+  const updateField = (event: FieldChange) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
     if (status !== 'idle') setStatus('idle');
@@ -85,7 +85,7 @@ export default function ContactForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" noValidate={false}>
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
           label="Full name"
@@ -123,7 +123,7 @@ export default function ContactForm() {
             name="service"
             value={formData.service}
             onChange={updateField}
-            className="mt-2 min-h-12 w-full rounded-md border border-white/10 bg-slate-950/70 px-3 text-slate-100 shadow-sm focus:border-cyan-400"
+            className={`${fieldClass} min-h-12`}
           >
             <option value="">Select a service</option>
             <option value="Full-stack development">Full-stack development</option>
@@ -147,7 +147,7 @@ export default function ContactForm() {
           value={formData.message}
           onChange={updateField}
           placeholder="Tell us what you want to build, automate, improve, or connect."
-          className="mt-2 w-full resize-y rounded-md border border-white/10 bg-slate-950/70 px-3 py-3 text-slate-100 shadow-sm focus:border-cyan-400"
+          className={`${fieldClass} resize-y py-3`}
         />
       </div>
 
@@ -207,12 +207,7 @@ function Field({
   name: keyof FormData;
   type?: string;
   value: string;
-  onChange: (
-    event:
-      | React.ChangeEvent<HTMLInputElement>
-      | React.ChangeEvent<HTMLTextAreaElement>
-      | React.ChangeEvent<HTMLSelectElement>
-  ) => void;
+  onChange: (event: FieldChange) => void;
   required?: boolean;
   autoComplete?: string;
 }) {
@@ -229,7 +224,7 @@ function Field({
         onChange={onChange}
         required={required}
         autoComplete={autoComplete}
-        className="mt-2 min-h-12 w-full rounded-md border border-white/10 bg-slate-950/70 px-3 text-slate-100 shadow-sm focus:border-cyan-400"
+        className={`${fieldClass} min-h-12`}
       />
     </div>
   );

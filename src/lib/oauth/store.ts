@@ -73,9 +73,7 @@ export async function issueRefreshToken(clientId: string, scopes: string[], fami
   return token;
 }
 
-export type RotatedRefreshToken = { clientId: string; scopes: string[]; refreshToken: string };
-
-export async function rotateRefreshToken(presented: string): Promise<RotatedRefreshToken | null> {
+export async function rotateRefreshToken(presented: string) {
   const db = getDb();
   const tokenHash = await sha256Hex(presented);
 

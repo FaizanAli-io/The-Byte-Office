@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parsePortfolio, validateLedger, validateSnapshotInput } from '@/lib/finance-validation';
+import { parsePortfolio, parseSnapshotInput, validateLedger } from '@/lib/finance-validation';
 import {
   healthByNameSchema,
   healthInputSchema,
@@ -43,10 +43,14 @@ describe('parsePortfolio', () => {
   ])('rejects %s', (_label, holding) => expect(parsePortfolio(portfolio([holding]))).toBeNull());
 });
 
-describe('validateSnapshotInput', () => {
-  it('accepts a valid snapshot', () => expect(validateSnapshotInput({ data: portfolio(), grandTotal: 10 })).toBeNull());
+describe('parseSnapshotInput', () => {
+  it('accepts a valid snapshot', () =>
+    expect(parseSnapshotInput({ data: portfolio(), grandTotal: 10 })).toEqual({
+      holdings: parsePortfolio(portfolio()),
+      grandTotal: 10,
+    }));
   it('rejects a negative total', () =>
-    expect(validateSnapshotInput({ data: portfolio(), grandTotal: -1 })).toBe('Invalid portfolio total'));
+    expect(parseSnapshotInput({ data: portfolio(), grandTotal: -1 })).toBe('Invalid portfolio total'));
 });
 
 describe('validateLedger', () => {

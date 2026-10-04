@@ -5,7 +5,7 @@ import { portfolioTotals } from '@/lib/finance';
 import { formatMoney, type heldFunds } from '@/lib/ledger';
 import { useEffect, useState } from 'react';
 import { BankSection, MutualFundsSection } from './HoldingTypes';
-import { FinancePageShell, StatCard, financeStyles } from './FinanceUI';
+import { FinancePageShell, MessageCard, StatCard, financeStyles } from './FinanceUI';
 import { FinanceToast, type FinanceToastState } from './FinanceToast';
 import { useFinanceHandlers } from './useFinanceHandlers';
 
@@ -51,10 +51,7 @@ export default function FinanceEditor() {
   if (!holdings) {
     return (
       <FinancePageShell title="Portfolio editor" description={DESCRIPTION}>
-        <div className={`${financeStyles.card} p-12 text-center`}>
-          <p className="font-bold text-white">Could not load portfolio</p>
-          <p className="mt-2 text-sm text-slate-500">{error || 'No finance data found.'}</p>
-        </div>
+        <MessageCard title="Could not load portfolio" message={error || 'No finance data found.'} />
       </FinancePageShell>
     );
   }

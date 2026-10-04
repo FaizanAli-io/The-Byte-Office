@@ -1,7 +1,7 @@
-﻿import BackgroundEffect from '@/components/site/BackgroundEffect';
+import BackgroundEffect from '@/components/site/BackgroundEffect';
 import SectionHeading from '@/components/site/SectionHeading';
-import { PrimaryCTAButton, SecondaryCTAButton } from '@/components/site/CTAButtons';
-import { company, processSteps, services, siteUrl, techGroups } from '@/content/site';
+import { CTAButton } from '@/components/site/CTAButtons';
+import { company, ordinal, processSteps, services, siteUrl, techGroups } from '@/content/site';
 import { createMetadata, jsonLd } from '@/lib/seo';
 
 export const metadata = createMetadata({
@@ -54,7 +54,7 @@ export default function ServicesPage() {
             <article key={service.title} className="surface-card grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.75fr_1.25fr]">
               <div>
                 <span className="flex h-12 w-12 items-center justify-center rounded-md bg-slate-950 text-sm font-black text-white">
-                  {String(index + 1).padStart(2, '0')}
+                  {ordinal(index)}
                 </span>
                 <h2 className="heading-lg mt-6">{service.title}</h2>
                 <p className="body-copy mt-4">{service.summary}</p>
@@ -62,7 +62,7 @@ export default function ServicesPage() {
               <div className="grid gap-5 md:grid-cols-2">
                 <div className="muted-panel p-5">
                   <h3 className="text-base font-extrabold text-slate-100">Business value</h3>
-                  <p className="body-copy mt-3 text-sm">{service.outcome}</p>
+                  <p className="body-copy mt-3">{service.outcome}</p>
                 </div>
                 <div className="muted-panel p-5">
                   <h3 className="text-base font-extrabold text-slate-100">Capabilities</h3>
@@ -83,7 +83,7 @@ export default function ServicesPage() {
       <section className="section bg-slate-950 text-white">
         <div className="container-page grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
-            <p className="eyebrow border-white/10 bg-white/10 text-blue-100">Delivery model</p>
+            <p className="eyebrow">Delivery model</p>
             <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-5xl">
               Structured enough to be predictable. Flexible enough for real projects.
             </h2>
@@ -135,8 +135,8 @@ export default function ServicesPage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <PrimaryCTAButton href="/contact" label="Start a Project" />
-            <SecondaryCTAButton href="/projects" label="View Work" />
+            <CTAButton href="/contact" label="Start a Project" />
+            <CTAButton href="/projects" label="View Work" variant="secondary" />
           </div>
         </div>
       </section>

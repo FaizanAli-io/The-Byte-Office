@@ -1,7 +1,7 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { type SendMailOptions } from 'nodemailer';
 import { FINANCE_LOGIN_EMAIL } from '@/lib/finance-constants';
 
-export async function sendFinanceLoginEmail(loginUrl: string) {
+export async function sendMail(message: Omit<SendMailOptions, 'from'>) {
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.replace(/\s+/g, '');
   if (!user || !pass) return false;
@@ -12,9 +12,12 @@ export async function sendFinanceLoginEmail(loginUrl: string) {
     secure: true,
     auth: { user, pass },
   });
+  await transporter.sendMail({ from: `The Byte Office <${user}>`, ...message });
+  return true;
+}
 
-  await transporter.sendMail({
-    from: `The Byte Office <${user}>`,
+export function sendFinanceLoginEmail(loginUrl: string) {
+  return sendMail({
     to: FINANCE_LOGIN_EMAIL,
     subject: 'Your finance login link',
     html: `
@@ -24,6 +27,4 @@ export async function sendFinanceLoginEmail(loginUrl: string) {
     `,
     text: `Open the finance workspace: ${loginUrl}\n\nThis link expires in 15 minutes.`,
   });
-
-  return true;
 }

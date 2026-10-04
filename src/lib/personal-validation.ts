@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { NAMAAZ_VALUES } from '@/lib/db/schema';
+import { NAMAAZ_VALUES } from '@/types/personal';
 
 const namaazSchema = z.enum(NAMAAZ_VALUES, {
   error: `Namaaz must be one of: ${NAMAAZ_VALUES.join(', ')}`,
@@ -20,8 +20,6 @@ export const prayerInputSchema = z.object({ namaaz: namaazSchema, missed: missed
 export const prayerUpdateSchema = z
   .object({ namaaz: namaazSchema.optional(), missed: missed.optional() })
   .refine(hasAnyField, { error: 'Provide namaaz or missed to update' });
-
-export const prayerSetSchema = z.object({ namaaz: namaazSchema, missed });
 
 export const healthInputSchema = z.object({ metricId, value: reading, createdAt: createdAt.optional() });
 

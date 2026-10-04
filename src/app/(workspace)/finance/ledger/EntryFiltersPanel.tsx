@@ -1,9 +1,9 @@
 'use client';
 
-import { ENTRY_LABELS } from '@/lib/ledger';
-import type { LedgerAccount } from '@/types/ledger';
-import { financeStyles } from '../components/FinanceUI';
-import { CollapseToggle, Field } from './LedgerAccounts';
+import { categoryName, ENTRY_LABELS } from '@/lib/ledger';
+import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
+import { CollapseToggle, Field, financeStyles } from '../components/FinanceUI';
+import { entryDetail } from './EntryRows';
 
 const ENTRY_SORT_KEYS = ['date', 'amount', 'type', 'account', 'category'] as const;
 const ENTRY_SORT_DIRS = ['asc', 'desc'] as const;
@@ -84,16 +84,55 @@ function sortOrderLabel(sortBy: EntrySortKey, direction: EntrySortDir) {
 }
 
 function isDefaultFilters(filters: EntryFilters) {
-  return (
-    filters.accountId === emptyFilters.accountId &&
-    filters.type === emptyFilters.type &&
-    filters.category === emptyFilters.category &&
-    filters.query === emptyFilters.query &&
-    filters.dateFrom === emptyFilters.dateFrom &&
-    filters.dateTo === emptyFilters.dateTo &&
-    filters.sortBy === emptyFilters.sortBy &&
-    filters.sortDir === emptyFilters.sortDir
-  );
+  return (Object.keys(emptyFilters) as (keyof EntryFilters)[]).every((key) => filters[key] === emptyFilters[key]);
+}
+
+export function applyEntryFilters(
+  entries: LedgerEntry[],
+  filters: EntryFilters,
+  accounts: LedgerAccount[],
+  categories: LedgerCategory[]
+) {
+  const query = filters.query.trim().toLowerCase();
+  const accountName = (id?: string) => accounts.find((account) => account.id === id)?.name ?? '';
+  const filtered = entries.filter((entry) => {
+    if (
+      filters.accountId !== 'all' &&
+      entry.accountId !== filters.accountId &&
+      entry.destinationAccountId !== filters.accountId
+    ) {
+      return false;
+    }
+    if (filters.type !== 'all' && entry.type !== filters.type) return false;
+    if (filters.category !== 'all' && (entry.categoryId ?? '') !== filters.category) return false;
+    if (filters.dateFrom && entry.date < filters.dateFrom) return false;
+    if (filters.dateTo && entry.date > filters.dateTo) return false;
+    if (!query) return true;
+    return [
+      entryDetail(entry, categories),
+      entry.note,
+      accountName(entry.accountId),
+      accountName(entry.destinationAccountId),
+    ]
+      .join(' ')
+      .toLowerCase()
+      .includes(query);
+  });
+
+  const direction = filters.sortDir === 'asc' ? 1 : -1;
+  return filtered.sort((a, b) => {
+    const compare =
+      filters.sortBy === 'amount'
+        ? a.amount - b.amount
+        : filters.sortBy === 'type'
+          ? ENTRY_LABELS[a.type].localeCompare(ENTRY_LABELS[b.type])
+          : filters.sortBy === 'account'
+            ? accountName(a.accountId).localeCompare(accountName(b.accountId))
+            : filters.sortBy === 'category'
+              ? categoryName(categories, a.categoryId).localeCompare(categoryName(categories, b.categoryId))
+              : a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
+    return compare * direction;
+  });
 }
 
 export function EntryFiltersPanel({
@@ -118,6 +157,7 @@ export function EntryFiltersPanel({
   totalCount: number;
 }) {
   const filtersActive = !isDefaultFilters(filters);
+  const set = (patch: Partial<EntryFilters>) => setFilters({ ...filters, ...patch });
 
   return (
     <div className={`${financeStyles.inset} mb-6`}>
@@ -140,7 +180,7 @@ export function EntryFiltersPanel({
             <select
               className={financeStyles.input}
               value={filters.accountId}
-              onChange={(event) => setFilters({ ...filters, accountId: event.target.value })}
+              onChange={(event) => set({ accountId: event.target.value })}
             >
               <option value="all">All accounts</option>
               {accounts.map((account) => (
@@ -154,7 +194,7 @@ export function EntryFiltersPanel({
             <select
               className={financeStyles.input}
               value={filters.type}
-              onChange={(event) => setFilters({ ...filters, type: event.target.value })}
+              onChange={(event) => set({ type: event.target.value })}
             >
               <option value="all">All types</option>
               {Object.entries(ENTRY_LABELS).map(([value, label]) => (
@@ -168,7 +208,7 @@ export function EntryFiltersPanel({
             <select
               className={financeStyles.input}
               value={filters.category}
-              onChange={(event) => setFilters({ ...filters, category: event.target.value })}
+              onChange={(event) => set({ category: event.target.value })}
             >
               <option value="all">All categories</option>
               {categories.map((category) => (
@@ -182,35 +222,32 @@ export function EntryFiltersPanel({
             <input
               className={financeStyles.input}
               value={filters.query}
-              onChange={(event) => setFilters({ ...filters, query: event.target.value })}
+              onChange={(event) => set({ query: event.target.value })}
               placeholder="Note, category, account…"
             />
           </Field>
-          <Field label="From date">
-            <input
-              className={financeStyles.input}
-              type="date"
-              min={bounds.min}
-              max={bounds.max}
-              value={filters.dateFrom}
-              onChange={(event) => setFilters({ ...filters, dateFrom: event.target.value })}
-            />
-          </Field>
-          <Field label="To date">
-            <input
-              className={financeStyles.input}
-              type="date"
-              min={bounds.min}
-              max={bounds.max}
-              value={filters.dateTo}
-              onChange={(event) => setFilters({ ...filters, dateTo: event.target.value })}
-            />
-          </Field>
+          {(
+            [
+              ['From date', 'dateFrom'],
+              ['To date', 'dateTo'],
+            ] as const
+          ).map(([label, key]) => (
+            <Field key={key} label={label}>
+              <input
+                className={financeStyles.input}
+                type="date"
+                min={bounds.min}
+                max={bounds.max}
+                value={filters[key]}
+                onChange={(event) => set({ [key]: event.target.value })}
+              />
+            </Field>
+          ))}
           <Field label="Sort by">
             <select
               className={financeStyles.input}
               value={filters.sortBy}
-              onChange={(event) => setFilters({ ...filters, sortBy: event.target.value as EntrySortKey })}
+              onChange={(event) => set({ sortBy: event.target.value as EntrySortKey })}
             >
               {ENTRY_SORT_KEYS.map((key) => (
                 <option key={key} value={key}>
@@ -223,7 +260,7 @@ export function EntryFiltersPanel({
             <select
               className={financeStyles.input}
               value={filters.sortDir}
-              onChange={(event) => setFilters({ ...filters, sortDir: event.target.value as EntrySortDir })}
+              onChange={(event) => set({ sortDir: event.target.value as EntrySortDir })}
             >
               <option value="asc">{sortOrderLabel(filters.sortBy, 'asc')}</option>
               <option value="desc">{sortOrderLabel(filters.sortBy, 'desc')}</option>

@@ -1,8 +1,8 @@
-import nodemailer from 'nodemailer';
 import { ApiError } from '@/lib/api';
+import { sendMail } from '@/lib/mail';
 import { company } from '@/content/site';
 
-export type Inquiry = {
+type Inquiry = {
   name: string;
   email: string;
   company?: string;
@@ -40,24 +40,12 @@ export function parseInquiry(value: unknown): Inquiry {
   };
 }
 
-export async function sendInquiryEmail(input: Inquiry) {
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.replace(/\s+/g, '');
-  if (!user || !pass) return false;
-
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT) || 465,
-    secure: true,
-    auth: { user, pass },
-  });
-
+export function sendInquiryEmail(input: Inquiry) {
   const subject = input.service
     ? `Website inquiry: ${input.service} — ${input.name}`
     : `Website inquiry from ${input.name}`;
 
-  await transporter.sendMail({
-    from: `The Byte Office <${user}>`,
+  return sendMail({
     to: company.email,
     replyTo: input.email,
     subject,
@@ -72,6 +60,4 @@ export async function sendInquiryEmail(input: Inquiry) {
       .filter(Boolean)
       .join('\n'),
   });
-
-  return true;
 }

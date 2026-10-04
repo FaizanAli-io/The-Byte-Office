@@ -1,6 +1,6 @@
 export const OAUTH_NO_STORE = { 'Cache-Control': 'no-store', Pragma: 'no-cache' } as const;
 
-export type OAuthErrorCodeName =
+type OAuthErrorCodeName =
   | 'invalid_request'
   | 'invalid_client'
   | 'invalid_grant'

@@ -1,7 +1,7 @@
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { listCategories } from '@/lib/db/queries';
 import { categoryInputSchema, categoryUpdateSchema } from '@/lib/finance-validation';
-import { ApiError, apiRoute, created, jsonBody, parseWith } from '@/lib/api';
+import { apiRoute, bodyId, created, jsonBody, parseWith } from '@/lib/api';
 
 export const GET = apiRoute('GET /api/categories', 'Failed to load categories', () => listCategories());
 
@@ -15,8 +15,6 @@ export const PUT = apiRoute('PUT /api/categories', 'Failed to update category', 
 });
 
 export const DELETE = apiRoute('DELETE /api/categories', 'Failed to delete category', async (req: Request) => {
-  const { id } = await jsonBody<{ id?: string }>(req);
-  if (!id) throw new ApiError('Missing category id');
-  await discardCategory(id);
+  await discardCategory(await bodyId(req, 'category'));
   return { success: true };
 });

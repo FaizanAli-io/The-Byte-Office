@@ -248,35 +248,25 @@ async function copyLog(log: ToolLog, setCopiedLogId: (id: string | null) => void
   } catch {}
 }
 
+const TIME_UNITS: [string, number][] = [
+  ['second', 60],
+  ['minute', 60],
+  ['hour', 24],
+  ['day', 30],
+  ['month', 12],
+];
+
 function formatTimeAgo(value: string) {
-  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
-
-  if (elapsedSeconds < 60) {
-    return `${elapsedSeconds} second${elapsedSeconds === 1 ? '' : 's'} ago`;
+  let elapsed = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  let unit = 'year';
+  for (const [name, size] of TIME_UNITS) {
+    if (elapsed < size) {
+      unit = name;
+      break;
+    }
+    elapsed = Math.floor(elapsed / size);
   }
-
-  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-  if (elapsedMinutes < 60) {
-    return `${elapsedMinutes} minute${elapsedMinutes === 1 ? '' : 's'} ago`;
-  }
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) {
-    return `${elapsedHours} hour${elapsedHours === 1 ? '' : 's'} ago`;
-  }
-
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  if (elapsedDays < 30) {
-    return `${elapsedDays} day${elapsedDays === 1 ? '' : 's'} ago`;
-  }
-
-  const elapsedMonths = Math.floor(elapsedDays / 30);
-  if (elapsedMonths < 12) {
-    return `${elapsedMonths} month${elapsedMonths === 1 ? '' : 's'} ago`;
-  }
-
-  const elapsedYears = Math.floor(elapsedMonths / 12);
-  return `${elapsedYears} year${elapsedYears === 1 ? '' : 's'} ago`;
+  return `${elapsed} ${unit}${elapsed === 1 ? '' : 's'} ago`;
 }
 
 function TypeBadge({ type }: { type: ToolLog['type'] }) {

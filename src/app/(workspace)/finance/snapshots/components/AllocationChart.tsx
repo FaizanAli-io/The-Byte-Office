@@ -2,6 +2,7 @@
 
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatMoney } from '@/lib/ledger';
+import { chartTooltip, financeStyles } from '../../components/FinanceUI';
 
 const colors = ['#67e8f9', '#818cf8', '#34d399', '#fbbf24', '#fb7185', '#c084fc', '#2dd4bf'];
 
@@ -9,7 +10,7 @@ export function AllocationChart({ title, data }: { title: string; data: { name: 
   const visible = data.filter((item) => item.value > 0);
 
   return (
-    <div className="rounded-xl border border-white/7 bg-slate-950/45 p-4">
+    <div className={`${financeStyles.inset} p-4`}>
       <h4 className="text-sm font-bold text-slate-200">{title}</h4>
       {visible.length ? (
         <div className="h-64 w-full sm:h-80">
@@ -28,17 +29,7 @@ export function AllocationChart({ title, data }: { title: string; data: { name: 
                   <Cell key={item.name} fill={colors[index % colors.length]} />
                 ))}
               </Pie>
-              <Tooltip
-                formatter={(value) => formatMoney(Number(value), 'PKR')}
-                contentStyle={{
-                  background: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 10,
-                  boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18)',
-                }}
-                itemStyle={{ color: '#0f172a', fontWeight: 700 }}
-                labelStyle={{ color: '#475569', fontWeight: 700 }}
-              />
+              <Tooltip formatter={(value) => formatMoney(Number(value), 'PKR')} {...chartTooltip} />
               <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} iconType="circle" />
             </PieChart>
           </ResponsiveContainer>

@@ -5,23 +5,13 @@
   --foreground: #e5e7eb;
   --ink: #f8fafc;
   --ink-soft: #e2e8f0;
-  --paper: #0b111b;
   --surface: #111827;
-  --surface-muted: #0d1522;
-  --muted: #64748b;
   --muted-strong: #94a3b8;
   --border: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.16);
-  --primary: #67e8f9;
   --primary-dark: #a5f3fc;
-  --accent: #5eead4;
-  --gold: #fbbf24;
-  --focus: #22d3ee;
-  --radius-sm: 0.5rem;
-  --radius-md: 0.875rem;
   --radius-lg: 1.25rem;
   --shadow-sm: 0 10px 30px rgba(0, 0, 0, 0.22);
-  --shadow-md: 0 20px 60px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 32px 100px rgba(0, 0, 0, 0.42);
 }
 
@@ -29,10 +19,6 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
-}
-
-* {
-  box-sizing: border-box;
 }
 
 html {
@@ -276,10 +262,6 @@ textarea {
   mask-image: linear-gradient(to bottom, black 0%, transparent 85%);
 }
 
-.text-balance {
-  text-wrap: balance;
-}
-
 .reveal {
   animation: reveal 700ms ease both;
 }
@@ -307,10 +289,6 @@ textarea {
 }
 
 @media (max-width: 640px) {
-  body:has(.finance-workspace) [data-public-footer] {
-    display: none;
-  }
-
   .container-page {
     width: min(100% - 1.25rem, 1180px);
   }

@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { proposeAgentAction, runProposal } from '@/lib/agent/actions';
 import { logAgentToolCall } from '@/lib/agent/repository';
-import { executeAgentTool } from '@/lib/agent/runtime';
+import { readAgentTool } from '@/lib/agent/runtime';
 import { mcpToolByName, parseToolArgs } from '@/lib/agent/registry';
 import type { AgentActionType } from '@/lib/agent/types';
 import { getClient } from '@/lib/oauth/store';
@@ -29,7 +29,7 @@ export async function invokeAgentTool(name: string, args: unknown = {}, clientId
     const parsed = parseToolArgs(name, args);
     const result = tool.write
       ? await runProposal(await proposeAgentAction(name as AgentActionType, parsed), parsed)
-      : (await executeAgentTool(name, parsed)).output;
+      : await readAgentTool(name, parsed);
     await log({ result });
     return result;
   } catch (error) {

@@ -1,4 +1,3 @@
-import { createHash } from 'crypto';
 import { idEq } from '@/lib/db/ids';
 import { and, asc, desc, eq, gt, inArray } from 'drizzle-orm';
 import { toPublicAction } from './action-utils';
@@ -62,21 +61,17 @@ export async function listAgentToolLogs(limit = 200) {
 }
 
 export async function saveProposal(proposal: AgentProposal) {
-  return toPublicAction(await createAgentAction(proposal), proposal.form);
-}
-
-async function createAgentAction(input: AgentProposal) {
   const [action] = await getDb()
     .insert(financeAgentActions)
     .values({
-      actionType: input.actionType,
-      payload: input.payload as unknown as Record<string, unknown>,
-      preview: input.preview,
-      sourceFingerprint: input.sourceFingerprint,
+      actionType: proposal.actionType,
+      payload: proposal.payload as unknown as Record<string, unknown>,
+      preview: proposal.preview,
+      sourceFingerprint: proposal.sourceFingerprint,
       expiresAt: new Date(Date.now() + ACTION_TTL_MS),
     })
     .returning();
-  return action;
+  return toPublicAction(action, proposal.form);
 }
 
 export async function getAgentAction(id: string) {
@@ -121,14 +116,11 @@ export function failAgentAction(id: string, error: string) {
 }
 
 export async function listConversations(workspace?: AgentWorkspace): Promise<AgentConversation[]> {
-  const db = getDb();
-  const rows = workspace
-    ? await db
-        .select()
-        .from(agentConversations)
-        .where(eq(agentConversations.workspace, workspace))
-        .orderBy(desc(agentConversations.updatedAt))
-    : await db.select().from(agentConversations).orderBy(desc(agentConversations.updatedAt));
+  const rows = await getDb()
+    .select()
+    .from(agentConversations)
+    .where(workspace ? eq(agentConversations.workspace, workspace) : undefined)
+    .orderBy(desc(agentConversations.updatedAt));
   return rows.map(toConversation);
 }
 
@@ -189,15 +181,12 @@ export async function listAgentMessages(chatId: string, limit = 80) {
     .where(eq(financeAgentMessages.chatId, chatId))
     .orderBy(asc(financeAgentMessages.createdAt))
     .limit(Math.min(Math.max(limit, 1), 200));
-  const storedActions = rows.flatMap((row) => (Array.isArray(row.actions) ? row.actions : []));
   const actionIds = [
     ...new Set(
-      storedActions.flatMap((action) => {
-        if (typeof action === 'object' && action !== null && 'id' in action && typeof action.id === 'string') {
-          return [action.id];
-        }
-        return [];
-      })
+      rows
+        .flatMap((row) => (Array.isArray(row.actions) ? (row.actions as { id?: unknown }[]) : []))
+        .map((action) => action?.id)
+        .filter((id): id is string => typeof id === 'string')
     ),
   ];
   const liveActions =
@@ -282,8 +271,4 @@ function hydrateStoredAction(
     expiresAt: live.expiresAt.toISOString(),
     error: live.error,
   };
-}
-
-export function fingerprint(value: unknown) {
-  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }

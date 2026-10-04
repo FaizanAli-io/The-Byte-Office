@@ -1,31 +1,31 @@
-import { AgentActionError } from '@/lib/agent/action-utils';
+import { ApiError } from '@/lib/api';
+import { fingerprint } from '@/lib/agent/action-utils';
 import { entryTypeSchema } from '@/lib/agent/fields';
 import { isRecord, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
 import { eligibleAccounts, monthBounds } from '@/lib/ledger';
 import type { HoldingKind } from '@/types/finance';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger } from '@/types/ledger';
-import { fingerprint } from '@/lib/agent/repository';
 import type { AgentActionPayload, LedgerEntryFormState, HoldingInput } from '@/lib/agent/types';
 
+export const serialFor = (index: number) => String(index + 1).padStart(4, '0');
+
 export function resolveEntryId(ledger: MonthlyLedger, args: Record<string, unknown>) {
-  const hasSerial = args.entrySerial !== undefined;
-  const hasId = args.entryId !== undefined;
-  if (hasSerial && hasId) {
-    throw new AgentActionError('Specify entrySerial or entryId, not both');
+  if (args.entrySerial !== undefined && args.entryId !== undefined) {
+    throw new ApiError('Specify entrySerial or entryId, not both');
   }
-  if (hasSerial) {
-    const serial = requireString(args.entrySerial, 'entrySerial');
-    if (!/^\d+$/.test(serial)) {
-      throw new AgentActionError('entrySerial must contain only digits');
-    }
-    const index = Number(serial) - 1;
-    const entry = ledger.entries[index];
-    if (!Number.isSafeInteger(index) || index < 0 || !entry) {
-      throw new AgentActionError('Ledger entry serial not found', 404);
-    }
+  if (args.entrySerial !== undefined) {
+    const entry = ledger.entries[Number(args.entrySerial) - 1];
+    if (!entry) throw new ApiError('Ledger entry serial not found', 404);
     return entry.id;
   }
-  return requireString(args.entryId, 'entrySerial or entryId');
+  if (args.entryId === undefined) throw new ApiError('entrySerial or entryId is required');
+  return args.entryId as string;
+}
+
+export function definedFields<K extends string>(args: Record<string, unknown>, keys: readonly K[]) {
+  return Object.fromEntries(keys.filter((key) => args[key] !== undefined).map((key) => [key, args[key]])) as Partial<
+    Record<K, unknown>
+  >;
 }
 
 export function resolveAccountId(accounts: LedgerAccount[], accountName: unknown) {
@@ -44,21 +44,9 @@ export function resolveAccountId(accounts: LedgerAccount[], accountName: unknown
   return matches.length === 1 ? matches[0].id : undefined;
 }
 
-export function optionalAccountId(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-}
-
-export function optionalPositive(value: unknown) {
-  return validPositiveNumber(value) ? value : undefined;
-}
-
-export function optionalString(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-}
-
 export function assertLedger(next: MonthlyLedger, categoryIds: ReadonlySet<string>) {
   const error = validateLedger(next, categoryIds);
-  if (error) throw new AgentActionError(error);
+  if (error) throw new ApiError(error);
 }
 
 export function ledgerFingerprint(ledger: MonthlyLedger) {
@@ -81,27 +69,15 @@ export function ledgerStructureFingerprint(ledger: MonthlyLedger) {
   });
 }
 
-export function assertLedgerStructure(ledger: MonthlyLedger, sourceFingerprint: string | null) {
-  if (ledgerStructureFingerprint(ledger) !== sourceFingerprint) {
-    throw new AgentActionError('The ledger accounts changed after this proposal. Ask the assistant to try again.', 409);
-  }
-}
-
-const KIND_LABELS: Record<HoldingKind, string> = {
-  local_bank: 'local bank',
-  remote_bank: 'remote bank',
-  mutual_fund: 'mutual fund',
-};
-
-export const holdingLabel = (kind: HoldingKind) => KIND_LABELS[kind];
+export const holdingLabel = (kind: HoldingKind) => kind.replace('_', ' ');
 
 // Field types and ranges are checked by the tool schema; only the rules between fields live here.
 export function parseHolding(args: Record<string, unknown>, current?: HoldingInput): HoldingInput {
   const merged = { ...current, ...args } as Partial<HoldingInput>;
   const kind = current?.kind ?? merged.kind!;
-  if (kind === 'mutual_fund' && !merged.group) throw new AgentActionError('group is required for a mutual fund');
+  if (kind === 'mutual_fund' && !merged.group) throw new ApiError('group is required for a mutual fund');
   if (kind === 'remote_bank' && !merged.exchangeRate) {
-    throw new AgentActionError('exchangeRate is required for a remote bank');
+    throw new ApiError('exchangeRate is required for a remote bank');
   }
   return {
     kind,
@@ -113,23 +89,17 @@ export function parseHolding(args: Record<string, unknown>, current?: HoldingInp
 }
 
 export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
-  const carriedString = (key: 'categoryId' | 'counterparty' | 'note') =>
+  const carriedString = (key: 'destinationAccountId' | 'categoryId' | 'counterparty' | 'note') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requireString(args[key], key);
   const carriedNumber = (key: 'destinationAmount' | 'exchangeRate') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requirePositive(args[key], key);
-  const destinationAccountId =
-    args.destinationAccountId === null
-      ? undefined
-      : args.destinationAccountId === undefined
-        ? base.destinationAccountId
-        : requireString(args.destinationAccountId, 'destinationAccountId');
 
   return {
     id: requireString(args.id ?? base.id, 'id'),
     date: requireString(args.date ?? base.date, 'date'),
     type: requireEntryType(args.type ?? base.type),
     accountId: requireString(args.accountId ?? base.accountId, 'accountId'),
-    destinationAccountId,
+    destinationAccountId: carriedString('destinationAccountId'),
     amount: requirePositive(args.amount ?? base.amount, 'amount'),
     destinationAmount: carriedNumber('destinationAmount'),
     exchangeRate: carriedNumber('exchangeRate'),
@@ -139,22 +109,21 @@ export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<Le
   };
 }
 
-function requireEntryType(value: unknown): LedgerEntry['type'] {
-  const parsed = entryTypeSchema.safeParse(value);
-  if (!parsed.success) throw new AgentActionError('Invalid ledger entry type');
-  return parsed.data;
+function requireEntryType(value: unknown) {
+  if (!isEntryType(value)) throw new ApiError('Invalid ledger entry type');
+  return value;
 }
 
 export function requireString(value: unknown, key: string) {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new AgentActionError(`${key} is required`);
+    throw new ApiError(`${key} is required`);
   }
   return value.trim();
 }
 
 function requirePositive(value: unknown, key: string) {
   if (!validPositiveNumber(value)) {
-    throw new AgentActionError(`${key} must be a positive number`);
+    throw new ApiError(`${key} must be a positive number`);
   }
   return value;
 }
@@ -166,24 +135,7 @@ export function applyEntryOverride(payload: AgentActionPayload, override: unknow
   ) {
     return payload;
   }
-  if (payload.actionType === 'ledger_entry_add') {
-    return {
-      ...payload,
-      entry: {
-        ...payload.entry,
-        ...override,
-        id: payload.entry.id,
-      },
-    };
-  }
-  return {
-    ...payload,
-    entry: {
-      ...payload.entry,
-      ...override,
-      id: payload.entryId,
-    },
-  };
+  return { ...payload, entry: { ...payload.entry, ...override, id: payload.entry.id } } as AgentActionPayload;
 }
 
 export function ledgerForm(

@@ -1,21 +1,18 @@
+import { ApiError } from '@/lib/api';
 import { asc, desc, eq, sql } from 'drizzle-orm';
-import { AgentActionError } from '@/lib/agent/action-utils';
 import { idEq } from './ids';
-import type { HealthTrackingInput, HealthTrackingUpdate, PrayerInput, PrayerUpdate } from '@/types/personal';
+import type { HealthTrackingInput, HealthTrackingUpdate, PrayerInput, PrayerUpdate } from '@/lib/personal-validation';
 import { getDb } from './index';
-import { NAMAAZ_VALUES, healthMetrics, healthTracking, prayerHistory, prayers, type Namaaz } from './schema';
+import { NAMAAZ_VALUES, type Namaaz } from '@/types/personal';
+import { healthMetrics, healthTracking, prayerHistory, prayers } from './schema';
 
 function defined<T extends object>(input: T) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as T;
 }
 
-export async function listPrayers() {
-  return getDb().select().from(prayers).orderBy(asc(prayers.namaaz));
-}
-
 export async function loadPrayerTracker() {
   const [rows, [latest]] = await Promise.all([
-    listPrayers(),
+    getDb().select().from(prayers).orderBy(asc(prayers.namaaz)),
     getDb().select().from(prayerHistory).orderBy(desc(prayerHistory.recordedAt)).limit(1),
   ]);
   return { prayers: rows, updatedAt: latest?.recordedAt ?? null };
@@ -109,7 +106,7 @@ export async function requireHealthMetricId(name: string) {
   const metric = await findMetric(name);
   if (!metric) {
     const known = (await listHealthMetrics()).map((row) => row.name);
-    throw new AgentActionError(
+    throw new ApiError(
       `No health metric is called "${name}". ${known.length ? `Use one of: ${known.join(', ')}` : 'Add it first'}.`,
       404
     );
@@ -119,8 +116,7 @@ export async function requireHealthMetricId(name: string) {
 
 export async function assertMetricNameIsFree(name: string, exceptId?: string) {
   const clash = await findMetric(name);
-  if (clash && clash.id !== exceptId)
-    throw new AgentActionError(`There is already a metric called "${clash.name}"`, 409);
+  if (clash && clash.id !== exceptId) throw new ApiError(`There is already a metric called "${clash.name}"`, 409);
 }
 
 export async function addHealthMetric(name: string) {
@@ -136,15 +132,15 @@ export async function renameHealthMetric(id: string, name: string) {
     .set({ name: name.trim() })
     .where(idEq(healthMetrics.id, id))
     .returning();
-  if (!row) throw new AgentActionError('Health metric not found', 404);
+  if (!row) throw new ApiError('Health metric not found', 404);
   return row;
 }
 
 export async function removeHealthMetric(id: string) {
   const metric = (await listHealthMetrics()).find((row) => row.id === id);
-  if (!metric) throw new AgentActionError('Health metric not found', 404);
+  if (!metric) throw new ApiError('Health metric not found', 404);
   if (metric.readingCount) {
-    throw new AgentActionError(`${metric.readingCount} readings use "${metric.name}" — rename it instead`, 409);
+    throw new ApiError(`${metric.readingCount} readings use "${metric.name}" — rename it instead`, 409);
   }
   await getDb().delete(healthMetrics).where(idEq(healthMetrics.id, id));
   return metric;
@@ -163,7 +159,7 @@ export async function getHealthTracking(id: string) {
 
 async function assertMetricExists(id: string | undefined) {
   if (id !== undefined && !(await listHealthMetrics()).some((row) => row.id === id)) {
-    throw new AgentActionError('Health metric not found', 404);
+    throw new ApiError('Health metric not found', 404);
   }
 }
 

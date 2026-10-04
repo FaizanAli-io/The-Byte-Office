@@ -12,25 +12,16 @@ const otherItems = [
   { name: 'Agent', href: '/finance/agent' },
 ];
 
+const contact = navItems.find((item) => item.href === '/contact');
+const publicItems = navItems.filter((item) => item !== contact);
+
+function isOtherActive(pathname: string) {
+  return pathname.startsWith('/finance') && pathname !== '/finance/login' && !pathname.startsWith('/finance/verify');
+}
+
 function isOtherItemActive(pathname: string, href: string) {
-  if (href === '/finance/personal') return pathname.startsWith('/finance/personal');
-  if (href === '/finance/agent') return pathname.startsWith('/finance/agent');
-  return (
-    pathname === '/finance' ||
-    (pathname.startsWith('/finance/') &&
-      !pathname.startsWith('/finance/personal') &&
-      !pathname.startsWith('/finance/agent') &&
-      pathname !== '/finance/login' &&
-      !pathname.startsWith('/finance/verify'))
-  );
-}
-
-function publicNavItems() {
-  return navItems.filter((item) => item.href !== '/contact');
-}
-
-function contactItem() {
-  return navItems.find((item) => item.href === '/contact');
+  if (href !== '/finance') return pathname.startsWith(href);
+  return isOtherActive(pathname) && !otherItems.some((item) => item.href !== href && pathname.startsWith(item.href));
 }
 
 function isPublicActive(pathname: string, href: string) {
@@ -38,17 +29,13 @@ function isPublicActive(pathname: string, href: string) {
   return pathname === href || (href !== '/' && pathname.startsWith(href));
 }
 
-function isOtherActive(pathname: string) {
-  return pathname.startsWith('/finance') && pathname !== '/finance/login' && !pathname.startsWith('/finance/verify');
-}
+const pillClass = (active: boolean) =>
+  `rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+    active ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white'
+  }`;
 
-function Logo() {
-  return (
-    <span className="flex items-center">
-      <span className="text-lg font-extrabold tracking-tight text-slate-100">{company.name}</span>
-    </span>
-  );
-}
+const mobileLinkClass =
+  'rounded-md px-3 py-3 text-base font-semibold text-slate-300 hover:bg-white/[0.06] hover:text-white';
 
 function OtherDropdown({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -83,9 +70,7 @@ function OtherDropdown({ pathname, onNavigate }: { pathname: string; onNavigate?
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((value) => !value)}
-        className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-          active ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white'
-        }`}
+        className={`inline-flex items-center gap-1.5 ${pillClass(active)}`}
       >
         Other
         <span aria-hidden="true" className={`text-[10px] transition-transform ${open ? 'rotate-180' : ''}`}>
@@ -158,11 +143,8 @@ export default function Navigation() {
     };
   }, [isOpen]);
 
-  const contact = contactItem();
-
   return (
     <header
-      data-public-navigation
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-200 ${
         isScrolled
           ? 'border-b border-white/8 bg-[#080c13]/88 shadow-lg shadow-black/10 backdrop-blur-xl'
@@ -171,40 +153,27 @@ export default function Navigation() {
     >
       <nav className={`container-page flex items-center justify-between ${isFinance ? 'h-16 sm:h-20' : 'h-20'}`}>
         <Link href="/" aria-label={`${company.name} home`}>
-          <Logo />
+          <span className="flex items-center">
+            <span className="text-lg font-extrabold tracking-tight text-slate-100">{company.name}</span>
+          </span>
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
-          {publicNavItems().map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                isPublicActive(pathname, item.href)
-                  ? 'bg-slate-950 text-white'
-                  : 'text-slate-400 hover:bg-white/[0.06] hover:text-white'
-              }`}
-            >
+          {publicItems.map((item) => (
+            <Link key={item.href} href={item.href} className={pillClass(isPublicActive(pathname, item.href))}>
               {item.name}
             </Link>
           ))}
           {showOther ? <OtherDropdown pathname={pathname} /> : null}
           {contact ? (
-            <Link
-              href={contact.href}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                isPublicActive(pathname, contact.href)
-                  ? 'bg-slate-950 text-white'
-                  : 'text-slate-400 hover:bg-white/[0.06] hover:text-white'
-              }`}
-            >
+            <Link href={contact.href} className={pillClass(isPublicActive(pathname, contact.href))}>
               {contact.name}
             </Link>
           ) : null}
         </div>
 
         <div className="hidden md:block">
-          <Link href="/contact" className="button-base button-primary px-5 py-3">
+          <Link href="/contact" className="button-base button-primary">
             Start a Project
           </Link>
         </div>
@@ -239,12 +208,8 @@ export default function Navigation() {
       {isOpen ? (
         <div className="border-t border-white/8 bg-[#080c13]/96 px-4 pb-6 pt-2 shadow-xl backdrop-blur-xl md:hidden">
           <div className="container-page flex flex-col gap-2">
-            {publicNavItems().map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-md px-3 py-3 text-base font-semibold text-slate-300 hover:bg-white/[0.06] hover:text-white"
-              >
+            {publicItems.map((item) => (
+              <Link key={item.href} href={item.href} className={mobileLinkClass}>
                 {item.name}
               </Link>
             ))}
@@ -263,10 +228,7 @@ export default function Navigation() {
               </div>
             ) : null}
             {contact ? (
-              <Link
-                href={contact.href}
-                className="rounded-md px-3 py-3 text-base font-semibold text-slate-300 hover:bg-white/[0.06] hover:text-white"
-              >
+              <Link href={contact.href} className={mobileLinkClass}>
                 {contact.name}
               </Link>
             ) : null}

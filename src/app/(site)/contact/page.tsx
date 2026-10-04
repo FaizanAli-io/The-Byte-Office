@@ -1,4 +1,4 @@
-﻿import BackgroundEffect from '@/components/site/BackgroundEffect';
+import BackgroundEffect from '@/components/site/BackgroundEffect';
 import ContactForm from './ContactForm';
 import { company, processSteps, siteUrl } from '@/content/site';
 import { createMetadata, jsonLd } from '@/lib/seo';
@@ -53,8 +53,7 @@ export default function ContactPage() {
           <div className="surface-card p-6 sm:p-8">
             <h2 className="heading-lg">Start a project inquiry</h2>
             <p className="body-copy mt-3">
-              This form preserves the current local confirmation behavior. Use the email draft option to send the
-              inquiry directly to The Byte Office.
+              Send the form and it reaches The Byte Office directly, or open it as an email draft instead.
             </p>
             <div className="mt-8">
               <ContactForm />

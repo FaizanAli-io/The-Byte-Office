@@ -1,9 +1,8 @@
 'use client';
 
 import { ENTRY_LABELS, eligibleAccounts, isHoldType, pickableCategories } from '@/lib/ledger';
-import type { LedgerAccount, LedgerCategory, LedgerEntryType } from '@/types/ledger';
-import { financeStyles } from '../components/FinanceUI';
-import { Field } from './LedgerAccounts';
+import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType } from '@/types/ledger';
+import { Field, financeStyles } from '../components/FinanceUI';
 
 export type EntryAccount = Pick<LedgerAccount, 'id' | 'name' | 'currency' | 'type' | 'exchangeRate'>;
 
@@ -30,6 +29,20 @@ export function emptyDraft(date: string): EntryDraft {
     categoryId: '',
     counterparty: '',
     note: '',
+  };
+}
+
+export function draftFromEntry(entry: LedgerEntry): EntryDraft {
+  return {
+    date: entry.date,
+    type: entry.type,
+    accountId: entry.accountId,
+    destinationAccountId: entry.destinationAccountId ?? '',
+    amount: String(entry.amount),
+    destinationAmount: entry.destinationAmount === undefined ? '' : String(entry.destinationAmount),
+    categoryId: entry.categoryId ?? '',
+    counterparty: entry.counterparty ?? '',
+    note: entry.note ?? '',
   };
 }
 

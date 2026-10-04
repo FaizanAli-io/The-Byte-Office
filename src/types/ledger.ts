@@ -1,6 +1,6 @@
-export type LedgerCurrency = 'PKR' | 'USD';
-export type LedgerStatus = 'draft' | 'finalized';
-export type LedgerAccountType = 'bank' | 'fund';
+type LedgerCurrency = 'PKR' | 'USD';
+type LedgerStatus = 'draft' | 'finalized';
+type LedgerAccountType = 'bank' | 'fund';
 export const LEDGER_ENTRY_TYPES = [
   'income',
   'expense',

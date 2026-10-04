@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { CATEGORY_KINDS, LEDGER_ENTRY_TYPES } from '@/types/ledger';
 import { HOLDING_KINDS, type SnapshotHolding } from '@/types/finance';
+import { NAMAAZ_VALUES, type Namaaz } from '@/types/personal';
 import {
   boolean,
   check,
@@ -279,8 +280,7 @@ export const financeAgentToolLogs = finance.table(
   ]
 );
 
-export const NAMAAZ_VALUES = ['fajr', 'zuhr', 'asar', 'maghreb', 'isha'] as const;
-export type Namaaz = (typeof NAMAAZ_VALUES)[number];
+export { NAMAAZ_VALUES, type Namaaz };
 
 export const namaazEnum = personal.enum('namaaz', NAMAAZ_VALUES);
 

@@ -6,7 +6,7 @@ import { bankFundAllocations, individualFundAllocations, portfolioAllocations } 
 import { formatMoney } from '@/lib/ledger';
 import type { FinanceSnapshot } from '@/types/finance';
 import { useEffect, useState } from 'react';
-import { FinancePageShell, financeStyles } from '../components/FinanceUI';
+import { FinancePageShell, MessageCard, financeStyles } from '../components/FinanceUI';
 import { FinanceToast, type FinanceToastState } from '../components/FinanceToast';
 import { AllocationChart, SnapshotDiff, SnapshotTrend, TextSummary, formatSnapshotTime } from './components';
 
@@ -73,15 +73,9 @@ export default function SnapshotsPage() {
       {loading ? (
         <div className={`${financeStyles.card} p-12 text-center text-slate-500`}>Loading snapshots…</div>
       ) : error ? (
-        <div className={`${financeStyles.card} p-12 text-center`}>
-          <p className="font-bold text-white">Could not load snapshots</p>
-          <p className="mt-2 text-sm text-slate-500">{error}</p>
-        </div>
+        <MessageCard title="Could not load snapshots" message={error} />
       ) : snapshots.length === 0 ? (
-        <div className={`${financeStyles.card} p-12 text-center`}>
-          <p className="font-bold text-white">No snapshots yet</p>
-          <p className="mt-2 text-sm text-slate-500">Take the first one from the portfolio editor.</p>
-        </div>
+        <MessageCard title="No snapshots yet" message="Take the first one from the portfolio editor." />
       ) : (
         <div className="space-y-4">
           {snapshots.length > 1 ? <SnapshotTrend snapshots={snapshots} /> : null}

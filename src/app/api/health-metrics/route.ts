@@ -1,6 +1,6 @@
 import { addHealthMetric, listHealthMetrics, removeHealthMetric, renameHealthMetric } from '@/lib/db/personal';
 import { healthMetricInputSchema, healthMetricUpdateSchema } from '@/lib/personal-validation';
-import { ApiError, apiRoute, created, jsonBody, parseWith } from '@/lib/api';
+import { apiRoute, bodyId, created, jsonBody, parseWith } from '@/lib/api';
 
 export const GET = apiRoute('GET /api/health-metrics', 'Failed to load health metrics', () => listHealthMetrics());
 
@@ -14,8 +14,6 @@ export const PUT = apiRoute('PUT /api/health-metrics', 'Failed to rename health 
 });
 
 export const DELETE = apiRoute('DELETE /api/health-metrics', 'Failed to delete health metric', async (req: Request) => {
-  const { id } = await jsonBody<{ id?: string }>(req);
-  if (!id) throw new ApiError('Missing health metric id');
-  await removeHealthMetric(id);
+  await removeHealthMetric(await bodyId(req, 'health metric'));
   return { success: true };
 });

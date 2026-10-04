@@ -11,7 +11,7 @@ import {
   type TrendPoint,
 } from '@/lib/health';
 import type { HealthTracking } from '@/types/personal';
-import { FinanceCard, financeStyles } from '../components/FinanceUI';
+import { FinanceCard, Field, chartTooltip, deltaTone, financeStyles, signed } from '../components/FinanceUI';
 
 const RANGES = [
   { key: '30', label: '30d', days: 30 },
@@ -48,8 +48,7 @@ export function HealthChart({ entries }: { entries: HealthTracking[] }) {
   return (
     <FinanceCard title="Trend" description="One metric at a time — readings in different units do not share an axis.">
       <div className="mb-5 flex flex-wrap items-end gap-3">
-        <label className="min-w-44 flex-1">
-          <span className={financeStyles.label}>Metric</span>
+        <Field label="Metric" className="min-w-44 flex-1">
           <select className={financeStyles.input} value={selected} onChange={(event) => setMetric(event.target.value)}>
             {metrics.map((name) => (
               <option key={name} value={name}>
@@ -57,7 +56,7 @@ export function HealthChart({ entries }: { entries: HealthTracking[] }) {
               </option>
             ))}
           </select>
-        </label>
+        </Field>
         <ButtonGroup
           label="Range"
           options={RANGES.map((option) => ({ key: option.key, label: option.label }))}
@@ -111,14 +110,7 @@ export function HealthChart({ entries }: { entries: HealthTracking[] }) {
                     const count = (item?.payload as TrendPoint | undefined)?.readings ?? 1;
                     return [formatReading(Number(value)), count > 1 ? `${selected} (${count} readings)` : selected];
                   }}
-                  contentStyle={{
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 10,
-                    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18)',
-                  }}
-                  itemStyle={{ color: '#0f172a', fontWeight: 700 }}
-                  labelStyle={{ color: '#475569', fontWeight: 700 }}
+                  {...chartTooltip}
                 />
                 <Line
                   type="monotone"
@@ -136,8 +128,8 @@ export function HealthChart({ entries }: { entries: HealthTracking[] }) {
             <Figure label="Latest" value={formatReading(summary.latest)} />
             <Figure
               label="Change"
-              value={`${summary.change > 0 ? '+' : ''}${formatReading(summary.change)}`}
-              tone={summary.change > 0 ? 'text-emerald-300' : summary.change < 0 ? 'text-rose-300' : 'text-slate-300'}
+              value={signed(summary.change, formatReading(summary.change))}
+              tone={deltaTone(summary.change, 'text-slate-300')}
             />
             <Figure label="Average" value={formatReading(summary.average)} />
           </div>
