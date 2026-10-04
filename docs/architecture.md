@@ -36,27 +36,26 @@ messages, tool logs and the action lifecycle (`actions.ts` claims, dispatches an
 
 ---
 
-## 1. There are two account models, and nothing reconciles them
+## 1. Two account models, now linked rather than unified
 
-The portfolio keeps accounts in `local_banks`, `remote_banks` and `mutual_funds`. The ledger keeps them in
-`ledger_accounts`, one set **per month**, created either by copying the portfolio once (`accountsFromFinance` mints
-fresh UUIDs) or by carrying forward the previous month (`carryAccounts` keeps the ids).
+The portfolio keeps holdings in `local_banks`, `remote_banks` and `mutual_funds`; the ledger keeps `ledger_accounts`,
+one set **per month**. Each account now carries a `holding_id`, and
+[`portfolio-sync.ts`](../src/lib/portfolio-sync.ts) keeps the newest month and the portfolio equal in both directions:
+a ledger save sets each holding to its account's value, a portfolio change becomes the account's closing balance, and
+adding, renaming or removing on one side does the same on the other. A new month opens at the portfolio's figures, and
+finalizing a month snapshots the portfolio.
 
-So "HBL" in the portfolio and "HBL" in the ledger are unrelated rows that happen to share a name. Consequences:
+What is still not ideal:
 
-- The portfolio total is **hand-maintained**, while the ledger's closing balances are **reconciled against
-  statements**. Two sources of truth for the same money, and nothing compares them. Drift after the one-time import is
-  invisible.
-- Held funds are recorded in the ledger but subtracted from the portfolio total. That works because both are money in
-  PKR, but no per-account net is possible — you cannot ask "how much of HBL is actually mine".
-- Snapshots capture the portfolio, so they inherit whatever staleness the portfolio has.
+- It is two stores kept in step, not one. Both directions are diff-based (before/after a save) precisely so that
+  neither side can overwrite the other with figures nobody touched — that rule is what keeps it safe, and any new
+  write path has to go through `saveLedgerSynced` or `withPortfolioSync` to stay inside it.
+- `holding_id` is not a foreign key while holdings span three tables. Item 2 makes it one.
+- Held funds are still subtracted from the portfolio total as a whole, so there is no per-account net — you cannot ask
+  "how much of HBL is actually mine".
 
-**The fix is a real account entity** that both sides reference: portfolio holdings become balances _of_ an account,
-and `ledger_accounts` becomes a per-month opening/closing record _for_ an account rather than a copy of one. The
-monthly close could then write the reconciled closing balance straight back to the portfolio, which is the thing that
-currently has to be typed twice.
-
-This is the largest item here and the one everything else in the finance model leans on.
+A true account entity — holdings as balances _of_ an account, ledger rows as monthly records _for_ it — would remove the
+syncing altogether. Worth it only if the sync starts needing special cases.
 
 ## 2. One holding is three tables
 
@@ -122,7 +121,7 @@ Worth stating, so a future pass does not "fix" these:
 
 ## If these were tackled, in this order
 
-1. **2 — collapse the three holdings tables.** Self-contained, and it removes the most repeated branch in the code.
+1. **2 — collapse the three holdings tables.** Self-contained, removes the most repeated branch in the code, and lets
+   `holding_id` become a real foreign key.
 2. **3 — row-level ledger entry endpoints.** Only once whole-month saves start to hurt.
-3. **1 — a shared account entity.** Largest, and worth doing only when the hand-maintained portfolio total actually
-   starts disagreeing with the ledger often enough to hurt.
+3. **1 — a shared account entity.** Only if the sync starts needing special cases.

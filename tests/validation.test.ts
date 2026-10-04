@@ -110,6 +110,15 @@ describe('validateLedger', () => {
     ];
     expect(validateLedger({ ...base(), entries })).toMatch(/Counterparty/);
   });
+  it('rejects a malformed or duplicated portfolio link', () => {
+    const linked = (holdingId: string) => ({ ...base().accounts[0], holdingId });
+    expect(validateLedger({ ...base(), accounts: [linked('nope')] })).toBe('Invalid portfolio link');
+    const id = '3ced5a60-1dc3-40f5-9632-a4f81fe35544';
+    expect(validateLedger({ ...base(), accounts: [linked(id), { ...linked(id), id: 'b' }] })).toBe(
+      'Each portfolio holding can have only one account'
+    );
+  });
+
   it('rejects a malformed month', () => expect(validateLedger({ ...base(), month: '2026-13' })).toBe('Invalid month'));
 
   it('rejects an entry dated outside its month', () => {

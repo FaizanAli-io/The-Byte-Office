@@ -7,7 +7,7 @@ import {
   snapshotDiff,
   snapshotSeries,
 } from '@/lib/finance';
-import { flattenMutualFunds, groupMutualFunds } from '@/lib/db/queries';
+import { flattenMutualFunds, groupMutualFunds } from '@/lib/db/holdings';
 import type { FinanceDoc } from '@/types/finance';
 
 const doc: FinanceDoc = {

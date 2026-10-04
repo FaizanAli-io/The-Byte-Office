@@ -81,15 +81,12 @@ export default function LedgerPage() {
         <div className={`${financeStyles.card} p-8 text-center sm:p-12`}>
           <p className="text-xl font-bold text-white">No ledger for {month}</p>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500">
-            Create a blank month (which carries the latest finalized balances when available), or take a one-time copy
-            from the portfolio editor.
+            The month opens with an account for every portfolio holding, at its current value, and stays in sync with
+            the portfolio from then on.
           </p>
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <button type="button" className={financeStyles.primary} disabled={saving} onClick={() => create(false)}>
+          <div className="mt-6 flex justify-center">
+            <button type="button" className={financeStyles.primary} disabled={saving} onClick={create}>
               Create month
-            </button>
-            <button type="button" className={financeStyles.secondary} disabled={saving} onClick={() => create(true)}>
-              Import portfolio balances
             </button>
           </div>
         </div>

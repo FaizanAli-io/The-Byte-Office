@@ -232,7 +232,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     name: 'portfolio_item_add',
     title: 'Add portfolio item',
     module: 'finance',
-    description: 'Add one portfolio item immediately. Use fields matching itemType.',
+    description:
+      'Add one portfolio item immediately. Use fields matching itemType. The newest ledger month gains a matching account.',
     chatDescription:
       'Create a confirmation proposal to add one portfolio item. This never writes before user confirmation. Use fields matching itemType.',
     schema: z.object(portfolioFields),
@@ -243,7 +244,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     name: 'portfolio_item_update',
     title: 'Update portfolio item',
     module: 'finance',
-    description: 'Update one portfolio item by stable ID. Include only changed fields.',
+    description:
+      "Update one portfolio item by stable ID. Include only changed fields. A changed amount becomes the matching ledger account's actual closing balance in the newest month.",
     chatDescription:
       'Create a confirmation proposal to update one portfolio item by stable ID. Include only changed fields. This never writes before confirmation.',
     schema: z.object({ ...portfolioFields, id: z.string().min(1).describe('Stable portfolio item ID') }),
@@ -254,7 +256,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     name: 'portfolio_item_remove',
     title: 'Remove portfolio item',
     module: 'finance',
-    description: 'Remove one portfolio item by stable ID.',
+    description:
+      'Remove one portfolio item by stable ID. Its account in the newest ledger month goes too, unless entries use it.',
     chatDescription:
       'Create a confirmation proposal to remove one portfolio item by stable ID. This never writes before confirmation.',
     schema: z.object({ itemType, id: z.string().min(1).describe('Stable portfolio item ID') }),
@@ -321,7 +324,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Add ledger account',
     module: 'finance',
     description:
-      'Add an account to a draft ledger immediately. Type defaults to bank, currency to PKR and opening balance to 0. USD accounts need exchangeRate.',
+      'Add an account to a draft ledger immediately. Type defaults to bank, currency to PKR and opening balance to 0. USD accounts need exchangeRate. In the newest month it also adds the matching portfolio holding.',
     chatDescription:
       'Create a confirmation proposal to add an account to a draft ledger. Type defaults to bank, currency to PKR and opening balance to 0. USD accounts need exchangeRate. Never claim it was added before confirmation.',
     schema: z.object({
@@ -350,7 +353,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     name: 'ledger_account_remove',
     title: 'Remove ledger account',
     module: 'finance',
-    description: 'Remove an account from a draft ledger. Refused while any entry uses the account.',
+    description:
+      'Remove an account from a draft ledger. Refused while any entry uses the account. In the newest month it also removes the matching portfolio holding.',
     chatDescription:
       'Create a confirmation proposal to remove an account from a draft ledger. Refused while any entry uses the account.',
     schema: z.object(accountRef),

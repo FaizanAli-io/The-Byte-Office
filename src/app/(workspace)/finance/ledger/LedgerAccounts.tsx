@@ -83,7 +83,7 @@ export function LedgerAccounts({
   return (
     <FinanceCard
       title="Accounts & opening balances"
-      description="Native account balances stay separate; USD is converted only in PKR summaries."
+      description="Kept in sync with your portfolio in both directions. Balances stay in each account's own currency."
       action={
         !readOnly ? (
           <div className="flex flex-wrap gap-2">

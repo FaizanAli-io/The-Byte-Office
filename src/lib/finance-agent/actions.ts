@@ -1,13 +1,14 @@
 import { randomUUID } from 'crypto';
 import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
-import { listCategories, loadLedger, saveLedger } from '@/lib/db/queries';
+import { listCategories, loadLedger } from '@/lib/db/queries';
+import { saveLedgerSynced, withPortfolioSync } from '@/lib/db/sync';
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { resolveCategoryId } from '@/lib/ledger';
 import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory, type MonthlyLedger } from '@/types/ledger';
 import { createAgentAction, fingerprint } from '@/lib/agent/repository';
 import type { AgentActionPayload, AgentActionType, PortfolioItemType } from '@/lib/agent/types';
 import { applyAccountAction, isAccountAction, planAccountAction } from './ledger-accounts';
-import { addPortfolioItem, getPortfolioItem, removePortfolioItem, updatePortfolioItem } from './portfolio';
+import { addPortfolioItem, getPortfolioItem, removePortfolioItem, updatePortfolioItem } from '@/lib/db/holdings';
 import {
   applyEntryOverride,
   assertLedgerStructure,
@@ -234,19 +235,9 @@ export async function executeFinancePayload(
 ) {
   switch (payload.actionType) {
     case 'portfolio_item_add':
-      parsePortfolioItem(payload.item as unknown as Record<string, unknown>);
-      return addPortfolioItem(payload.item);
-    case 'portfolio_item_update': {
-      const current = await requireCurrentPortfolioItem(payload.itemType, payload.id, sourceFingerprint);
-      const changes = parsePortfolioUpdate(payload.itemType, payload.changes, current);
-      return updatePortfolioItem(payload.itemType, payload.id, changes);
-    }
-    case 'portfolio_item_remove': {
-      await requireCurrentPortfolioItem(payload.itemType, payload.id, sourceFingerprint);
-      const removed = await removePortfolioItem(payload.itemType, payload.id);
-      if (!removed.length) throw new AgentActionError('Item no longer exists', 409);
-      return { id: payload.id, removed: true };
-    }
+    case 'portfolio_item_update':
+    case 'portfolio_item_remove':
+      return withPortfolioSync(() => executePortfolioPayload(payload, sourceFingerprint));
     case 'ledger_entry_add':
     case 'ledger_entry_update':
     case 'ledger_entry_remove':
@@ -268,6 +259,27 @@ export async function executeFinancePayload(
       throw new AgentActionError(`No executor for ${(unrouted as { actionType: string }).actionType}`, 500);
     }
   }
+}
+
+async function executePortfolioPayload(
+  payload: Extract<FinancePayload, { actionType: `portfolio_item_${string}` }>,
+  sourceFingerprint: string | null
+) {
+  if (payload.actionType === 'portfolio_item_add') {
+    parsePortfolioItem(payload.item as unknown as Record<string, unknown>);
+    return addPortfolioItem(payload.item);
+  }
+  const current = await requireCurrentPortfolioItem(payload.itemType, payload.id, sourceFingerprint);
+  if (payload.actionType === 'portfolio_item_update') {
+    return updatePortfolioItem(
+      payload.itemType,
+      payload.id,
+      parsePortfolioUpdate(payload.itemType, payload.changes, current)
+    );
+  }
+  const removed = await removePortfolioItem(payload.itemType, payload.id);
+  if (!removed.length) throw new AgentActionError('Item no longer exists', 409);
+  return { id: payload.id, removed: true };
 }
 
 async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: string | null) {
@@ -312,7 +324,7 @@ async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: s
   }
 
   assertLedger({ ...ledger, accounts, entries }, new Set(categoryList.map((category) => category.id)));
-  const saved = await saveLedger(ledger, { ...ledger, accounts, entries });
+  const saved = await saveLedgerSynced(ledger, { ...ledger, accounts, entries });
   if (!saved) throw new AgentActionError('The ledger changed while saving. Ask the assistant to try again.', 409);
   return ledgerWriteResult(payload, saved);
 }

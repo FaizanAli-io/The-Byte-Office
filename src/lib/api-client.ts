@@ -44,8 +44,7 @@ export const financeApi = {
 export const ledgerApi = {
   /** Resolves to `null` for a month with no ledger, which is not an error. */
   load: (month: string) => apiFetchOrNull<MonthlyLedger>(`/api/ledger?month=${encodeURIComponent(month)}`),
-  create: (month: string, importFinance: boolean) =>
-    apiFetch<MonthlyLedger>('/api/ledger', { body: { month, importFinance } }),
+  create: (month: string) => apiFetch<MonthlyLedger>('/api/ledger', { body: { month } }),
   save: (payload: MonthlyLedgerPayload) => apiFetch<MonthlyLedger>('/api/ledger', { method: 'PUT', body: payload }),
 };
 

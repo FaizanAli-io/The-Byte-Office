@@ -1,4 +1,5 @@
-import { loadFinanceDoc, saveFinanceDoc } from '@/lib/db/queries';
+import { loadFinanceDoc, saveFinanceDoc } from '@/lib/db/holdings';
+import { withPortfolioSync } from '@/lib/db/sync';
 import { validateFinanceDoc } from '@/lib/finance-validation';
 import { ApiError, apiRoute, jsonBody } from '@/lib/api';
 
@@ -11,5 +12,5 @@ export const POST = apiRoute('POST /api/finance', 'Failed to update finance data
   // Return the saved document so the editor can adopt the IDs Postgres
   // assigned to newly inserted holdings. Without this the client would still
   // hold ID-less rows and the next save would insert them a second time.
-  return { success: true, data: await saveFinanceDoc(body) };
+  return { success: true, data: await withPortfolioSync(() => saveFinanceDoc(body)) };
 });

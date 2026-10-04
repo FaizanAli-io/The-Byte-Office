@@ -9,6 +9,9 @@ import { FinancePageShell, StatCard, financeStyles } from './FinanceUI';
 import { FinanceToast, type FinanceToastState } from './FinanceToast';
 import { useFinanceHandlers } from './useFinanceHandlers';
 
+const DESCRIPTION =
+  "The latest value of each account and fund, kept in sync with the newest ledger month: changing a value here records it as that account's closing balance.";
+
 export default function FinanceEditor() {
   const {
     data,
@@ -65,10 +68,7 @@ export default function FinanceEditor() {
 
   if (!data) {
     return (
-      <FinancePageShell
-        title="Portfolio editor"
-        description="Keep the latest value of each account and fund. Use snapshots for history and the ledger for monthly reconciliation."
-      >
+      <FinancePageShell title="Portfolio editor" description={DESCRIPTION}>
         <div className={`${financeStyles.card} p-12 text-center`}>
           <p className="font-bold text-white">Could not load portfolio</p>
           <p className="mt-2 text-sm text-slate-500">{error || 'No finance data found.'}</p>
@@ -86,7 +86,7 @@ export default function FinanceEditor() {
   return (
     <FinancePageShell
       title="Portfolio editor"
-      description="Keep the latest value of each account and fund. Use snapshots for history and the ledger for monthly reconciliation."
+      description={DESCRIPTION}
       actions={
         <>
           <button type="button" onClick={handleSnapshot} disabled={snapshotLoading} className={financeStyles.secondary}>

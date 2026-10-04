@@ -113,6 +113,9 @@ export const ledgerAccounts = finance.table(
     ledgerId: uuid('ledger_id')
       .notNull()
       .references(() => ledgers.id, { onDelete: 'cascade' }),
+    // The holding this account mirrors. Not a foreign key yet: holdings span
+    // three tables until they are merged into one.
+    holdingId: uuid('holding_id'),
     name: text('name').notNull(),
     type: ledgerAccountTypeEnum('type').notNull(),
     currency: ledgerCurrencyEnum('currency').notNull(),
@@ -122,7 +125,11 @@ export const ledgerAccounts = finance.table(
     exchangeRate: rate('exchange_rate').notNull().default(1),
     sortOrder: sortOrder(),
   },
-  (table) => [index('ledger_accounts_ledger_idx').on(table.ledgerId)]
+  (table) => [
+    index('ledger_accounts_ledger_idx').on(table.ledgerId),
+    // One account per holding per month.
+    uniqueIndex('ledger_accounts_holding_uidx').on(table.ledgerId, table.holdingId),
+  ]
 );
 
 /**

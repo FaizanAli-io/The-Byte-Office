@@ -65,12 +65,12 @@ export function useLedger() {
     load(month);
   }, [load, month]);
 
-  async function create(importFinance: boolean) {
+  async function create() {
     setSaving(true);
     setError('');
     try {
-      adopt(await ledgerApi.create(month, importFinance));
-      setNotice(importFinance ? 'Opening balances imported from the portfolio editor.' : 'Monthly ledger created.');
+      adopt(await ledgerApi.create(month));
+      setNotice('Monthly ledger created from the portfolio.');
     } catch (cause) {
       setError(errorMessage(cause, 'Could not create ledger'));
     } finally {
@@ -150,6 +150,15 @@ export function useLedger() {
   }
 
   function removeAccount(id: string) {
+    const account = ledgerRef.current?.accounts.find((item) => item.id === id);
+    const inUse = ledgerRef.current?.entries.some((entry) => entryUsesAccount(entry, id));
+    if (
+      account?.holdingId &&
+      !inUse &&
+      !window.confirm(`Remove "${account.name}"? It is removed from your portfolio too.`)
+    ) {
+      return;
+    }
     setLedger((current) => {
       if (!current || current.entries.some((entry) => entryUsesAccount(entry, id))) {
         setError('Delete entries for this account before removing it.');

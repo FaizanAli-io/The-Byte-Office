@@ -1,18 +1,17 @@
-import { randomUUID } from 'crypto';
-import { accountStats, isMonth } from '@/lib/ledger';
+import { isMonth } from '@/lib/ledger';
 import { validateLedger } from '@/lib/finance-validation';
 import {
   createLedger,
   listCategories,
-  loadFinanceDoc,
   loadLedger,
   loadPreviousFinalizedLedger,
   listLedgerSummaries,
-  saveLedger,
 } from '@/lib/db/queries';
 import { ApiError, apiRoute, created, found, jsonBody, searchParam } from '@/lib/api';
-import type { FinanceDoc } from '@/types/finance';
-import type { LedgerAccount, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
+import { loadHoldingList } from '@/lib/db/holdings';
+import { saveLedgerSynced } from '@/lib/db/sync';
+import { accountsForNewMonth } from '@/lib/portfolio-sync';
+import type { MonthlyLedgerPayload } from '@/types/ledger';
 
 export const GET = apiRoute('GET /api/ledger', 'Failed to load ledger', async (req: Request) => {
   const month = searchParam(req, 'month');
@@ -22,21 +21,15 @@ export const GET = apiRoute('GET /api/ledger', 'Failed to load ledger', async (r
 });
 
 export const POST = apiRoute('POST /api/ledger', 'Failed to create ledger', async (req: Request) => {
-  const { month, importFinance = false } = await jsonBody<{ month?: string; importFinance?: boolean }>(req);
+  const { month } = await jsonBody<{ month?: string }>(req);
   if (!month || !isMonth(month)) throw new ApiError('Invalid month');
 
   const existing = await loadLedger(month);
   if (existing) return existing;
 
-  let accounts: LedgerAccount[] = [];
-  if (importFinance) {
-    accounts = accountsFromFinance(await loadFinanceDoc());
-  } else {
-    const previous = await loadPreviousFinalizedLedger(month);
-    if (previous) accounts = carryAccounts(previous);
-  }
-
-  return created(await createLedger({ month, accounts }));
+  // A month opens with an account per holding, at the portfolio's figures.
+  const [holdings, previous] = await Promise.all([loadHoldingList(), loadPreviousFinalizedLedger(month)]);
+  return created(await createLedger({ month, accounts: accountsForNewMonth(holdings, previous) }));
 });
 
 export const PUT = apiRoute('PUT /api/ledger', 'Failed to save ledger', async (req: Request) => {
@@ -50,49 +43,8 @@ export const PUT = apiRoute('PUT /api/ledger', 'Failed to save ledger', async (r
     throw new ApiError('Reopen this month before editing it', 409);
   }
   return found(
-    await saveLedger(existing, body),
+    await saveLedgerSynced(existing, body),
     'This month was changed in another tab. Reload it before saving.',
     409
   );
 });
-
-function accountsFromFinance(finance: FinanceDoc): LedgerAccount[] {
-  const local: LedgerAccount[] = finance.localBanks.map((bank) => ({
-    id: randomUUID(),
-    name: bank.name || 'Local bank',
-    type: 'bank',
-    currency: 'PKR',
-    openingBalance: bank.amountPkr,
-    exchangeRate: 1,
-  }));
-  const remote: LedgerAccount[] = finance.remoteBanks.map((bank) => ({
-    id: randomUUID(),
-    name: bank.name || 'Remote bank',
-    type: 'bank',
-    currency: 'USD',
-    openingBalance: bank.amountUsd,
-    exchangeRate: bank.exchangeRate,
-  }));
-  const funds: LedgerAccount[] = finance.mutualFunds.flatMap((group) => {
-    const bank = Object.keys(group)[0];
-    return (group[bank] ?? []).map((fund) => ({
-      id: randomUUID(),
-      name: `${bank} · ${fund.fund || 'Fund'}`,
-      type: 'fund' as const,
-      currency: 'PKR' as const,
-      openingBalance: fund.value,
-      openingCostBasis: fund.value,
-      exchangeRate: 1,
-    }));
-  });
-  return [...local, ...remote, ...funds];
-}
-
-function carryAccounts(ledger: MonthlyLedger): LedgerAccount[] {
-  return ledger.accounts.map((account) => ({
-    ...account,
-    openingBalance: account.actualClosingBalance ?? account.openingBalance,
-    openingCostBasis: account.type === 'fund' ? accountStats(account, ledger.entries).netInvested : undefined,
-    actualClosingBalance: undefined,
-  }));
-}

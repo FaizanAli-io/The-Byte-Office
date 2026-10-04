@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { isUuid } from '@/lib/db/ids';
 import { eligibleAccounts, isHoldType, isMonth, monthBounds } from '@/lib/ledger';
 import type { FinanceDoc } from '@/types/finance';
 import {
@@ -97,6 +98,9 @@ export function validateLedger(body: MonthlyLedgerPayload, categoryIds: Readonly
 
   const ids = new Set(body.accounts.map((account) => account.id));
   if (ids.size !== body.accounts.length) return 'Account IDs must be unique';
+  const links = body.accounts.flatMap((account) => (account.holdingId === undefined ? [] : [account.holdingId]));
+  if (links.some((id) => typeof id !== 'string' || !isUuid(id))) return 'Invalid portfolio link';
+  if (new Set(links).size !== links.length) return 'Each portfolio holding can have only one account';
 
   for (const account of body.accounts) {
     if (!account.id || !validName(account.name)) {

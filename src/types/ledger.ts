@@ -49,6 +49,8 @@ export interface LedgerCategory {
 
 export interface LedgerAccount {
   id: string;
+  /** The portfolio holding this account mirrors in the newest month; see `portfolio-sync.ts`. */
+  holdingId?: string;
   name: string;
   type: LedgerAccountType;
   currency: LedgerCurrency;

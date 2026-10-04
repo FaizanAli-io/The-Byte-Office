@@ -88,7 +88,8 @@ the mapping step is the real work.
 
 ## 5. Scheduled portfolio snapshots
 
-Snapshots are taken manually, so the history has gaps. A scheduled job that snapshots on the first of each month would
-make the allocation history continuous and give the assistant something to reason about over time.
+Finalizing a month now snapshots the portfolio, so a closed month always leaves a point in the history. Months that
+are never finalized still leave a gap; a scheduled job on the first of each month would close it, and would mostly
+duplicate the finalize snapshot otherwise. Worth it only if months routinely stay open.
 
 ---

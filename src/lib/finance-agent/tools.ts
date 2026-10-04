@@ -4,10 +4,10 @@ import {
   listCategories,
   listLedgerSummaries,
   listSnapshotSummaries,
-  loadHoldings,
   loadHoldMovements,
   loadLedger,
 } from '@/lib/db/queries';
+import { loadHoldings } from '@/lib/db/holdings';
 import { holdingTotals } from '@/lib/finance';
 import { categoryName, heldFunds, ledgerCategoryTotals, ledgerSummary } from '@/lib/ledger';
 import { agentToolRegistry } from '@/lib/agent/registry';
