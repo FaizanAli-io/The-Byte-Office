@@ -1,15 +1,16 @@
 import { randomUUID } from 'crypto';
 import { accountStats, entryUsesAccount, expectedBalance } from '@/lib/ledger';
+import type { HoldingKind } from '@/types/finance';
 import type { LedgerAccount, MonthlyLedger } from '@/types/ledger';
 
-export type HoldingKind = 'local_bank' | 'remote_bank' | 'mutual_fund';
+export type { HoldingKind };
 
-export type HoldingIdentity = { id: string; kind: HoldingKind; name: string; groupName: string | null };
+export type HoldingIdentity = { id: string; kind: HoldingKind; name: string; group: string | null };
 
 export type HoldingValue = { amount: number; exchangeRate: number };
 
 export type PortfolioChange = {
-  create: { holding: HoldingIdentity; value: HoldingValue }[];
+  create: { holding: HoldingIdentity & { sortOrder?: number }; value: HoldingValue }[];
   update: { id: string; value: Partial<HoldingValue> }[];
   archive: string[];
 };
@@ -31,14 +32,14 @@ export function kindOf(account: Pick<LedgerAccount, 'type' | 'currency'>): Holdi
   return account.currency === 'USD' ? 'remote_bank' : 'local_bank';
 }
 
-export function displayName(holding: Pick<HoldingIdentity, 'name' | 'groupName'>) {
-  return holding.groupName === null ? holding.name : `${holding.groupName}${FUND_SEPARATOR}${holding.name}`;
+export function displayName(holding: Pick<HoldingIdentity, 'name' | 'group'>) {
+  return holding.group === null ? holding.name : `${holding.group}${FUND_SEPARATOR}${holding.name}`;
 }
 
-export function splitName(kind: HoldingKind, display: string): Pick<HoldingIdentity, 'name' | 'groupName'> {
-  if (kind !== 'mutual_fund') return { name: display, groupName: null };
+export function splitName(kind: HoldingKind, display: string): Pick<HoldingIdentity, 'name' | 'group'> {
+  if (kind !== 'mutual_fund') return { name: display, group: null };
   const [group, ...rest] = display.split(FUND_SEPARATOR);
-  return { name: rest.join(FUND_SEPARATOR) || group, groupName: group };
+  return { name: rest.join(FUND_SEPARATOR) || group, group: group };
 }
 
 export function accountValue(account: LedgerAccount, entries: MonthlyLedger['entries']) {

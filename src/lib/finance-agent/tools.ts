@@ -7,8 +7,8 @@ import {
   loadHoldMovements,
   loadLedger,
 } from '@/lib/db/queries';
-import { loadHoldings } from '@/lib/db/portfolio';
-import { holdingTotals } from '@/lib/finance';
+import { loadPortfolioHoldings } from '@/lib/db/portfolio';
+import { portfolioTotals, valuePkr } from '@/lib/finance';
 import { categoryName, heldFunds, ledgerCategoryTotals, ledgerSummary } from '@/lib/ledger';
 import { agentToolRegistry } from '@/lib/agent/registry';
 import { saveProposal } from '@/lib/agent/repository';
@@ -23,12 +23,12 @@ export async function executeFinanceTool(
   const input = asObject(args);
 
   if (name === 'portfolio_get') {
-    const [portfolio, movements] = await Promise.all([loadHoldings(), loadHoldMovements()]);
+    const [holdings, movements] = await Promise.all([loadPortfolioHoldings(), loadHoldMovements()]);
     const held = heldFunds(movements);
-    const totals = holdingTotals(portfolio, held.total);
+    const totals = portfolioTotals(holdings, held.total);
     return {
       output: {
-        ...portfolio,
+        holdings: holdings.map((holding) => ({ ...holding, valuePkr: valuePkr(holding) })),
         grandTotalPkr: totals.grandTotal,
         heldForOthersPkr: totals.held,
         netTotalPkr: totals.net,

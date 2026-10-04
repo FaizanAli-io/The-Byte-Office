@@ -1,36 +1,44 @@
 import { describe, expect, it } from 'vitest';
 import {
   bankFundAllocations,
-  holdingTotals,
   individualFundAllocations,
   portfolioTotals,
   snapshotDiff,
   snapshotSeries,
+  valuePkr,
 } from '@/lib/finance';
-import { docToRows, rowsToDoc } from '@/lib/db/holdings';
-import type { FinanceDoc } from '@/types/finance';
+import type { Holding } from '@/types/finance';
 
-const doc: FinanceDoc = {
-  name: 'finance',
-  localBanks: [
-    { id: 'l1', name: 'HBL', amountPkr: 1000 },
-    { id: 'l2', name: 'Meezan', amountPkr: 500 },
-  ],
-  remoteBanks: [{ id: 'r1', name: 'Wise', amountUsd: 100, exchangeRate: 280 }],
-  mutualFunds: [
-    {
-      Meezan: [
-        { id: 'f1', fund: 'Cash', value: 2000 },
-        { id: 'f2', fund: 'Growth', value: 3000 },
-      ],
-    },
-    { HBL: [{ id: 'f3', fund: 'Income', value: 1500 }] },
-  ],
-};
+const bank = (id: string, name: string, amount: number): Holding => ({
+  id,
+  kind: 'local_bank',
+  name,
+  group: null,
+  amount,
+  exchangeRate: 1,
+});
+const fund = (id: string, group: string, name: string, amount: number): Holding => ({
+  id,
+  kind: 'mutual_fund',
+  name,
+  group,
+  amount,
+  exchangeRate: 1,
+});
+const wise: Holding = { id: 'r1', kind: 'remote_bank', name: 'Wise', group: null, amount: 100, exchangeRate: 280 };
+
+const holdings: Holding[] = [
+  bank('l1', 'HBL', 1000),
+  bank('l2', 'Meezan', 500),
+  wise,
+  fund('f1', 'Meezan', 'Cash', 2000),
+  fund('f2', 'Meezan', 'Growth', 3000),
+  fund('f3', 'HBL', 'Income', 1500),
+];
 
 describe('portfolioTotals', () => {
-  it('totals each class and the whole portfolio', () => {
-    expect(portfolioTotals(doc)).toEqual({
+  it('totals each class and the whole portfolio, remote banks at their rate', () => {
+    expect(portfolioTotals(holdings)).toEqual({
       local: 1500,
       remote: 28_000,
       mutual: 6500,
@@ -38,38 +46,30 @@ describe('portfolioTotals', () => {
       held: 0,
       net: 36_000,
     });
+    expect(valuePkr(wise)).toBe(28_000);
   });
 
   it('nets out money being held for someone else', () => {
-    const totals = portfolioTotals(doc, 6000);
+    const totals = portfolioTotals(holdings, 6000);
     expect(totals.grandTotal).toBe(36_000);
     expect(totals.net).toBe(30_000);
   });
 
   it('is zero for an empty portfolio', () => {
-    expect(portfolioTotals({ ...doc, localBanks: [], remoteBanks: [], mutualFunds: [] }).grandTotal).toBe(0);
-  });
-
-  it('agrees with holdingTotals over the same holdings', () => {
-    const flat = docToRows(doc)
-      .filter((row) => row.kind === 'mutual_fund')
-      .map((row) => ({ value: row.amount }));
-    expect(holdingTotals({ localBanks: doc.localBanks, remoteBanks: doc.remoteBanks, mutualFunds: flat })).toEqual(
-      portfolioTotals(doc)
-    );
+    expect(portfolioTotals([]).grandTotal).toBe(0);
   });
 });
 
 describe('allocations', () => {
-  it('groups funds by bank', () => {
-    expect(bankFundAllocations(doc)).toEqual([
+  it('groups funds by bank, in the order each bank first appears', () => {
+    expect(bankFundAllocations(holdings)).toEqual([
       { name: 'Meezan', value: 5000 },
       { name: 'HBL', value: 1500 },
     ]);
   });
 
   it('lists each fund with its bank', () => {
-    expect(individualFundAllocations(doc).map((item) => item.name)).toEqual([
+    expect(individualFundAllocations(holdings).map((item) => item.name)).toEqual([
       'Meezan: Cash',
       'Meezan: Growth',
       'HBL: Income',
@@ -77,65 +77,24 @@ describe('allocations', () => {
   });
 });
 
-describe('holding rows', () => {
-  it('round-trips the editor document through the single table', () => {
-    expect(rowsToDoc(docToRows(doc))).toEqual(doc);
-  });
-
-  it('keeps row ids, so the assistant and ledger links still find each holding', () => {
-    expect(docToRows(doc).map((row) => row.id)).toEqual(['l1', 'l2', 'r1', 'f1', 'f2', 'f3']);
-  });
-
-  it('stores a fund under its bank, and only a remote bank carries a rate', () => {
-    expect(docToRows(doc).map((row) => [row.kind, row.groupName, row.exchangeRate])).toEqual([
-      ['local_bank', null, 1],
-      ['local_bank', null, 1],
-      ['remote_bank', null, 280],
-      ['mutual_fund', 'Meezan', 1],
-      ['mutual_fund', 'Meezan', 1],
-      ['mutual_fund', 'HBL', 1],
-    ]);
-  });
-
-  it('groups funds by bank name, in the order each bank first appears', () => {
-    const rows = docToRows(doc).map((row) => (row.id === 'f3' ? { ...row, sortOrder: -1 } : row));
-    expect(rowsToDoc(rows).mutualFunds.map((group) => Object.keys(group)[0])).toEqual(['HBL', 'Meezan']);
-  });
-
-  it('leaves a newly added fund without an id so it is inserted', () => {
-    const [row] = docToRows({
-      localBanks: [],
-      remoteBanks: [],
-      mutualFunds: [{ Meezan: [{ fund: 'New', value: 1 }] }],
-    });
-    expect(row.id).toBeUndefined();
-  });
-});
-
 describe('snapshotDiff', () => {
   const totalDelta = (diff: ReturnType<typeof snapshotDiff>) => diff.classes.find((row) => row.name === 'Total')!.delta;
 
   it('reports nothing between identical snapshots', () => {
-    const diff = snapshotDiff(doc, structuredClone(doc));
+    const diff = snapshotDiff(holdings, structuredClone(holdings));
     expect(diff.lines).toEqual([]);
     expect(diff.classes.every((row) => row.delta === 0)).toBe(true);
   });
 
   it('lists moved, added and removed holdings, largest move first', () => {
-    const newer: FinanceDoc = {
-      ...doc,
-      localBanks: [{ name: 'HBL', amountPkr: 1200 }],
-      mutualFunds: [
-        {
-          Meezan: [
-            { fund: 'Cash', value: 2000 },
-            { fund: 'Growth', value: 3500 },
-            { fund: 'Gold', value: 900 },
-          ],
-        },
-      ],
-    };
-    const diff = snapshotDiff(doc, newer);
+    const newer = [
+      bank('l1', 'HBL', 1200),
+      wise,
+      fund('f1', 'Meezan', 'Cash', 2000),
+      fund('f2', 'Meezan', 'Growth', 3500),
+      fund('f4', 'Meezan', 'Gold', 900),
+    ];
+    const diff = snapshotDiff(holdings, newer);
     expect(diff.lines).toEqual([
       { kind: 'Mutual fund', name: 'HBL: Income', before: 1500, after: null, delta: -1500 },
       { kind: 'Mutual fund', name: 'Meezan: Gold', before: null, after: 900, delta: 900 },
@@ -147,21 +106,21 @@ describe('snapshotDiff', () => {
   });
 
   it('values remote banks in PKR, so a rate change alone shows up', () => {
-    const newer = { ...doc, remoteBanks: [{ name: 'Wise', amountUsd: 100, exchangeRate: 285 }] };
-    const diff = snapshotDiff(doc, newer);
+    const newer = holdings.map((holding) => (holding.id === 'r1' ? { ...holding, exchangeRate: 285 } : holding));
+    const diff = snapshotDiff(holdings, newer);
     expect(diff.lines).toEqual([{ kind: 'Remote bank', name: 'Wise', before: 28_000, after: 28_500, delta: 500 }]);
     expect(diff.classes.find((row) => row.name === 'Remote banks')!.delta).toBe(500);
   });
 
   it('keeps a local bank and a fund bank with the same name apart', () => {
-    const newer = { ...doc, localBanks: [...doc.localBanks.slice(1)] };
-    expect(snapshotDiff(doc, newer).lines.map((line) => line.name)).toEqual(['HBL']);
+    const newer = holdings.filter((holding) => holding.id !== 'l1');
+    expect(snapshotDiff(holdings, newer).lines.map((line) => line.name)).toEqual(['HBL']);
   });
 });
 
 describe('snapshotSeries', () => {
   it('offers every grain, from the total down to one fund', () => {
-    const series = [...snapshotSeries(doc).values()];
+    const series = [...snapshotSeries(holdings).values()];
     const value = (kind: string, name: string) => series.find((row) => row.kind === kind && row.name === name)?.value;
     expect(value('Totals', 'Total')).toBe(36_000);
     expect(value('Totals', 'Mutual funds')).toBe(6500);

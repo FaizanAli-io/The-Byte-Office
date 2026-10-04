@@ -1,57 +1,84 @@
+import { valuePkr } from '@/lib/finance';
+import type { Holding } from '@/types/finance';
 import { DeleteButton, Field, SectionCard, SectionTotal } from './shared';
 
-export type HoldingField<T> = {
-  key: keyof T & string;
+export type IndexedHolding = Holding & { index: number };
+
+export type HoldingField = {
+  key: 'name' | 'amount' | 'exchangeRate';
   label: string;
   numeric?: boolean;
   money?: boolean;
   placeholder?: string;
 };
 
-export function HoldingSection<T extends { id?: string }>({
+export function HoldingRow({
+  holding,
+  fields,
+  className,
+  onChange,
+  onDelete,
+}: {
+  holding: IndexedHolding;
+  fields: HoldingField[];
+  className: string;
+  onChange: (index: number, patch: Partial<Holding>) => void;
+  onDelete: (index: number) => void;
+}) {
+  return (
+    <div className={className}>
+      {fields.map((field) => (
+        <Field
+          key={field.key}
+          label={field.label}
+          numeric={field.numeric}
+          money={field.money}
+          placeholder={field.placeholder ?? (field.numeric || field.money ? '0' : undefined)}
+          value={holding[field.key]}
+          onChange={(value) => onChange(holding.index, { [field.key]: value })}
+        />
+      ))}
+      <DeleteButton onClick={() => onDelete(holding.index)} />
+    </div>
+  );
+}
+
+export function HoldingSection({
   title,
   addLabel,
   rows,
   fields,
   rowClass,
-  toPkr,
   onAdd,
-  onDelete,
   onChange,
+  onDelete,
 }: {
   title: string;
   addLabel: string;
-  rows: T[];
-  fields: HoldingField<T>[];
+  rows: IndexedHolding[];
+  fields: HoldingField[];
   rowClass: string;
-  toPkr: (row: T) => number;
   onAdd: () => void;
+  onChange: (index: number, patch: Partial<Holding>) => void;
   onDelete: (index: number) => void;
-  onChange: (index: number, key: keyof T & string, value: string | number) => void;
 }) {
   return (
     <SectionCard
       title={title}
       addLabel={addLabel}
       onAdd={onAdd}
-      footer={<SectionTotal value={rows.reduce((sum, row) => sum + toPkr(row), 0)} unit="PKR" />}
+      footer={<SectionTotal value={rows.reduce((sum, row) => sum + valuePkr(row), 0)} unit="PKR" />}
     >
       <div className="space-y-3">
-        {rows.map((row, index) => (
-          <div key={row.id ?? `new-${index}`} className={rowClass}>
-            {fields.map((field) => (
-              <Field
-                key={field.key}
-                label={field.label}
-                numeric={field.numeric}
-                money={field.money}
-                placeholder={field.placeholder ?? (field.numeric || field.money ? '0' : undefined)}
-                value={row[field.key] as string | number}
-                onChange={(value) => onChange(index, field.key, value)}
-              />
-            ))}
-            <DeleteButton onClick={() => onDelete(index)} />
-          </div>
+        {rows.map((row) => (
+          <HoldingRow
+            key={row.id ?? `new-${row.index}`}
+            holding={row}
+            fields={fields}
+            className={rowClass}
+            onChange={onChange}
+            onDelete={onDelete}
+          />
         ))}
       </div>
     </SectionCard>

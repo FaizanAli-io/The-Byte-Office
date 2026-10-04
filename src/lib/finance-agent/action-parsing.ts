@@ -1,15 +1,11 @@
 import { AgentActionError } from '@/lib/agent/action-utils';
-import { entryTypeSchema, itemTypeSchema } from '@/lib/agent/fields';
+import { entryTypeSchema, holdingKindSchema } from '@/lib/agent/fields';
 import { isRecord, validMoney, validName, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
 import { eligibleAccounts, monthBounds } from '@/lib/ledger';
+import type { HoldingKind } from '@/types/finance';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger } from '@/types/ledger';
 import { fingerprint } from '@/lib/agent/repository';
-import type {
-  AgentActionPayload,
-  LedgerEntryFormState,
-  PortfolioItemInput,
-  PortfolioItemType,
-} from '@/lib/agent/types';
+import type { AgentActionPayload, LedgerEntryFormState, HoldingInput } from '@/lib/agent/types';
 
 export function resolveEntryId(ledger: MonthlyLedger, args: Record<string, unknown>) {
   const hasSerial = args.entrySerial !== undefined;
@@ -91,32 +87,30 @@ export function assertLedgerStructure(ledger: MonthlyLedger, sourceFingerprint: 
   }
 }
 
-const HOLDING_FIELDS = {
-  local_bank: { name: requireName, amountPkr: requireMoney },
-  remote_bank: { name: requireName, amountUsd: requireMoney, exchangeRate: requirePositive },
-  mutual_fund: { bankName: requireName, fundName: requireName, value: requireMoney },
-} as const;
+const KIND_LABELS: Record<HoldingKind, string> = {
+  local_bank: 'local bank',
+  remote_bank: 'remote bank',
+  mutual_fund: 'mutual fund',
+};
 
-function parseHolding(
-  itemType: PortfolioItemType,
-  args: Record<string, unknown>,
-  current: Record<string, unknown> = {}
-) {
-  const fields: Record<string, (value: unknown, key: string) => string | number> = HOLDING_FIELDS[itemType];
-  return Object.fromEntries(Object.entries(fields).map(([key, check]) => [key, check(args[key] ?? current[key], key)]));
+export const holdingLabel = (kind: HoldingKind) => KIND_LABELS[kind];
+
+export function parseHolding(args: Record<string, unknown>, current?: HoldingInput): HoldingInput {
+  const kind = current?.kind ?? parseKind(args.kind);
+  return {
+    kind,
+    name: requireName(args.name ?? current?.name, 'name'),
+    group: kind === 'mutual_fund' ? requireName(args.group ?? current?.group, 'group') : null,
+    amount: requireMoney(args.amount ?? current?.amount, 'amount'),
+    exchangeRate:
+      kind === 'remote_bank' ? requirePositive(args.exchangeRate ?? current?.exchangeRate, 'exchangeRate') : 1,
+  };
 }
 
-export function parsePortfolioItem(args: Record<string, unknown>): PortfolioItemInput {
-  const itemType = parseItemType(args.itemType);
-  return { itemType, ...parseHolding(itemType, args) } as PortfolioItemInput;
-}
-
-export function parsePortfolioUpdate(
-  itemType: PortfolioItemType,
-  args: Record<string, unknown>,
-  current: Record<string, unknown>
-) {
-  return parseHolding(itemType, args, current);
+function parseKind(value: unknown): HoldingKind {
+  const parsed = holdingKindSchema.safeParse(value);
+  if (!parsed.success) throw new AgentActionError('kind must be local_bank, remote_bank or mutual_fund');
+  return parsed.data;
 }
 
 export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
@@ -144,12 +138,6 @@ export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<Le
     counterparty: carriedString('counterparty'),
     note: carriedString('note'),
   };
-}
-
-export function parseItemType(value: unknown): PortfolioItemType {
-  const parsed = itemTypeSchema.safeParse(value);
-  if (!parsed.success) throw new AgentActionError('Invalid itemType');
-  return parsed.data;
 }
 
 function requireEntryType(value: unknown): LedgerEntry['type'] {
@@ -187,10 +175,6 @@ function requirePositive(value: unknown, key: string) {
     throw new AgentActionError(`${key} must be a positive number`);
   }
   return value;
-}
-
-export function portfolioLabel(type: PortfolioItemType) {
-  return type.replace('_', ' ');
 }
 
 export function applyEntryOverride(payload: AgentActionPayload, override: unknown): AgentActionPayload {

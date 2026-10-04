@@ -133,9 +133,18 @@ export default function SnapshotsPage() {
                   <div className="space-y-4 border-t border-white/7 p-5 sm:p-6">
                     <TextSummary snapshot={snapshot} />
                     <div className="grid gap-4 xl:grid-cols-3">
-                      <AllocationChart title="Portfolio allocation" data={portfolioAllocations(snapshot.data)} />
-                      <AllocationChart title="Funds by institution" data={bankFundAllocations(snapshot.data)} />
-                      <AllocationChart title="Individual funds" data={individualFundAllocations(snapshot.data)} />
+                      <AllocationChart
+                        title="Portfolio allocation"
+                        data={portfolioAllocations(snapshot.data.holdings)}
+                      />
+                      <AllocationChart
+                        title="Funds by institution"
+                        data={bankFundAllocations(snapshot.data.holdings)}
+                      />
+                      <AllocationChart
+                        title="Individual funds"
+                        data={individualFundAllocations(snapshot.data.holdings)}
+                      />
                     </div>
                   </div>
                 ) : null}

@@ -1,6 +1,5 @@
+import type { Holding } from '@/types/finance';
 import type { CategoryKind, LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
-
-export type PortfolioItemType = 'local_bank' | 'remote_bank' | 'mutual_fund';
 
 export type AgentActionType =
   | 'portfolio_item_add'
@@ -24,24 +23,7 @@ export type AgentActionType =
   | 'health_metric_remove'
   | 'tbo_send_inquiry';
 
-export type PortfolioItemInput =
-  | {
-      itemType: 'local_bank';
-      name: string;
-      amountPkr: number;
-    }
-  | {
-      itemType: 'remote_bank';
-      name: string;
-      amountUsd: number;
-      exchangeRate: number;
-    }
-  | {
-      itemType: 'mutual_fund';
-      bankName: string;
-      fundName: string;
-      value: number;
-    };
+export type HoldingInput = Omit<Holding, 'id'>;
 
 export type LedgerAccountChanges = {
   name?: string;
@@ -61,21 +43,9 @@ export type PersonalActionType =
   | 'health_metric_remove';
 
 export type AgentActionPayload =
-  | {
-      actionType: 'portfolio_item_add';
-      item: PortfolioItemInput;
-    }
-  | {
-      actionType: 'portfolio_item_update';
-      itemType: PortfolioItemType;
-      id: string;
-      changes: Record<string, unknown>;
-    }
-  | {
-      actionType: 'portfolio_item_remove';
-      itemType: PortfolioItemType;
-      id: string;
-    }
+  | { actionType: 'portfolio_item_add'; item: HoldingInput }
+  | { actionType: 'portfolio_item_update'; id: string; changes: Omit<HoldingInput, 'kind'> }
+  | { actionType: 'portfolio_item_remove'; id: string }
   | {
       actionType: 'ledger_entry_add';
       month: string;

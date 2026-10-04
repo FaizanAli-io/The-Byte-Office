@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import { CATEGORY_KINDS, LEDGER_ENTRY_TYPES } from '@/types/ledger';
+import { HOLDING_KINDS } from '@/types/finance';
 
 export const empty = z.object({});
 export const month = z
@@ -10,8 +11,7 @@ export const entrySerial = z
   .string()
   .regex(/^\d{4,}$/, 'Use a ledger serial such as 0001')
   .describe('Zero-padded serial from ledger_get, such as 0001');
-export const itemTypeSchema = z.enum(['local_bank', 'remote_bank', 'mutual_fund']);
-export const itemType = itemTypeSchema;
+export const holdingKindSchema = z.enum(HOLDING_KINDS);
 export const entryTypeSchema = z.enum(LEDGER_ENTRY_TYPES);
 export const entryType = entryTypeSchema;
 export const isoDate = z
@@ -23,15 +23,16 @@ export const categoryName = z.string().min(1).describe('Category name, as catego
 export const categoryId = z.string().min(1).describe('Category id from categories_list');
 export const categoryKind = z.enum(CATEGORY_KINDS).describe('Which entry types may use it: income, expense, or both');
 
-export const portfolioFields = {
-  itemType,
-  name: z.string().min(1).optional().describe('Holding name'),
-  amountPkr: z.number().nonnegative().optional().describe('Balance in PKR'),
-  amountUsd: z.number().nonnegative().optional().describe('Balance in USD'),
-  exchangeRate: z.number().positive().optional().describe('PKR per 1 USD'),
-  bankName: z.string().min(1).optional(),
-  fundName: z.string().min(1).optional(),
-  value: z.number().nonnegative().optional().describe('Current value in PKR'),
+export const holdingFields = {
+  name: z.string().min(1).describe('Bank or fund name'),
+  group: z
+    .string()
+    .min(1)
+    .nullable()
+    .optional()
+    .describe("A mutual fund's bank; required for funds, omitted otherwise"),
+  amount: z.number().nonnegative().describe('Balance in its currency: USD for a remote bank, otherwise PKR'),
+  exchangeRate: z.number().positive().optional().describe('PKR per 1 USD; remote banks only'),
 };
 
 export const ledgerEntryFields = {

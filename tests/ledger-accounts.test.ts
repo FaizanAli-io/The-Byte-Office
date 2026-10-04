@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAccountAction, accountBalances, planAccountAction } from '@/lib/finance-agent/ledger-accounts';
+import { parseHolding } from '@/lib/finance-agent/action-parsing';
 import type { MonthlyLedger } from '@/types/ledger';
 
 const ledger: MonthlyLedger = {
@@ -55,5 +56,28 @@ describe('ledger account actions', () => {
       accounts: run('ledger_account_update', { accountId: 'a', actualClosingBalance: 880 }),
     });
     expect(hbl).toMatchObject({ expectedClosingBalance: 900, difference: -20 });
+  });
+});
+
+describe('parseHolding', () => {
+  it('needs a bank for a fund and a rate for a remote bank, and fixes the rest', () => {
+    expect(parseHolding({ kind: 'mutual_fund', name: 'Cash', group: 'Meezan', amount: 5 })).toEqual({
+      kind: 'mutual_fund',
+      name: 'Cash',
+      group: 'Meezan',
+      amount: 5,
+      exchangeRate: 1,
+    });
+    expect(() => parseHolding({ kind: 'mutual_fund', name: 'Cash', amount: 5 })).toThrow(/group/);
+    expect(() => parseHolding({ kind: 'remote_bank', name: 'Wise', amount: 5 })).toThrow(/exchangeRate/);
+    expect(parseHolding({ kind: 'local_bank', name: 'HBL', group: 'x', amount: 1, exchangeRate: 9 })).toMatchObject({
+      group: null,
+      exchangeRate: 1,
+    });
+  });
+
+  it('fills an update from the current holding and never changes its kind', () => {
+    const current = { kind: 'remote_bank' as const, name: 'Wise', group: null, amount: 100, exchangeRate: 280 };
+    expect(parseHolding({ amount: 120, kind: 'local_bank' }, current)).toEqual({ ...current, amount: 120 });
   });
 });

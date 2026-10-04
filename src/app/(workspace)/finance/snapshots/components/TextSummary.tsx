@@ -1,45 +1,28 @@
 'use client';
 
-import { portfolioTotals } from '@/lib/finance';
+import { bankFundAllocations, portfolioTotals, valuePkr } from '@/lib/finance';
 import { formatMoney } from '@/lib/ledger';
-import type { FinanceSnapshot } from '@/types/finance';
+import type { FinanceSnapshot, SnapshotHolding } from '@/types/finance';
 
 export function TextSummary({ snapshot }: { snapshot: FinanceSnapshot }) {
-  const totals = portfolioTotals(snapshot.data);
+  const { holdings } = snapshot.data;
+  const totals = portfolioTotals(holdings);
+  const rows = (kind: SnapshotHolding['kind']) =>
+    holdings
+      .filter((holding) => holding.kind === kind)
+      .map((holding) => ({ label: holding.name, value: valuePkr(holding) }));
 
   return (
     <div className="rounded-xl border border-white/7 bg-slate-950/45 p-4">
       <h4 className="mb-4 text-sm font-bold text-slate-200">Portfolio summary</h4>
       <div className="grid gap-5 md:grid-cols-3">
-        <SummaryGroup
-          title="Local banks"
-          tone="text-emerald-300"
-          total={totals.local}
-          items={snapshot.data.localBanks.map((bank) => ({
-            label: bank.name,
-            value: bank.amountPkr,
-          }))}
-        />
-        <SummaryGroup
-          title="Remote banks"
-          tone="text-cyan-300"
-          total={totals.remote}
-          items={snapshot.data.remoteBanks.map((bank) => ({
-            label: bank.name,
-            value: bank.amountUsd * bank.exchangeRate,
-          }))}
-        />
+        <SummaryGroup title="Local banks" tone="text-emerald-300" total={totals.local} items={rows('local_bank')} />
+        <SummaryGroup title="Remote banks" tone="text-cyan-300" total={totals.remote} items={rows('remote_bank')} />
         <SummaryGroup
           title="Mutual funds"
           tone="text-amber-300"
           total={totals.mutual}
-          items={snapshot.data.mutualFunds.map((group) => {
-            const bank = Object.keys(group)[0];
-            return {
-              label: bank,
-              value: (group[bank] ?? []).reduce((sum, fund) => sum + fund.value, 0),
-            };
-          })}
+          items={bankFundAllocations(holdings).map(({ name, value }) => ({ label: name, value }))}
         />
       </div>
     </div>

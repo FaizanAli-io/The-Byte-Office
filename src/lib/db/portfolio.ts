@@ -2,10 +2,8 @@ import { randomUUID } from 'crypto';
 import {
   archiveHoldings,
   deleteHoldings,
-  docToRows,
   insertHoldings,
   loadActiveHoldings,
-  rowsToDoc,
   updateHoldingIdentities,
   type HoldingRow,
 } from './holdings';
@@ -21,18 +19,17 @@ import {
 } from '@/lib/accounts';
 import { portfolioTotals } from '@/lib/finance';
 import { currentMonth, nextMonth } from '@/lib/ledger';
-import type { PortfolioItemInput, PortfolioItemType } from '@/lib/agent/types';
-import type { FinanceDoc } from '@/types/finance';
+import type { Holding } from '@/types/finance';
 import type { MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 
-type IdentityUpdate = { id: string } & Partial<Pick<HoldingRow, 'name' | 'groupName' | 'sortOrder'>>;
+type IdentityUpdate = { id: string } & Partial<Pick<HoldingRow, 'name' | 'group' | 'sortOrder'>>;
 type PortfolioRow = HoldingValue & { row: HoldingRow };
 
 const identity = (row: HoldingRow): HoldingIdentity => ({
   id: row.id,
   kind: row.kind,
   name: row.name,
-  groupName: row.groupName,
+  group: row.group,
 });
 
 const differs = (a: number, b: number) => Math.abs(a - b) >= 0.005;
@@ -48,52 +45,16 @@ async function loadPortfolio(): Promise<PortfolioRow[]> {
   return rows.map((row) => ({ row, ...(values.get(row.id) ?? { amount: 0, exchangeRate: 1 }) }));
 }
 
-export async function loadFinanceDoc(): Promise<FinanceDoc> {
-  return rowsToDoc(
-    (await loadPortfolio()).map(({ row, amount, exchangeRate }) => ({
-      ...identity(row),
-      amount,
-      exchangeRate,
-      sortOrder: row.sortOrder,
-    }))
-  );
+export async function loadPortfolioHoldings(): Promise<Holding[]> {
+  return (await loadPortfolio()).map(({ row, amount, exchangeRate }) => ({
+    ...identity(row),
+    amount,
+    exchangeRate: row.kind === 'remote_bank' ? exchangeRate : 1,
+  }));
 }
 
-const meta = ({ row }: PortfolioRow) => ({
-  sortOrder: row.sortOrder,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
-});
-const localItem = (p: PortfolioRow) => ({ id: p.row.id, name: p.row.name, amountPkr: p.amount, ...meta(p) });
-const remoteItem = (p: PortfolioRow) => ({
-  id: p.row.id,
-  name: p.row.name,
-  amountUsd: p.amount,
-  exchangeRate: p.exchangeRate,
-  ...meta(p),
-});
-const fundItem = (p: PortfolioRow) => ({
-  id: p.row.id,
-  bankName: p.row.groupName ?? '',
-  fundName: p.row.name,
-  value: p.amount,
-  ...meta(p),
-});
-const ITEM_SHAPES = { local_bank: localItem, remote_bank: remoteItem, mutual_fund: fundItem };
-
-export async function loadHoldings() {
-  const portfolio = await loadPortfolio();
-  const ofKind = (kind: HoldingRow['kind']) => portfolio.filter((p) => p.row.kind === kind);
-  return {
-    localBanks: ofKind('local_bank').map(localItem),
-    remoteBanks: ofKind('remote_bank').map(remoteItem),
-    mutualFunds: ofKind('mutual_fund').map(fundItem),
-  };
-}
-
-export async function getPortfolioItem(itemType: PortfolioItemType, id: string) {
-  const found = (await loadPortfolio()).find((p) => p.row.id === id && p.row.kind === itemType);
-  return found ? ITEM_SHAPES[itemType](found) : null;
+export async function getHolding(id: string) {
+  return (await loadPortfolioHoldings()).find((holding) => holding.id === id) ?? null;
 }
 
 export async function loadHoldingIdentities() {
@@ -125,34 +86,36 @@ async function applyPortfolioChange(change: PortfolioChange, identities: Identit
   throw new Error(`The ${ledger.month} ledger kept changing while saving the portfolio. Try again.`);
 }
 
-export async function saveFinanceDoc(doc: Omit<FinanceDoc, '_id'>) {
+const rateFor = (holding: Pick<Holding, 'kind' | 'exchangeRate'>) =>
+  holding.kind === 'remote_bank' ? holding.exchangeRate : 1;
+
+export async function savePortfolio(next: Holding[]) {
   const current = new Map((await loadPortfolio()).map((p) => [p.row.id, p]));
   const change: PortfolioChange = { create: [], update: [], archive: [] };
   const identities: IdentityUpdate[] = [];
   const seen = new Set<string>();
+  const position = new Map<string, number>();
 
-  for (const row of docToRows(doc)) {
-    const existing = row.id && !seen.has(row.id) ? current.get(row.id) : undefined;
+  for (const holding of next) {
+    const sortOrder = position.get(holding.kind) ?? 0;
+    position.set(holding.kind, sortOrder + 1);
+    const existing = holding.id && !seen.has(holding.id) ? current.get(holding.id) : undefined;
     if (!existing) {
-      const holding = {
-        id: randomUUID(),
-        kind: row.kind,
-        name: row.name,
-        groupName: row.groupName,
-        sortOrder: row.sortOrder,
-      };
-      change.create.push({ holding, value: { amount: row.amount, exchangeRate: row.exchangeRate } });
+      change.create.push({
+        holding: { id: randomUUID(), kind: holding.kind, name: holding.name, group: holding.group, sortOrder },
+        value: { amount: holding.amount, exchangeRate: rateFor(holding) },
+      });
       continue;
     }
     seen.add(existing.row.id);
-    const { name, groupName, sortOrder } = existing.row;
-    if (name !== row.name || groupName !== row.groupName || sortOrder !== row.sortOrder) {
-      identities.push({ id: existing.row.id, name: row.name, groupName: row.groupName, sortOrder: row.sortOrder });
+    const { name, group } = existing.row;
+    if (name !== holding.name || group !== holding.group || existing.row.sortOrder !== sortOrder) {
+      identities.push({ id: existing.row.id, name: holding.name, group: holding.group, sortOrder });
     }
     const value: Partial<HoldingValue> = {
-      ...(differs(existing.amount, row.amount) ? { amount: row.amount } : {}),
-      ...(row.kind === 'remote_bank' && differs(existing.exchangeRate, row.exchangeRate)
-        ? { exchangeRate: row.exchangeRate }
+      ...(differs(existing.amount, holding.amount) ? { amount: holding.amount } : {}),
+      ...(holding.kind === 'remote_bank' && differs(existing.exchangeRate, holding.exchangeRate)
+        ? { exchangeRate: holding.exchangeRate }
         : {}),
     };
     if (Object.keys(value).length) change.update.push({ id: existing.row.id, value });
@@ -160,56 +123,39 @@ export async function saveFinanceDoc(doc: Omit<FinanceDoc, '_id'>) {
   for (const id of current.keys()) if (!seen.has(id)) change.archive.push(id);
 
   await applyPortfolioChange(change, identities);
-  return loadFinanceDoc();
+  return loadPortfolioHoldings();
 }
 
-function itemParts(item: PortfolioItemInput): { holding: HoldingIdentity; value: HoldingValue } {
-  const id = randomUUID();
-  if (item.itemType === 'local_bank') {
-    return {
-      holding: { id, kind: item.itemType, name: item.name, groupName: null },
-      value: { amount: item.amountPkr, exchangeRate: 1 },
-    };
-  }
-  if (item.itemType === 'remote_bank') {
-    return {
-      holding: { id, kind: item.itemType, name: item.name, groupName: null },
-      value: { amount: item.amountUsd, exchangeRate: item.exchangeRate },
-    };
-  }
-  return {
-    holding: { id, kind: item.itemType, name: item.fundName, groupName: item.bankName },
-    value: { amount: item.value, exchangeRate: 1 },
-  };
+export async function addHolding(input: Omit<Holding, 'id'>) {
+  const holding = { id: randomUUID(), kind: input.kind, name: input.name, group: input.group };
+  await applyPortfolioChange({
+    create: [{ holding, value: { amount: input.amount, exchangeRate: rateFor(input) } }],
+    update: [],
+    archive: [],
+  });
+  return getHolding(holding.id);
 }
 
-export async function addPortfolioItem(item: PortfolioItemInput) {
-  const created = itemParts(item);
-  await applyPortfolioChange({ create: [created], update: [], archive: [] });
-  return getPortfolioItem(item.itemType, created.holding.id);
-}
-
-export async function updatePortfolioItem(itemType: PortfolioItemType, id: string, changes: Record<string, unknown>) {
-  const name = (itemType === 'mutual_fund' ? changes.fundName : changes.name) as string | undefined;
-  const groupName = itemType === 'mutual_fund' ? (changes.bankName as string | undefined) : undefined;
-  const amount = (changes.amountPkr ?? changes.amountUsd ?? changes.value) as number | undefined;
-  const exchangeRate = itemType === 'remote_bank' ? (changes.exchangeRate as number | undefined) : undefined;
+export async function updateHolding(id: string, changes: Partial<Omit<Holding, 'id' | 'kind'>>) {
+  const current = await getHolding(id);
+  if (!current) return null;
+  const { name, group, amount, exchangeRate } = changes;
   const value = {
     ...(amount === undefined ? {} : { amount }),
-    ...(exchangeRate === undefined ? {} : { exchangeRate }),
+    ...(exchangeRate === undefined || current.kind !== 'remote_bank' ? {} : { exchangeRate }),
   };
-  const identities = name !== undefined || groupName !== undefined ? [{ id, name, groupName }] : [];
+  const identities = name !== undefined || group !== undefined ? [{ id, name, group }] : [];
   await applyPortfolioChange(
     { create: [], update: Object.keys(value).length ? [{ id, value }] : [], archive: [] },
     identities
   );
-  return getPortfolioItem(itemType, id);
+  return getHolding(id);
 }
 
-export async function removePortfolioItem(itemType: PortfolioItemType, id: string) {
-  if (!(await getPortfolioItem(itemType, id))) return [];
+export async function removeHolding(id: string) {
+  if (!(await getHolding(id))) return false;
   await applyPortfolioChange({ create: [], update: [], archive: [id] });
-  return [{ id }];
+  return true;
 }
 
 // holding_id is a foreign key: holdings are created before the ledger save and rolled back if it fails.
@@ -223,12 +169,12 @@ export async function saveLedgerSynced(existing: MonthlyLedger, body: MonthlyLed
     await deleteHoldings(plan.create.map((holding) => holding.id));
     return null;
   }
-  await updateHoldingIdentities(plan.rename.map(({ id, name, groupName }) => ({ id, name, groupName })));
+  await updateHoldingIdentities(plan.rename.map(({ id, name, group }) => ({ id, name, group })));
   await archiveHoldings(plan.archive);
 
   if (existing.status === 'draft' && saved.status === 'finalized') {
-    const portfolio = await loadFinanceDoc();
-    await createSnapshot(portfolio, portfolioTotals(portfolio).grandTotal);
+    const holdings = await loadPortfolioHoldings();
+    await createSnapshot(holdings, portfolioTotals(holdings).grandTotal);
   }
   return plan.rename.length ? loadLedger(body.month) : saved;
 }

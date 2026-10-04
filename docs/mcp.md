@@ -26,6 +26,10 @@ the chat assistant the same tools create a confirmation card instead.
 |                        | `category_update`       |
 |                        | `category_remove`       |
 
+Holdings are one flat list. `portfolio_get` returns `holdings`, each with `id`, `kind` (`local_bank`, `remote_bank`,
+`mutual_fund`), `name`, `group` (a fund's bank), `amount` in its currency (USD for a remote bank, otherwise PKR),
+`exchangeRate` and `valuePkr`. `portfolio_item_add` takes the same fields; update and remove take the `id`.
+
 ## Personal
 
 | Read (`personal:read`) | Write (`personal:write`) |

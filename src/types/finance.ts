@@ -1,35 +1,20 @@
-export interface FinanceFund {
-  id?: string;
-  fund: string;
-  value: number;
-}
+export const HOLDING_KINDS = ['local_bank', 'remote_bank', 'mutual_fund'] as const;
+export type HoldingKind = (typeof HOLDING_KINDS)[number];
 
-export interface FinanceRemoteBank {
+export interface Holding {
   id?: string;
+  kind: HoldingKind;
   name: string;
-  amountUsd: number;
+  group: string | null;
+  amount: number;
   exchangeRate: number;
 }
 
-export interface FinanceLocalBank {
-  id?: string;
-  name: string;
-  amountPkr: number;
-}
-
-export interface FinanceDoc {
-  _id?: string;
-  name: string;
-  mutualFunds: {
-    [bank: string]: FinanceFund[];
-  }[];
-  remoteBanks: FinanceRemoteBank[];
-  localBanks: FinanceLocalBank[];
-}
+export type SnapshotHolding = Omit<Holding, 'id'>;
 
 export interface FinanceSnapshot {
   _id?: string;
   timestamp: Date;
-  data: Omit<FinanceDoc, '_id'>;
+  data: { holdings: SnapshotHolding[] };
   grandTotal: number;
 }

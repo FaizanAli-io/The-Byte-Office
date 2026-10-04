@@ -1,34 +1,25 @@
-import type { FinanceDoc, FinanceFund } from '@/types/finance';
+import type { HoldingKind, SnapshotHolding } from '@/types/finance';
 
-export type HoldingRows = {
-  localBanks: { amountPkr: number }[];
-  remoteBanks: { amountUsd: number; exchangeRate: number }[];
-  mutualFunds: { value: number }[];
-};
+type Valued = Pick<SnapshotHolding, 'kind' | 'name' | 'group' | 'amount' | 'exchangeRate'>;
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
-export function holdingTotals(rows: HoldingRows, held = 0) {
-  const local = sum(rows.localBanks.map((bank) => bank.amountPkr));
-  const remote = sum(rows.remoteBanks.map((bank) => bank.amountUsd * bank.exchangeRate));
-  const mutual = sum(rows.mutualFunds.map((fund) => fund.value));
+export const valuePkr = (holding: Pick<Valued, 'kind' | 'amount' | 'exchangeRate'>) =>
+  holding.kind === 'remote_bank' ? holding.amount * holding.exchangeRate : holding.amount;
+
+const totalOf = (holdings: Valued[], kind: HoldingKind) =>
+  sum(holdings.filter((holding) => holding.kind === kind).map(valuePkr));
+
+export function portfolioTotals(holdings: Valued[], held = 0) {
+  const local = totalOf(holdings, 'local_bank');
+  const remote = totalOf(holdings, 'remote_bank');
+  const mutual = totalOf(holdings, 'mutual_fund');
   const grandTotal = local + remote + mutual;
   return { local, remote, mutual, grandTotal, held, net: grandTotal - held };
 }
 
-function fundGroups(data: Pick<FinanceDoc, 'mutualFunds'>): { bank: string; funds: FinanceFund[] }[] {
-  return data.mutualFunds.map((group) => {
-    const bank = Object.keys(group)[0];
-    return { bank, funds: group[bank] ?? [] };
-  });
-}
-
-export function portfolioTotals(data: Pick<FinanceDoc, 'localBanks' | 'remoteBanks' | 'mutualFunds'>, held = 0) {
-  return holdingTotals({ ...data, mutualFunds: fundGroups(data).flatMap((group) => group.funds) }, held);
-}
-
-export function portfolioAllocations(data: Pick<FinanceDoc, 'localBanks' | 'remoteBanks' | 'mutualFunds'>) {
-  const totals = portfolioTotals(data);
+export function portfolioAllocations(holdings: Valued[]) {
+  const totals = portfolioTotals(holdings);
   return [
     { name: 'Local banks', value: totals.local },
     { name: 'Remote banks', value: totals.remote },
@@ -36,20 +27,29 @@ export function portfolioAllocations(data: Pick<FinanceDoc, 'localBanks' | 'remo
   ];
 }
 
-export function bankFundAllocations(data: Pick<FinanceDoc, 'mutualFunds'>) {
-  return fundGroups(data).map(({ bank, funds }) => ({
-    name: bank,
-    value: sum(funds.map((fund) => fund.value)),
-  }));
+export function fundGroups<T extends Valued>(holdings: T[]) {
+  const groups = new Map<string, T[]>();
+  for (const fund of holdings.filter((holding) => holding.kind === 'mutual_fund')) {
+    groups.set(fund.group ?? '', [...(groups.get(fund.group ?? '') ?? []), fund]);
+  }
+  return [...groups].map(([bank, funds]) => ({ bank, funds }));
 }
 
-export function individualFundAllocations(data: Pick<FinanceDoc, 'mutualFunds'>) {
-  return fundGroups(data).flatMap(({ bank, funds }) =>
-    funds.map((fund) => ({ name: `${bank}: ${fund.fund}`, value: fund.value }))
+export function bankFundAllocations(holdings: Valued[]) {
+  return fundGroups(holdings).map(({ bank, funds }) => ({ name: bank, value: sum(funds.map(valuePkr)) }));
+}
+
+export function individualFundAllocations(holdings: Valued[]) {
+  return fundGroups(holdings).flatMap(({ bank, funds }) =>
+    funds.map((fund) => ({ name: `${bank}: ${fund.name}`, value: fund.amount }))
   );
 }
 
-type SnapshotData = Pick<FinanceDoc, 'localBanks' | 'remoteBanks' | 'mutualFunds'>;
+const KIND_LABELS: Record<HoldingKind, string> = {
+  local_bank: 'Local bank',
+  remote_bank: 'Remote bank',
+  mutual_fund: 'Mutual fund',
+};
 
 function keyedValues() {
   const values = new Map<string, { kind: string; name: string; value: number }>();
@@ -60,23 +60,23 @@ function keyedValues() {
   return { values, add };
 }
 
-function snapshotLines(data: SnapshotData) {
+function snapshotLines(holdings: Valued[]) {
   const { values, add } = keyedValues();
-  data.localBanks.forEach((bank) => add('Local bank', bank.name, bank.amountPkr));
-  data.remoteBanks.forEach((bank) => add('Remote bank', bank.name, bank.amountUsd * bank.exchangeRate));
-  individualFundAllocations(data).forEach((fund) => add('Mutual fund', fund.name, fund.value));
+  for (const holding of holdings) {
+    const name = holding.kind === 'mutual_fund' ? `${holding.group ?? ''}: ${holding.name}` : holding.name;
+    add(KIND_LABELS[holding.kind], name, valuePkr(holding));
+  }
   return values;
 }
 
-export function snapshotSeries(data: SnapshotData) {
+export function snapshotSeries(holdings: Valued[]) {
   const { values, add } = keyedValues();
-  const totals = portfolioTotals(data);
-  add('Totals', 'Total', totals.grandTotal);
-  portfolioAllocations(data).forEach((row) => add('Totals', row.name, row.value));
-  snapshotLines(data).forEach((line) =>
+  add('Totals', 'Total', portfolioTotals(holdings).grandTotal);
+  portfolioAllocations(holdings).forEach((row) => add('Totals', row.name, row.value));
+  snapshotLines(holdings).forEach((line) =>
     add(line.kind === 'Mutual fund' ? 'Funds' : 'Bank accounts', line.name, line.value)
   );
-  bankFundAllocations(data).forEach((row) => add('Fund institutions', row.name, row.value));
+  bankFundAllocations(holdings).forEach((row) => add('Fund institutions', row.name, row.value));
   return values;
 }
 
@@ -86,7 +86,7 @@ const change = (before: number | null, after: number | null) => ({
   delta: (after ?? 0) - (before ?? 0),
 });
 
-export function snapshotDiff(older: SnapshotData, newer: SnapshotData) {
+export function snapshotDiff(older: Valued[], newer: Valued[]) {
   const [a, b] = [portfolioTotals(older), portfolioTotals(newer)];
   const classes = (
     [

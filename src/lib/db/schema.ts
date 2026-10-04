@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { CATEGORY_KINDS, LEDGER_ENTRY_TYPES } from '@/types/ledger';
+import { HOLDING_KINDS, type SnapshotHolding } from '@/types/finance';
 import {
   boolean,
   check,
@@ -37,7 +38,7 @@ export const financeAgentActionStatusEnum = finance.enum('finance_agent_action_s
   'failed',
 ]);
 
-export const holdingKindEnum = finance.enum('holding_kind', ['local_bank', 'remote_bank', 'mutual_fund']);
+export const holdingKindEnum = finance.enum('holding_kind', HOLDING_KINDS);
 
 export const holdings = finance.table(
   'holdings',
@@ -45,7 +46,7 @@ export const holdings = finance.table(
     id: uuid('id').defaultRandom().primaryKey(),
     kind: holdingKindEnum('kind').notNull(),
     name: text('name').notNull(),
-    groupName: text('group_name'),
+    group: text('group_name'),
     sortOrder: sortOrder(),
     archivedAt: utc('archived_at'),
     createdAt: createdAt(),
@@ -53,7 +54,7 @@ export const holdings = finance.table(
   },
   (table) => [
     index('holdings_kind_sort_idx').on(table.kind, table.sortOrder),
-    check('holdings_group_only_for_funds', sql`(${table.kind} = 'mutual_fund') = (${table.groupName} IS NOT NULL)`),
+    check('holdings_group_only_for_funds', sql`(${table.kind} = 'mutual_fund') = (${table.group} IS NOT NULL)`),
   ]
 );
 
@@ -136,16 +137,7 @@ export const ledgerEntries = finance.table(
   ]
 );
 
-export type SnapshotHoldings = {
-  name: string;
-  localBanks: { name: string; amountPkr: number }[];
-  remoteBanks: {
-    name: string;
-    amountUsd: number;
-    exchangeRate: number;
-  }[];
-  mutualFunds: Record<string, { fund: string; value: number }[]>[];
-};
+export type SnapshotHoldings = { holdings: SnapshotHolding[] };
 
 export const financeSnapshots = finance.table(
   'finance_snapshots',

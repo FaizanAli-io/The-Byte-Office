@@ -1,7 +1,7 @@
 'use client';
 
 import { apiFetch, apiFetchOrNull } from './client-api';
-import type { FinanceDoc, FinanceSnapshot } from '@/types/finance';
+import type { FinanceSnapshot, Holding } from '@/types/finance';
 import type { HealthMetric, HealthTracking, Prayer } from '@/types/personal';
 import type { CategoryKind, LedgerCategory, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 import type { AgentConversation, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
@@ -24,8 +24,8 @@ export type ToolLog = {
 export type CategoryInput = { id?: string; name?: string; kind?: CategoryKind; archived?: boolean };
 
 export const financeApi = {
-  load: () => apiFetch<FinanceDoc>('/api/finance'),
-  save: (data: FinanceDoc) => apiFetch<{ data?: FinanceDoc }>('/api/finance', { body: data }),
+  load: () => apiFetch<{ holdings: Holding[] }>('/api/finance'),
+  save: (holdings: Holding[]) => apiFetch<{ data?: { holdings: Holding[] } }>('/api/finance', { body: { holdings } }),
 };
 
 export const ledgerApi = {
@@ -54,7 +54,8 @@ export const heldFundsApi = {
 
 export const snapshotsApi = {
   list: () => apiFetch<FinanceSnapshot[]>('/api/snapshots'),
-  create: (data: FinanceDoc, grandTotal: number) => apiFetch('/api/snapshots', { body: { data, grandTotal } }),
+  create: (holdings: Holding[], grandTotal: number) =>
+    apiFetch('/api/snapshots', { body: { data: { holdings }, grandTotal } }),
   remove: (id: string) => apiFetch('/api/snapshots', { method: 'DELETE', body: { id } }),
 };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateFinanceDoc, validateLedger, validateSnapshotInput } from '@/lib/finance-validation';
+import { parsePortfolio, validateLedger, validateSnapshotInput } from '@/lib/finance-validation';
 import {
   healthByNameSchema,
   healthInputSchema,
@@ -11,50 +11,42 @@ import {
 import { parseInquiry } from '@/lib/inquiry-email';
 import type { LedgerDraft } from '@/types/ledger';
 
-const doc = () => ({
-  name: 'finance',
-  localBanks: [{ id: 'a', name: 'HBL', amountPkr: 10 }],
-  remoteBanks: [{ id: 'b', name: 'Wise', amountUsd: 5, exchangeRate: 280 }],
-  mutualFunds: [{ Meezan: [{ id: 'c', fund: 'Cash', value: 1 }] }],
+const portfolio = (holdings: unknown[] = []) => ({
+  holdings: [
+    { id: 'a', kind: 'local_bank', name: 'HBL', group: null, amount: 10, exchangeRate: 1 },
+    { id: 'b', kind: 'remote_bank', name: 'Wise', group: null, amount: 5, exchangeRate: 280 },
+    { id: 'c', kind: 'mutual_fund', name: 'Cash', group: 'Meezan', amount: 1, exchangeRate: 1 },
+    ...holdings,
+  ],
 });
 
 const METRIC = '6a13aeac-c3fc-4e56-8ed7-876b55c05827';
 
-describe('validateFinanceDoc', () => {
-  it('accepts a document with ids', () => expect(validateFinanceDoc(doc())).toBe(true));
-  it('accepts rows the editor has just added, which have no id', () =>
-    expect(validateFinanceDoc({ ...doc(), localBanks: [{ name: 'New', amountPkr: 0 }] })).toBe(true));
-  it('rejects a negative balance', () =>
-    expect(validateFinanceDoc({ ...doc(), localBanks: [{ name: 'X', amountPkr: -1 }] })).toBe(false));
-  it('rejects a zero exchange rate', () =>
-    expect(validateFinanceDoc({ ...doc(), remoteBanks: [{ name: 'X', amountUsd: 1, exchangeRate: 0 }] })).toBe(false));
-  it('rejects a blank name', () =>
-    expect(validateFinanceDoc({ ...doc(), localBanks: [{ name: '  ', amountPkr: 1 }] })).toBe(false));
-  it('rejects a non-string id', () =>
-    expect(validateFinanceDoc({ ...doc(), localBanks: [{ id: 7, name: 'X', amountPkr: 1 }] })).toBe(false));
-
-  it('rejects duplicate ids, which would collapse into one update', () => {
-    const banks = [
-      { id: 'dup', name: 'X', amountPkr: 1 },
-      { id: 'dup', name: 'Y', amountPkr: 2 },
-    ];
-    expect(validateFinanceDoc({ ...doc(), localBanks: banks })).toBe(false);
+describe('parsePortfolio', () => {
+  it('accepts holdings with ids and holdings just added without one', () => {
+    expect(parsePortfolio(portfolio([{ kind: 'local_bank', name: 'New', amount: 0 }]))).toHaveLength(4);
   });
-
-  it('allows the same id in two different tables', () => {
-    const value = {
-      ...doc(),
-      localBanks: [{ id: 'z', name: 'X', amountPkr: 1 }],
-      remoteBanks: [{ id: 'z', name: 'W', amountUsd: 1, exchangeRate: 2 }],
-    };
-    expect(validateFinanceDoc(value)).toBe(true);
+  it('normalizes: only funds keep a group, only remote banks keep a rate', () => {
+    const [parsed] = parsePortfolio({
+      holdings: [{ kind: 'local_bank', name: ' HBL ', group: 'x', amount: 1, exchangeRate: 9 }],
+    })!;
+    expect(parsed).toEqual({ kind: 'local_bank', name: 'HBL', group: null, amount: 1, exchangeRate: 1 });
   });
+  it.each([
+    ['a negative amount', { kind: 'local_bank', name: 'X', amount: -1 }],
+    ['a zero exchange rate', { kind: 'remote_bank', name: 'X', amount: 1, exchangeRate: 0 }],
+    ['a blank name', { kind: 'local_bank', name: '  ', amount: 1 }],
+    ['a fund without a bank', { kind: 'mutual_fund', name: 'X', amount: 1 }],
+    ['an unknown kind', { kind: 'crypto', name: 'X', amount: 1 }],
+    ['a non-string id', { id: 7, kind: 'local_bank', name: 'X', amount: 1 }],
+    ['a duplicate id', { id: 'a', kind: 'local_bank', name: 'X', amount: 1 }],
+  ])('rejects %s', (_label, holding) => expect(parsePortfolio(portfolio([holding]))).toBeNull());
 });
 
 describe('validateSnapshotInput', () => {
-  it('accepts a valid snapshot', () => expect(validateSnapshotInput({ data: doc(), grandTotal: 10 })).toBeNull());
+  it('accepts a valid snapshot', () => expect(validateSnapshotInput({ data: portfolio(), grandTotal: 10 })).toBeNull());
   it('rejects a negative total', () =>
-    expect(validateSnapshotInput({ data: doc(), grandTotal: -1 })).toBe('Invalid portfolio total'));
+    expect(validateSnapshotInput({ data: portfolio(), grandTotal: -1 })).toBe('Invalid portfolio total'));
 });
 
 describe('validateLedger', () => {

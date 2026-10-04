@@ -4,7 +4,7 @@ import { heldFundsApi, snapshotsApi } from '@/lib/api-client';
 import { portfolioTotals } from '@/lib/finance';
 import { formatMoney, type heldFunds } from '@/lib/ledger';
 import { useEffect, useState } from 'react';
-import { LocalBanksSection, MutualFundsSection, RemoteBanksSection } from './HoldingTypes';
+import { BankSection, MutualFundsSection } from './HoldingTypes';
 import { FinancePageShell, StatCard, financeStyles } from './FinanceUI';
 import { FinanceToast, type FinanceToastState } from './FinanceToast';
 import { useFinanceHandlers } from './useFinanceHandlers';
@@ -13,23 +13,8 @@ const DESCRIPTION =
   "The latest value of each account and fund, kept in sync with the newest ledger month: changing a value here records it as that account's closing balance.";
 
 export default function FinanceEditor() {
-  const {
-    data,
-    error,
-    saving,
-    loading,
-    handleChange,
-    addMutualFundBank,
-    deleteMutualFundBank,
-    handleChangeMutualFund,
-    addFundToBank,
-    addRemoteBank,
-    addLocalBank,
-    deleteFundFromBank,
-    deleteRemoteBank,
-    deleteLocalBank,
-    handleSave,
-  } = useFinanceHandlers();
+  const { holdings, error, saving, loading, handleSave, add, remove, change, renameBank, removeBank } =
+    useFinanceHandlers();
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [toast, setToast] = useState<FinanceToastState>(null);
   const [held, setHeld] = useState<ReturnType<typeof heldFunds> | null>(null);
@@ -42,10 +27,10 @@ export default function FinanceEditor() {
   }, []);
 
   async function handleSnapshot() {
-    if (!data) return;
+    if (!holdings) return;
     setSnapshotLoading(true);
     try {
-      await snapshotsApi.create(data, portfolioTotals(data).grandTotal);
+      await snapshotsApi.create(holdings, portfolioTotals(holdings).grandTotal);
       setToast({ message: 'Snapshot saved.', tone: 'success' });
     } catch (error) {
       console.error('Error saving snapshot:', error);
@@ -63,7 +48,7 @@ export default function FinanceEditor() {
     );
   }
 
-  if (!data) {
+  if (!holdings) {
     return (
       <FinancePageShell title="Portfolio editor" description={DESCRIPTION}>
         <div className={`${financeStyles.card} p-12 text-center`}>
@@ -74,7 +59,8 @@ export default function FinanceEditor() {
     );
   }
 
-  const totals = portfolioTotals(data, held?.total ?? 0);
+  const totals = portfolioTotals(holdings, held?.total ?? 0);
+  const indexed = holdings.map((holding, index) => ({ ...holding, index }));
   const holdingForOthers = Math.abs(totals.held) >= 0.005;
 
   return (
@@ -126,15 +112,15 @@ export default function FinanceEditor() {
       </div>
 
       <div className="space-y-6">
-        <LocalBanksSection data={data} onAdd={addLocalBank} onChange={handleChange} onDelete={deleteLocalBank} />
-        <RemoteBanksSection data={data} onAdd={addRemoteBank} onChange={handleChange} onDelete={deleteRemoteBank} />
+        <BankSection kind="local_bank" holdings={indexed} onAdd={add} onChange={change} onDelete={remove} />
+        <BankSection kind="remote_bank" holdings={indexed} onAdd={add} onChange={change} onDelete={remove} />
         <MutualFundsSection
-          data={data}
-          onAddFund={addFundToBank}
-          onAddBank={addMutualFundBank}
-          onChange={handleChangeMutualFund}
-          onDeleteFund={deleteFundFromBank}
-          onDeleteBank={deleteMutualFundBank}
+          holdings={indexed}
+          onAdd={add}
+          onChange={change}
+          onDelete={remove}
+          onRenameBank={renameBank}
+          onDeleteBank={removeBank}
         />
       </div>
       <FinanceToast toast={toast} onDismiss={() => setToast(null)} />

@@ -1,7 +1,7 @@
 import { z } from 'zod/v4';
 import { isUuid } from '@/lib/db/ids';
 import { eligibleAccounts, isHoldType, isMonth, monthBounds } from '@/lib/ledger';
-import type { FinanceDoc } from '@/types/finance';
+import { HOLDING_KINDS, type Holding } from '@/types/finance';
 import {
   CATEGORY_KINDS,
   LEDGER_ENTRY_TYPES,
@@ -26,40 +26,28 @@ export const categoryUpdateSchema = z.object({
   archived: z.boolean().optional(),
 });
 
-export function validateFinanceDoc(value: unknown): value is Omit<FinanceDoc, '_id'> {
-  if (!isRecord(value) || value.name !== 'finance') return false;
-  if (!Array.isArray(value.localBanks) || !Array.isArray(value.remoteBanks) || !Array.isArray(value.mutualFunds)) {
-    return false;
-  }
-
-  const localIds = new Set<string>();
-  const remoteIds = new Set<string>();
-  const fundIds = new Set<string>();
-
-  const localValid = value.localBanks.every(
-    (item) => isRecord(item) && validHoldingId(item.id, localIds) && validName(item.name) && validMoney(item.amountPkr)
+export function parsePortfolio(value: unknown): Holding[] | null {
+  if (!isRecord(value) || !Array.isArray(value.holdings)) return null;
+  const ids = new Set<string>();
+  const valid = value.holdings.every(
+    (holding) =>
+      isRecord(holding) &&
+      validHoldingId(holding.id, ids) &&
+      (HOLDING_KINDS as readonly unknown[]).includes(holding.kind) &&
+      validName(holding.name) &&
+      (holding.kind !== 'mutual_fund' || validName(holding.group)) &&
+      validMoney(holding.amount) &&
+      (holding.kind !== 'remote_bank' || validPositiveNumber(holding.exchangeRate))
   );
-  const remoteValid = value.remoteBanks.every(
-    (item) =>
-      isRecord(item) &&
-      validHoldingId(item.id, remoteIds) &&
-      validName(item.name) &&
-      validMoney(item.amountUsd) &&
-      validPositiveNumber(item.exchangeRate)
-  );
-  const fundsValid = value.mutualFunds.every((group) => {
-    if (!isRecord(group)) return false;
-    const entries = Object.entries(group);
-    if (entries.length !== 1 || !validName(entries[0][0])) return false;
-    return (
-      Array.isArray(entries[0][1]) &&
-      entries[0][1].every(
-        (fund) => isRecord(fund) && validHoldingId(fund.id, fundIds) && validName(fund.fund) && validMoney(fund.value)
-      )
-    );
-  });
-
-  return localValid && remoteValid && fundsValid;
+  if (!valid) return null;
+  return (value.holdings as Holding[]).map((holding) => ({
+    ...(holding.id ? { id: holding.id } : {}),
+    kind: holding.kind,
+    name: holding.name.trim(),
+    group: holding.kind === 'mutual_fund' ? holding.group!.trim() : null,
+    amount: holding.amount,
+    exchangeRate: holding.kind === 'remote_bank' ? holding.exchangeRate : 1,
+  }));
 }
 
 function validHoldingId(value: unknown, seen: Set<string>) {
@@ -71,7 +59,7 @@ function validHoldingId(value: unknown, seen: Set<string>) {
 
 export function validateSnapshotInput(value: unknown) {
   if (!isRecord(value)) return 'Invalid snapshot';
-  if (!validateFinanceDoc(value.data)) return 'Invalid portfolio data';
+  if (!parsePortfolio(value.data)) return 'Invalid portfolio data';
   if (!validMoney(value.grandTotal)) return 'Invalid portfolio total';
   return null;
 }

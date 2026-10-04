@@ -57,9 +57,9 @@ const identity = (id: string, kind: HoldingIdentity['kind'], display: string): H
 
 describe('names', () => {
   it('splits a fund into bank and fund, and joins it back', () => {
-    expect(splitName('mutual_fund', 'NBP Funds · Energy')).toEqual({ name: 'Energy', groupName: 'NBP Funds' });
+    expect(splitName('mutual_fund', 'NBP Funds · Energy')).toEqual({ name: 'Energy', group: 'NBP Funds' });
     expect(displayName(splitName('mutual_fund', 'NBP Funds · Energy'))).toBe('NBP Funds · Energy');
-    expect(splitName('local_bank', 'Meezan · Current')).toEqual({ name: 'Meezan · Current', groupName: null });
+    expect(splitName('local_bank', 'Meezan · Current')).toEqual({ name: 'Meezan · Current', group: null });
   });
 });
 
@@ -77,7 +77,7 @@ describe('planLedgerHoldings (ledger → holdings)', () => {
     const added: LedgerAccount = { ...nbp, id: 'a-new', holdingId: undefined, name: 'MCB Funds · Cash' };
     const { accounts, create } = planLedgerHoldings(month([meezan]), month([meezan, added]), true);
     expect(create).toEqual([
-      { id: expect.any(String), kind: 'mutual_fund', name: 'Cash', groupName: 'MCB Funds', archived: false },
+      { id: expect.any(String), kind: 'mutual_fund', name: 'Cash', group: 'MCB Funds', archived: false },
     ]);
     expect(accounts[1].holdingId).toBe(create[0].id);
   });
@@ -89,7 +89,7 @@ describe('planLedgerHoldings (ledger → holdings)', () => {
 
   it('renames the holding when its account is renamed', () => {
     const { rename } = planLedgerHoldings(month([meezan]), month([{ ...meezan, name: 'Meezan Current' }]), true);
-    expect(rename).toEqual([{ id: 'h-meezan', kind: 'local_bank', name: 'Meezan Current', groupName: null }]);
+    expect(rename).toEqual([{ id: 'h-meezan', kind: 'local_bank', name: 'Meezan Current', group: null }]);
   });
 
   it('archives the holding of an account removed from the newest month only', () => {

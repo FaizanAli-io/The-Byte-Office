@@ -1,7 +1,6 @@
 import { createSnapshot, deleteSnapshot, listSnapshots } from '@/lib/db/queries';
-import { validateSnapshotInput } from '@/lib/finance-validation';
+import { parsePortfolio, validateSnapshotInput } from '@/lib/finance-validation';
 import { ApiError, apiRoute, found, jsonBody } from '@/lib/api';
-import type { FinanceDoc } from '@/types/finance';
 
 export const GET = apiRoute('GET /api/snapshots', 'Failed to fetch snapshots', () => listSnapshots());
 
@@ -10,8 +9,8 @@ export const POST = apiRoute('POST /api/snapshots', 'Failed to create snapshot',
   const validationError = validateSnapshotInput(body);
   if (validationError) throw new ApiError(validationError);
 
-  const { data, grandTotal } = body as { data: FinanceDoc; grandTotal: number };
-  return { success: true, id: await createSnapshot(data, grandTotal) };
+  const { data, grandTotal } = body as { data: unknown; grandTotal: number };
+  return { success: true, id: await createSnapshot(parsePortfolio(data)!, grandTotal) };
 });
 
 export const DELETE = apiRoute('DELETE /api/snapshots', 'Failed to delete snapshot', async (req: Request) => {

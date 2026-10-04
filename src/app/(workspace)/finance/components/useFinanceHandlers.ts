@@ -3,90 +3,38 @@
 import type { FinanceToastState } from './FinanceToast';
 import { financeApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
-import { FinanceDoc } from '@/types/finance';
-import { useState, useEffect } from 'react';
-
-type BankSection = 'localBanks' | 'remoteBanks';
-type MutualFundGroup = FinanceDoc['mutualFunds'][number];
-
-const blankRow = {
-  localBanks: { name: '', amountPkr: 0 },
-  remoteBanks: { name: '', amountUsd: 0, exchangeRate: 0 },
-} as const;
+import type { Holding } from '@/types/finance';
+import { useEffect, useState } from 'react';
 
 export function useFinanceHandlers() {
-  const [data, setData] = useState<FinanceDoc | null>(null);
+  const [holdings, setHoldings] = useState<Holding[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const doc = await financeApi.load();
-        if (!Array.isArray(doc?.localBanks)) throw new Error('Finance data was empty or invalid');
-        setData(doc);
+    financeApi
+      .load()
+      .then(({ holdings: loaded }) => {
+        if (!Array.isArray(loaded)) throw new Error('Finance data was empty or invalid');
+        setHoldings(loaded);
         setError('');
-      } catch (err) {
+      })
+      .catch((err) => {
         console.error('Failed to fetch /api/finance:', err);
-        setData(null);
         setError(errorMessage(err, 'Failed to load finance data'));
-      } finally {
-        setLoading(false);
-      }
-    })();
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  function edit(mutate: (draft: FinanceDoc) => void) {
-    setData((prev) => {
-      if (!prev) return prev;
-      const draft = structuredClone(prev) as FinanceDoc;
-      mutate(draft);
-      return draft;
-    });
-  }
-
-  function editFunds(mfIndex: number, bankKey: string, mutate: (funds: MutualFundGroup[string]) => void) {
-    edit((draft) => {
-      const funds = draft.mutualFunds[mfIndex]?.[bankKey];
-      if (!funds) return;
-      mutate(funds);
-    });
-  }
-
-  function handleChange(section: BankSection, index: number, field: string, value: string | number) {
-    edit((draft) => {
-      const row = draft[section][index] as unknown as Record<string, unknown> | undefined;
-      if (row) row[field] = value;
-    });
-  }
-
-  function handleChangeMutualFund(
-    mfIndex: number,
-    bankKey: string,
-    fundIndex: number | null,
-    field: 'fund' | 'value' | 'bankName',
-    value: string | number
-  ) {
-    if (field === 'bankName' && fundIndex === null) {
-      edit((draft) => {
-        const funds = draft.mutualFunds[mfIndex]?.[bankKey];
-        if (funds) draft.mutualFunds[mfIndex] = { [String(value)]: funds };
-      });
-      return;
-    }
-    if (fundIndex === null) return;
-    editFunds(mfIndex, bankKey, (funds) => {
-      if (funds[fundIndex]) funds[fundIndex] = { ...funds[fundIndex], [field]: value };
-    });
-  }
+  const edit = (mutate: (current: Holding[]) => Holding[]) => setHoldings((current) => current && mutate(current));
 
   async function handleSave(): Promise<FinanceToastState> {
-    if (!data || saving) return null;
+    if (!holdings || saving) return null;
     setSaving(true);
     try {
-      const { data: saved } = await financeApi.save(data);
-      if (saved) setData(saved);
+      const { data } = await financeApi.save(holdings);
+      if (data) setHoldings(data.holdings);
       setError('');
       return { tone: 'success', message: 'Portfolio saved.' };
     } catch (err) {
@@ -100,22 +48,22 @@ export function useFinanceHandlers() {
   }
 
   return {
-    data,
+    holdings,
     error,
     saving,
     loading,
-    handleChange,
-    handleChangeMutualFund,
     handleSave,
-    addLocalBank: () => edit((draft) => void draft.localBanks.push({ ...blankRow.localBanks })),
-    addRemoteBank: () => edit((draft) => void draft.remoteBanks.push({ ...blankRow.remoteBanks })),
-    deleteLocalBank: (index: number) => edit((draft) => void draft.localBanks.splice(index, 1)),
-    deleteRemoteBank: (index: number) => edit((draft) => void draft.remoteBanks.splice(index, 1)),
-    addMutualFundBank: () => edit((draft) => void draft.mutualFunds.push({ 'New Bank': [{ fund: '', value: 0 }] })),
-    deleteMutualFundBank: (mfIndex: number) => edit((draft) => void draft.mutualFunds.splice(mfIndex, 1)),
-    addFundToBank: (mfIndex: number, bankKey: string) =>
-      editFunds(mfIndex, bankKey, (funds) => void funds.push({ fund: '', value: 0 })),
-    deleteFundFromBank: (mfIndex: number, bankKey: string, fundIndex: number) =>
-      editFunds(mfIndex, bankKey, (funds) => void funds.splice(fundIndex, 1)),
+    add: (holding: Holding) => edit((current) => [...current, holding]),
+    remove: (index: number) => edit((current) => current.filter((_, i) => i !== index)),
+    change: (index: number, patch: Partial<Holding>) =>
+      edit((current) => current.map((holding, i) => (i === index ? { ...holding, ...patch } : holding))),
+    renameBank: (from: string, to: string) =>
+      edit((current) =>
+        current.map((holding) =>
+          holding.kind === 'mutual_fund' && holding.group === from ? { ...holding, group: to } : holding
+        )
+      ),
+    removeBank: (bank: string) =>
+      edit((current) => current.filter((holding) => !(holding.kind === 'mutual_fund' && holding.group === bank))),
   };
 }

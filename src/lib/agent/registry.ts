@@ -2,11 +2,11 @@ import { z } from 'zod/v4';
 import {
   empty,
   month,
-  itemType,
+  holdingKindSchema,
   categoryName,
   categoryId,
   categoryKind,
-  portfolioFields,
+  holdingFields,
   ledgerEntryFields,
   entryRef,
   accountFields,
@@ -33,7 +33,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Get portfolio',
     module: 'finance',
     description:
-      'Get the live portfolio with stable item IDs and balances. Reports a gross PKR total, the amount held for other people, and the net total that is actually yours.',
+      "Get the live portfolio as one list of holdings (id, kind, name, group for a fund's bank, amount in its currency, exchangeRate, valuePkr), with a gross PKR total, the amount held for other people, and the net total that is actually yours.",
     schema: empty,
     mcp: true,
   },
@@ -125,10 +125,10 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Add portfolio item',
     module: 'finance',
     description:
-      'Add one portfolio item immediately. Use fields matching itemType. The newest ledger month gains a matching account.',
+      'Add one holding immediately: kind, name, amount, plus group for a mutual fund and exchangeRate for a remote bank. The newest ledger month gains a matching account.',
     chatDescription:
-      'Create a confirmation proposal to add one portfolio item. This never writes before user confirmation. Use fields matching itemType.',
-    schema: z.object(portfolioFields),
+      'Create a confirmation proposal to add one holding: kind, name, amount, plus group for a mutual fund and exchangeRate for a remote bank. This never writes before user confirmation.',
+    schema: z.object({ kind: holdingKindSchema, ...holdingFields }),
     write: true,
     mcp: true,
   },
@@ -140,7 +140,10 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       "Update one portfolio item by stable ID. Include only changed fields. A changed amount becomes the matching ledger account's actual closing balance in the newest month.",
     chatDescription:
       'Create a confirmation proposal to update one portfolio item by stable ID. Include only changed fields. This never writes before confirmation.',
-    schema: z.object({ ...portfolioFields, id: z.string().min(1).describe('Stable portfolio item ID') }),
+    schema: z.object({
+      id: z.string().min(1).describe('Holding id from portfolio_get'),
+      ...z.object(holdingFields).partial().shape,
+    }),
     write: true,
     mcp: true,
   },
@@ -152,7 +155,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Remove one portfolio item by stable ID. Its account in the newest ledger month goes too, unless entries use it.',
     chatDescription:
       'Create a confirmation proposal to remove one portfolio item by stable ID. This never writes before confirmation.',
-    schema: z.object({ itemType, id: z.string().min(1).describe('Stable portfolio item ID') }),
+    schema: z.object({ id: z.string().min(1).describe('Holding id from portfolio_get') }),
     write: true,
     mcp: true,
     destructive: true,

@@ -24,7 +24,7 @@ function Delta({ value }: { value: number }) {
 
 export function SnapshotDiff({ pair, onClear }: { pair: [FinanceSnapshot, FinanceSnapshot]; onClear: () => void }) {
   const [older, newer] = [...pair].sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp));
-  const { classes, lines } = snapshotDiff(older.data, newer.data);
+  const { classes, lines } = snapshotDiff(older.data.holdings, newer.data.holdings);
 
   return (
     <section className={`${financeStyles.card} space-y-4 p-5 sm:p-6`}>

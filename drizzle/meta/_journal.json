@@ -43,6 +43,13 @@
       "when": 1791123971828,
       "tag": "0005_health_metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791127081782,
+      "tag": "0006_flatten_snapshots",
+      "breakpoints": true
     }
   ]
 }

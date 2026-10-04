@@ -55,25 +55,7 @@ holding. Nothing is stored twice, so nothing has to be kept in step.
 Still open: held funds are subtracted from the portfolio total as a whole, so there is no per-account net — you cannot
 ask "how much of HBL is actually mine".
 
-## 2. One holding was three tables — storage merged, API not yet
-
-`local_banks`, `remote_banks` and `mutual_funds` differed only by currency and whether a holding sits under a bank.
-They are now one `holdings` table (see item 1), and [`db/holdings.ts`](../src/lib/db/holdings.ts) is the only code that
-touches it. Fund grouping is by bank name, so the `floor(sort_order / 1000)` stride is gone.
-
-What is left is the shape crossing the wire. The API still speaks in three kinds:
-
-| Layer                                                             | What the three kinds still cost                                 |
-| ----------------------------------------------------------------- | --------------------------------------------------------------- |
-| [`registry.ts`](../src/lib/agent/registry.ts)                     | `itemType` enum plus a flat union of every field any kind needs |
-| [`action-parsing.ts`](../src/lib/finance-agent/action-parsing.ts) | `HOLDING_FIELDS`, one validator list per kind                   |
-| [`finance.ts`](../src/lib/finance.ts)                             | `HoldingRows` with three arrays and three separate sums         |
-
-and `mutualFunds` is still `Record<bank, Fund[]>[]`, an array of single-key objects that forces `Object.keys(group)[0]`
-at several call sites. Exposing holdings as one flat list is the remaining half, and it changes the MCP tools, so it
-deserves its own pass.
-
-## 3. Two validation systems
+## 2. Two validation systems
 
 `personal-validation.ts` is zod, shared by the REST routes and the assistant's tools.
 [`finance-validation.ts`](../src/lib/finance-validation.ts) is hand-rolled predicates returning `string | null`.
@@ -102,7 +84,3 @@ Worth stating, so a future pass does not "fix" these:
   displayed net subtracts what is owed back.
 
 ---
-
-## If these were tackled, in this order
-
-1. **2 — flatten the holdings API.** One list of holdings on the wire instead of three kinds and grouped funds.

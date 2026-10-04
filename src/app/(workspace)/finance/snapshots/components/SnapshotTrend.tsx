@@ -26,7 +26,7 @@ export function SnapshotTrend({ snapshots }: { snapshots: FinanceSnapshot[] }) {
     const ordered = [...snapshots].sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp));
     const series = ordered.map((snapshot) => ({
       time: +new Date(snapshot.timestamp),
-      values: snapshotSeries(snapshot.data),
+      values: snapshotSeries(snapshot.data.holdings),
     }));
     const options = new Map<string, { kind: string; name: string }>();
     series.forEach(({ values }) => values.forEach((value, id) => options.set(id, value)));

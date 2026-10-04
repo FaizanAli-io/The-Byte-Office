@@ -5,22 +5,10 @@ import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { resolveCategoryId } from '@/lib/ledger';
 import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory, type MonthlyLedger } from '@/types/ledger';
 import { fingerprint } from '@/lib/agent/repository';
-import type {
-  AgentActionPayload,
-  AgentActionType,
-  AgentProposal,
-  PersonalActionType,
-  PortfolioItemType,
-} from '@/lib/agent/types';
+import type { AgentActionPayload, AgentActionType, AgentProposal, PersonalActionType } from '@/lib/agent/types';
 import { applyAccountAction, isAccountAction, planAccountAction } from './ledger-accounts';
 import { changeLedgerEntry } from '@/lib/ledger-entries';
-import {
-  addPortfolioItem,
-  getPortfolioItem,
-  removePortfolioItem,
-  saveLedgerSynced,
-  updatePortfolioItem,
-} from '@/lib/db/portfolio';
+import { addHolding, getHolding, removeHolding, saveLedgerSynced, updateHolding } from '@/lib/db/portfolio';
 import {
   applyEntryOverride,
   assertLedgerStructure,
@@ -34,11 +22,9 @@ import {
   optionalAccountId,
   optionalPositive,
   optionalString,
-  parseItemType,
+  parseHolding,
   parseLedgerEntry,
-  parsePortfolioItem,
-  parsePortfolioUpdate,
-  portfolioLabel,
+  holdingLabel,
   requireRecord,
   requireString,
   resolveAccountId,
@@ -52,44 +38,33 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
   const args = requireRecord(rawArgs);
 
   if (actionType === 'portfolio_item_add') {
-    const item = parsePortfolioItem(args);
+    const item = parseHolding(args);
     return {
       actionType,
       payload: { actionType, item },
-      preview: {
-        title: `Add ${portfolioLabel(item.itemType)}`,
-        after: item,
-      },
+      preview: { title: `Add ${holdingLabel(item.kind)}`, after: item },
     };
   }
 
   if (actionType === 'portfolio_item_update' || actionType === 'portfolio_item_remove') {
-    const itemType = parseItemType(args.itemType);
     const id = requireString(args.id, 'id');
-    const current = await getPortfolioItem(itemType, id);
-    if (!current) throw new AgentActionError('Portfolio item not found', 404);
+    const current = await getHolding(id);
+    if (!current) throw new AgentActionError('Holding not found. Call portfolio_get for the ids.', 404);
 
     if (actionType === 'portfolio_item_remove') {
       return {
         actionType,
-        payload: { actionType, itemType, id },
-        preview: {
-          title: `Remove ${portfolioLabel(itemType)}`,
-          before: current,
-        },
+        payload: { actionType, id },
+        preview: { title: `Remove ${holdingLabel(current.kind)}`, before: current },
         sourceFingerprint: fingerprint(current),
       };
     }
 
-    const changes = parsePortfolioUpdate(itemType, args, current);
+    const { kind: _kind, ...changes } = parseHolding(args, current);
     return {
       actionType,
-      payload: { actionType, itemType, id, changes },
-      preview: {
-        title: `Update ${portfolioLabel(itemType)}`,
-        before: current,
-        after: changes,
-      },
+      payload: { actionType, id, changes },
+      preview: { title: `Update ${holdingLabel(current.kind)}`, before: current, after: changes },
       sourceFingerprint: fingerprint(current),
     };
   }
@@ -250,20 +225,13 @@ async function executePortfolioPayload(
   payload: Extract<FinancePayload, { actionType: `portfolio_item_${string}` }>,
   sourceFingerprint: string | null
 ) {
-  if (payload.actionType === 'portfolio_item_add') {
-    parsePortfolioItem(payload.item as unknown as Record<string, unknown>);
-    return addPortfolioItem(payload.item);
-  }
-  const current = await requireCurrentPortfolioItem(payload.itemType, payload.id, sourceFingerprint);
+  if (payload.actionType === 'portfolio_item_add') return addHolding(parseHolding(payload.item));
+  const current = await requireCurrentHolding(payload.id, sourceFingerprint);
   if (payload.actionType === 'portfolio_item_update') {
-    return updatePortfolioItem(
-      payload.itemType,
-      payload.id,
-      parsePortfolioUpdate(payload.itemType, payload.changes, current)
-    );
+    const { kind: _kind, ...changes } = parseHolding(payload.changes, current);
+    return updateHolding(payload.id, changes);
   }
-  const removed = await removePortfolioItem(payload.itemType, payload.id);
-  if (!removed.length) throw new AgentActionError('Item no longer exists', 409);
+  if (!(await removeHolding(payload.id))) throw new AgentActionError('Holding no longer exists', 409);
   return { id: payload.id, removed: true };
 }
 
@@ -350,11 +318,11 @@ function parseCategoryKind(value: unknown): CategoryKind {
   return value as CategoryKind;
 }
 
-async function requireCurrentPortfolioItem(itemType: PortfolioItemType, id: string, sourceFingerprint: string | null) {
-  const current = await getPortfolioItem(itemType, id);
-  if (!current) throw new AgentActionError('Portfolio item no longer exists', 409);
+async function requireCurrentHolding(id: string, sourceFingerprint: string | null) {
+  const current = await getHolding(id);
+  if (!current) throw new AgentActionError('Holding no longer exists', 409);
   if (fingerprint(current) !== sourceFingerprint) {
-    throw new AgentActionError('The portfolio item changed after this proposal. Ask the assistant to try again.', 409);
+    throw new AgentActionError('The holding changed after this proposal. Ask the assistant to try again.', 409);
   }
   return current;
 }

@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { idEq } from './ids';
 import { asc, desc, eq, inArray, lt, max, sql } from 'drizzle-orm';
-import type { FinanceDoc, FinanceSnapshot } from '@/types/finance';
+import type { FinanceSnapshot, Holding } from '@/types/finance';
 import type {
   CategoryKind,
   LedgerAccount,
@@ -22,17 +22,15 @@ import {
   type SnapshotHoldings,
 } from './schema';
 
-export function toSnapshotHoldings(
-  doc: Pick<FinanceDoc, 'name' | 'localBanks' | 'remoteBanks' | 'mutualFunds'>
-): SnapshotHoldings {
+export function toSnapshotHoldings(holdings: Omit<Holding, 'id'>[]): SnapshotHoldings {
   return {
-    name: doc.name,
-    localBanks: doc.localBanks.map(({ name, amountPkr }) => ({ name, amountPkr })),
-    remoteBanks: doc.remoteBanks.map(({ name, amountUsd, exchangeRate }) => ({ name, amountUsd, exchangeRate })),
-    mutualFunds: doc.mutualFunds.map((group) => {
-      const bank = Object.keys(group)[0];
-      return { [bank]: (group[bank] ?? []).map(({ fund, value }) => ({ fund, value })) };
-    }),
+    holdings: holdings.map(({ kind, name, group, amount, exchangeRate }) => ({
+      kind,
+      name,
+      group,
+      amount,
+      exchangeRate,
+    })),
   };
 }
 
@@ -291,7 +289,7 @@ export async function loadHoldMovements() {
       amount: ledgerEntries.amount,
       entryRate: ledgerEntries.exchangeRate,
       holdingName: holdings.name,
-      groupName: holdings.groupName,
+      group: holdings.group,
       kind: holdings.kind,
       accountRate: ledgerAccounts.exchangeRate,
     })
@@ -310,7 +308,7 @@ export async function loadHoldMovements() {
       type: row.type,
       counterparty: row.counterparty ?? undefined,
       note: row.note ?? undefined,
-      account: displayName({ name: row.holdingName, groupName: row.groupName }),
+      account: displayName({ name: row.holdingName, group: row.group }),
       amount: row.amount,
       currency,
       amountPkr: currency === 'USD' ? row.amount * (row.entryRate ?? row.accountRate) : row.amount,
@@ -345,10 +343,10 @@ export async function getSnapshot(id: string) {
   };
 }
 
-export async function createSnapshot(doc: Parameters<typeof toSnapshotHoldings>[0], grandTotal: number) {
+export async function createSnapshot(holdings: Omit<Holding, 'id'>[], grandTotal: number) {
   const [row] = await getDb()
     .insert(financeSnapshots)
-    .values({ data: toSnapshotHoldings(doc), grandTotal })
+    .values({ data: toSnapshotHoldings(holdings), grandTotal })
     .returning({ id: financeSnapshots.id });
   return row.id;
 }
