@@ -137,8 +137,8 @@ describe('scope filtering', () => {
 
   it('exposes every MCP tool when every scope is granted', () => {
     expect(visibleWith([...OAUTH_SCOPES])).toHaveLength(mcpToolRegistry.length);
-    expect(agentToolRegistry).toHaveLength(28);
-    expect(mcpToolRegistry).toHaveLength(27);
+    expect(agentToolRegistry).toHaveLength(32);
+    expect(mcpToolRegistry).toHaveLength(31);
   });
 
   it('offers no scope that would grant nothing', () => {

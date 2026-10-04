@@ -13,7 +13,7 @@ function annotationsFor(tool: AgentToolDefinition) {
   } as const;
 }
 
-export function registerTools(server: McpServer, scopes: string[]) {
+export function registerTools(server: McpServer, scopes: string[], clientId?: string) {
   for (const tool of mcpToolRegistry) {
     if (!scopes.includes(scopeForTool(tool))) continue;
 
@@ -22,7 +22,7 @@ export function registerTools(server: McpServer, scopes: string[]) {
       description: tool.description,
       annotations: annotationsFor(tool),
     };
-    const invoke = (args: unknown) => runTool(() => invokeAgentTool(tool.name, args ?? {}));
+    const invoke = (args: unknown) => runTool(() => invokeAgentTool(tool.name, args ?? {}, clientId));
 
     // Without an inputSchema the callback receives `extra` as its first argument.
     if (Object.keys(tool.schema.shape).length === 0) {

@@ -1,14 +1,25 @@
 import { randomUUID } from 'crypto';
-import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
+import { AgentActionError } from '@/lib/agent/action-utils';
 import { listCategories, loadLedger } from '@/lib/db/queries';
-import { saveLedgerSynced, withPortfolioSync } from '@/lib/db/sync';
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { resolveCategoryId } from '@/lib/ledger';
 import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory, type MonthlyLedger } from '@/types/ledger';
-import { createAgentAction, fingerprint } from '@/lib/agent/repository';
-import type { AgentActionPayload, AgentActionType, PortfolioItemType } from '@/lib/agent/types';
+import { fingerprint } from '@/lib/agent/repository';
+import type {
+  AgentActionPayload,
+  AgentActionType,
+  AgentProposal,
+  PersonalActionType,
+  PortfolioItemType,
+} from '@/lib/agent/types';
 import { applyAccountAction, isAccountAction, planAccountAction } from './ledger-accounts';
-import { addPortfolioItem, getPortfolioItem, removePortfolioItem, updatePortfolioItem } from '@/lib/db/holdings';
+import {
+  addPortfolioItem,
+  getPortfolioItem,
+  removePortfolioItem,
+  saveLedgerSynced,
+  updatePortfolioItem,
+} from '@/lib/db/portfolio';
 import {
   applyEntryOverride,
   assertLedgerStructure,
@@ -33,27 +44,22 @@ import {
   resolveEntryId,
 } from './action-parsing';
 
-type FinancePayload = Exclude<
-  AgentActionPayload,
-  { actionType: 'prayer_set' | 'health_add' | 'health_update' | 'health_remove' | 'tbo_send_inquiry' }
->;
+type FinancePayload = Exclude<AgentActionPayload, { actionType: PersonalActionType | 'tbo_send_inquiry' }>;
 type LedgerPayload = Extract<FinancePayload, { actionType: `ledger_${string}` }>;
 
-export async function proposeFinanceAction(actionType: AgentActionType, rawArgs: unknown) {
+export async function proposeFinanceAction(actionType: AgentActionType, rawArgs: unknown): Promise<AgentProposal> {
   const args = requireRecord(rawArgs);
 
   if (actionType === 'portfolio_item_add') {
     const item = parsePortfolioItem(args);
-    return toPublicAction(
-      await createAgentAction({
-        actionType,
-        payload: { actionType, item },
-        preview: {
-          title: `Add ${portfolioLabel(item.itemType)}`,
-          after: item,
-        },
-      })
-    );
+    return {
+      actionType,
+      payload: { actionType, item },
+      preview: {
+        title: `Add ${portfolioLabel(item.itemType)}`,
+        after: item,
+      },
+    };
   }
 
   if (actionType === 'portfolio_item_update' || actionType === 'portfolio_item_remove') {
@@ -63,43 +69,37 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
     if (!current) throw new AgentActionError('Portfolio item not found', 404);
 
     if (actionType === 'portfolio_item_remove') {
-      return toPublicAction(
-        await createAgentAction({
-          actionType,
-          payload: { actionType, itemType, id },
-          preview: {
-            title: `Remove ${portfolioLabel(itemType)}`,
-            before: current,
-          },
-          sourceFingerprint: fingerprint(current),
-        })
-      );
+      return {
+        actionType,
+        payload: { actionType, itemType, id },
+        preview: {
+          title: `Remove ${portfolioLabel(itemType)}`,
+          before: current,
+        },
+        sourceFingerprint: fingerprint(current),
+      };
     }
 
     const changes = parsePortfolioUpdate(itemType, args, current);
-    return toPublicAction(
-      await createAgentAction({
-        actionType,
-        payload: { actionType, itemType, id, changes },
-        preview: {
-          title: `Update ${portfolioLabel(itemType)}`,
-          before: current,
-          after: changes,
-        },
-        sourceFingerprint: fingerprint(current),
-      })
-    );
+    return {
+      actionType,
+      payload: { actionType, itemType, id, changes },
+      preview: {
+        title: `Update ${portfolioLabel(itemType)}`,
+        before: current,
+        after: changes,
+      },
+      sourceFingerprint: fingerprint(current),
+    };
   }
 
   if (actionType === 'category_add') {
     const name = requireString(args.name, 'name');
-    return toPublicAction(
-      await createAgentAction({
-        actionType,
-        payload: { actionType, name, kind: parseCategoryKind(args.kind) },
-        preview: { title: `Add category "${name}"` },
-      })
-    );
+    return {
+      actionType,
+      payload: { actionType, name, kind: parseCategoryKind(args.kind) },
+      preview: { title: `Add category "${name}"` },
+    };
   }
 
   if (actionType === 'category_update' || actionType === 'category_remove') {
@@ -110,13 +110,11 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
     }
 
     if (actionType === 'category_remove') {
-      return toPublicAction(
-        await createAgentAction({
-          actionType,
-          payload: { actionType, id: current.id, name: current.name },
-          preview: { title: `Delete category "${current.name}"`, before: current },
-        })
-      );
+      return {
+        actionType,
+        payload: { actionType, id: current.id, name: current.name },
+        preview: { title: `Delete category "${current.name}"`, before: current },
+      };
     }
 
     const changes = {
@@ -127,13 +125,11 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
     if (!Object.keys(changes).length) {
       throw new AgentActionError('Nothing to change: pass a new name, a kind, or archived');
     }
-    return toPublicAction(
-      await createAgentAction({
-        actionType,
-        payload: { actionType, id: current.id, changes },
-        preview: { title: `Update category "${current.name}"`, before: current, after: changes },
-      })
-    );
+    return {
+      actionType,
+      payload: { actionType, id: current.id, changes },
+      preview: { title: `Update category "${current.name}"`, before: current, after: changes },
+    };
   }
 
   const month = requireString(args.month, 'month');
@@ -145,7 +141,7 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
   if (isAccountAction(actionType)) {
     const { payload, preview } = planAccountAction(actionType, args, ledger);
     assertLedger({ ...ledger, accounts: applyAccountAction(payload, ledger) }, categoryIds);
-    return toPublicAction(await createAgentAction({ actionType, payload, preview, sourceFingerprint }));
+    return { actionType, payload, preview, sourceFingerprint };
   }
 
   if (actionType === 'ledger_entry_add') {
@@ -170,17 +166,15 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
       categoryId: resolveCategoryArg(categoryList, args.category) ?? undefined,
       note: optionalString(args.note),
     };
-    return toPublicAction(
-      await createAgentAction({
-        actionType,
-        payload: { actionType, month, entry },
-        preview: { title: 'Add ledger entry' },
-        sourceFingerprint,
-      }),
-      ledgerForm('ledger_entry_add', month, ledger.accounts, categoryList, {
+    return {
+      actionType,
+      payload: { actionType, month, entry },
+      preview: { title: 'Add ledger entry' },
+      sourceFingerprint,
+      form: ledgerForm('ledger_entry_add', month, ledger.accounts, categoryList, {
         ...entry,
-      })
-    );
+      }),
+    };
   }
 
   const entryId = resolveEntryId(ledger, args);
@@ -189,27 +183,23 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
 
   if (actionType === 'ledger_entry_remove') {
     assertLedger({ ...ledger, entries: ledger.entries.filter((entry) => entry.id !== entryId) }, categoryIds);
-    return toPublicAction(
-      await createAgentAction({
-        actionType,
-        payload: { actionType, month, entryId },
-        preview: { title: 'Remove ledger entry', before: current },
-        sourceFingerprint,
-      })
-    );
+    return {
+      actionType,
+      payload: { actionType, month, entryId },
+      preview: { title: 'Remove ledger entry', before: current },
+      sourceFingerprint,
+    };
   }
 
-  return toPublicAction(
-    await createAgentAction({
-      actionType,
-      payload: { actionType: 'ledger_entry_update', month, entryId, entry: current },
-      preview: {
-        title: 'Update ledger entry',
-        before: current,
-      },
-      sourceFingerprint,
-    }),
-    ledgerForm('ledger_entry_update', month, ledger.accounts, categoryList, {
+  return {
+    actionType,
+    payload: { actionType: 'ledger_entry_update', month, entryId, entry: current },
+    preview: {
+      title: 'Update ledger entry',
+      before: current,
+    },
+    sourceFingerprint,
+    form: ledgerForm('ledger_entry_update', month, ledger.accounts, categoryList, {
       id: current.id,
       date: current.date,
       type: current.type,
@@ -220,8 +210,8 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
       categoryId: current.categoryId,
       counterparty: current.counterparty,
       note: current.note,
-    })
-  );
+    }),
+  };
 }
 
 export async function executeFinancePayload(
@@ -233,7 +223,7 @@ export async function executeFinancePayload(
     case 'portfolio_item_add':
     case 'portfolio_item_update':
     case 'portfolio_item_remove':
-      return withPortfolioSync(() => executePortfolioPayload(payload, sourceFingerprint));
+      return executePortfolioPayload(payload, sourceFingerprint);
     case 'ledger_entry_add':
     case 'ledger_entry_update':
     case 'ledger_entry_remove':

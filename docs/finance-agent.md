@@ -42,9 +42,9 @@ Writes only create a pending proposal:
 - `ledger_account_add`, `ledger_account_update`, `ledger_account_remove`
 - `category_add`, `category_update`, `category_remove`
 
-Holdings and the newest ledger month are kept in sync, so a write to one shows up in the other: adding a holding adds
-its account, a changed amount becomes the account's closing balance, and an entry or a closing balance on an account
-moves its holding. See [`architecture.md`](./architecture.md#1-two-account-models-now-linked-rather-than-unified).
+Portfolio values are read from the newest ledger month, so the two never disagree: adding a holding adds its account,
+a changed amount becomes the account's closing balance, and entries or a closing balance on an account change the
+holding's value. See [`architecture.md`](./architecture.md#1-one-account-model-holdings-are-identity-ledger-months-hold-the-figures).
 
 Ledger add and edit proposals render a form in chat. Add defaults the date to
 today, type to expense, and account to the first account. Edit is filled from

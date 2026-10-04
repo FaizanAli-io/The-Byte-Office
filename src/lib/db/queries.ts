@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { idEq } from './ids';
-import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { FinanceDoc, FinanceSnapshot } from '@/types/finance';
 import type {
   CategoryKind,
@@ -11,8 +11,16 @@ import type {
   MonthlyLedgerPayload,
 } from '@/types/ledger';
 import { getDb, getSql } from './index';
-import { byAccountKind } from '@/lib/ledger';
-import { categories, financeSnapshots, ledgerAccounts, ledgerEntries, ledgers, type SnapshotHoldings } from './schema';
+import { displayName, shapeOf } from '@/lib/accounts';
+import {
+  categories,
+  financeSnapshots,
+  holdings,
+  ledgerAccounts,
+  ledgerEntries,
+  ledgers,
+  type SnapshotHoldings,
+} from './schema';
 
 export function toSnapshotHoldings(
   doc: Pick<FinanceDoc, 'name' | 'localBanks' | 'remoteBanks' | 'mutualFunds'>
@@ -28,13 +36,12 @@ export function toSnapshotHoldings(
   };
 }
 
-function toAccount(row: typeof ledgerAccounts.$inferSelect): LedgerAccount {
+function toAccount(row: typeof ledgerAccounts.$inferSelect, holding: typeof holdings.$inferSelect): LedgerAccount {
   return {
     id: row.id,
-    name: row.name,
-    type: row.type,
-    currency: row.currency,
-    holdingId: row.holdingId ?? undefined,
+    name: displayName(holding),
+    ...shapeOf(holding.kind),
+    holdingId: row.holdingId,
     openingBalance: row.openingBalance,
     openingCostBasis: row.openingCostBasis ?? undefined,
     actualClosingBalance: row.actualClosingBalance ?? undefined,
@@ -91,20 +98,25 @@ export async function loadLedger(month: string): Promise<MonthlyLedger | null> {
     db
       .select()
       .from(ledgerAccounts)
+      .innerJoin(holdings, eq(holdings.id, ledgerAccounts.holdingId))
       .where(eq(ledgerAccounts.ledgerId, ledger.id))
-      .orderBy(asc(ledgerAccounts.sortOrder)),
+      .orderBy(asc(holdings.kind), asc(holdings.sortOrder)),
     db.select().from(ledgerEntries).where(eq(ledgerEntries.ledgerId, ledger.id)).orderBy(asc(ledgerEntries.sortOrder)),
   ]);
 
-  return toLedger(ledger, accounts.map(toAccount).sort(byAccountKind), entries.map(toEntry));
+  return toLedger(
+    ledger,
+    accounts.map((row) => toAccount(row.ledger_accounts, row.holdings)),
+    entries.map(toEntry)
+  );
 }
 
-export async function loadPreviousFinalizedLedger(month: string) {
+export async function loadPreviousLedger(month: string) {
   const db = getDb();
   const [ledger] = await db
     .select()
     .from(ledgers)
-    .where(and(eq(ledgers.status, 'finalized'), lt(ledgers.month, month)))
+    .where(lt(ledgers.month, month))
     .orderBy(desc(ledgers.month))
     .limit(1);
   if (!ledger) return null;
@@ -113,15 +125,9 @@ export async function loadPreviousFinalizedLedger(month: string) {
 
 type Sql = ReturnType<typeof getSql>;
 
-function insertLedgerAccount(
-  sql: Sql,
-  ledgerId: string,
-  account: LedgerAccount,
-  index: number,
-  actualClosingBalance: number | null
-) {
-  return sql`INSERT INTO finance.ledger_accounts (id, ledger_id, holding_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order)
-    VALUES (${account.id}, ${ledgerId}, ${account.holdingId ?? null}, ${account.name}, ${account.type}, ${account.currency}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${actualClosingBalance}, ${account.exchangeRate}, ${index})`;
+function insertLedgerAccount(sql: Sql, ledgerId: string, account: LedgerAccount, actualClosingBalance: number | null) {
+  return sql`INSERT INTO finance.ledger_accounts (id, ledger_id, holding_id, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate)
+    VALUES (${account.id}, ${ledgerId}, ${account.holdingId}, ${account.openingBalance}, ${account.openingCostBasis ?? null}, ${actualClosingBalance}, ${account.exchangeRate})`;
 }
 
 function insertLedgerEntry(sql: Sql, ledgerId: string, entry: LedgerEntry, index: number) {
@@ -137,7 +143,7 @@ export async function createLedger(input: { month: string; accounts: LedgerAccou
     sql`INSERT INTO finance.ledgers (id, month, status, created_at, updated_at) VALUES (${id}, ${input.month}, 'draft', ${now.toISOString()}, ${now.toISOString()})`,
   ];
 
-  input.accounts.forEach((account, index) => statements.push(insertLedgerAccount(sql, id, account, index, null)));
+  input.accounts.forEach((account) => statements.push(insertLedgerAccount(sql, id, account, null)));
 
   await sql.transaction(statements);
   const created = await loadLedger(input.month);
@@ -163,8 +169,8 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
     sql`DELETE FROM finance.ledger_accounts WHERE ledger_id = ${ledgerId}`,
   ];
 
-  body.accounts.forEach((account, index) =>
-    statements.push(insertLedgerAccount(sql, ledgerId, account, index, account.actualClosingBalance ?? null))
+  body.accounts.forEach((account) =>
+    statements.push(insertLedgerAccount(sql, ledgerId, account, account.actualClosingBalance ?? null))
   );
   body.entries.forEach((entry, index) => statements.push(insertLedgerEntry(sql, ledgerId, entry, index)));
 
@@ -251,27 +257,32 @@ export async function loadHoldMovements() {
       note: ledgerEntries.note,
       amount: ledgerEntries.amount,
       entryRate: ledgerEntries.exchangeRate,
-      accountName: ledgerAccounts.name,
-      currency: ledgerAccounts.currency,
+      holdingName: holdings.name,
+      groupName: holdings.groupName,
+      kind: holdings.kind,
       accountRate: ledgerAccounts.exchangeRate,
     })
     .from(ledgerEntries)
     .innerJoin(ledgerAccounts, eq(ledgerEntries.accountId, ledgerAccounts.id))
+    .innerJoin(holdings, eq(holdings.id, ledgerAccounts.holdingId))
     .innerJoin(ledgers, eq(ledgerEntries.ledgerId, ledgers.id))
     .where(inArray(ledgerEntries.type, ['hold_received', 'hold_returned']))
     .orderBy(asc(ledgerEntries.date), asc(ledgerEntries.sortOrder));
 
-  return rows.map((row) => ({
-    month: row.month,
-    date: row.date,
-    type: row.type,
-    counterparty: row.counterparty ?? undefined,
-    note: row.note ?? undefined,
-    account: row.accountName,
-    amount: row.amount,
-    currency: row.currency,
-    amountPkr: row.currency === 'USD' ? row.amount * (row.entryRate ?? row.accountRate) : row.amount,
-  }));
+  return rows.map((row) => {
+    const { currency } = shapeOf(row.kind);
+    return {
+      month: row.month,
+      date: row.date,
+      type: row.type,
+      counterparty: row.counterparty ?? undefined,
+      note: row.note ?? undefined,
+      account: displayName({ name: row.holdingName, groupName: row.groupName }),
+      amount: row.amount,
+      currency,
+      amountPkr: currency === 'USD' ? row.amount * (row.entryRate ?? row.accountRate) : row.amount,
+    };
+  });
 }
 
 export async function listSnapshots(): Promise<FinanceSnapshot[]> {

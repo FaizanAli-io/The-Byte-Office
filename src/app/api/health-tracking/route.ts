@@ -3,7 +3,7 @@ import { healthInputSchema } from '@/lib/personal-validation';
 import { apiRoute, created, jsonBody, parseWith, searchParam } from '@/lib/api';
 
 export const GET = apiRoute('GET /api/health-tracking', 'Failed to load health tracking', (req: Request) =>
-  listHealthTracking(searchParam(req, 'metric')?.trim() || undefined)
+  listHealthTracking(searchParam(req, 'metricId')?.trim() || undefined)
 );
 
 export const POST = apiRoute(

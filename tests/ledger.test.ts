@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   accountMovement,
-  byAccountKind,
   accountStats,
   eligibleAccounts,
   expectedBalance,
@@ -376,19 +375,5 @@ describe('held funds in a monthly summary', () => {
   it('is zero in a month with no holds', () => {
     const summary = ledgerSummary({ accounts, entries: [entry({ id: 'e', accountId: 'pkr', amount: 10 })] });
     expect(summary.heldMovement).toBe(0);
-  });
-});
-
-describe('byAccountKind', () => {
-  it('orders local banks, remote banks, then funds, keeping order within a kind', () => {
-    const account = (name: string, type: 'bank' | 'fund', currency: 'PKR' | 'USD') => ({ name, type, currency });
-    const sorted = [
-      account('Meezan', 'bank', 'PKR'),
-      account('NBP', 'fund', 'PKR'),
-      account('MCB', 'fund', 'PKR'),
-      account('Deel', 'bank', 'USD'),
-      account('HBL', 'bank', 'PKR'),
-    ].sort(byAccountKind);
-    expect(sorted.map((item) => item.name)).toEqual(['Meezan', 'HBL', 'Deel', 'NBP', 'MCB']);
   });
 });

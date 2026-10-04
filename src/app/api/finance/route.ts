@@ -1,5 +1,4 @@
-import { loadFinanceDoc, saveFinanceDoc } from '@/lib/db/holdings';
-import { withPortfolioSync } from '@/lib/db/sync';
+import { loadFinanceDoc, saveFinanceDoc } from '@/lib/db/portfolio';
 import { validateFinanceDoc } from '@/lib/finance-validation';
 import { ApiError, apiRoute, jsonBody } from '@/lib/api';
 
@@ -9,5 +8,5 @@ export const POST = apiRoute('POST /api/finance', 'Failed to update finance data
   const body = await jsonBody<unknown>(req);
   if (!validateFinanceDoc(body)) throw new ApiError('Invalid finance data');
   if ('_id' in body) delete body._id;
-  return { success: true, data: await withPortfolioSync(() => saveFinanceDoc(body)) };
+  return { success: true, data: await saveFinanceDoc(body) };
 });

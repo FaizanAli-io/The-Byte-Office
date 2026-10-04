@@ -58,6 +58,11 @@ export function currentMonth() {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+export function nextMonth(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  return monthNumber === 12 ? `${year + 1}-01` : `${year}-${String(monthNumber + 1).padStart(2, '0')}`;
+}
+
 export function monthBounds(month: string) {
   const [year, monthNumber] = month.split('-').map(Number);
   const lastDay = new Date(year, monthNumber, 0).getDate();
@@ -238,13 +243,4 @@ function toPkr(amount: number, accountId: string, accounts: LedgerAccount[], exc
 
 export function entryUsesAccount(entry: LedgerEntry, id: string) {
   return entry.accountId === id || entry.destinationAccountId === id;
-}
-
-export function byAccountKind(
-  a: Pick<LedgerAccount, 'type' | 'currency'>,
-  b: Pick<LedgerAccount, 'type' | 'currency'>
-) {
-  const rank = (account: Pick<LedgerAccount, 'type' | 'currency'>) =>
-    account.type === 'fund' ? 2 : account.currency === 'USD' ? 1 : 0;
-  return rank(a) - rank(b);
 }

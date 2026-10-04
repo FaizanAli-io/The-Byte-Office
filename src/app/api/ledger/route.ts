@@ -1,16 +1,9 @@
 import { isMonth } from '@/lib/ledger';
 import { validateLedger } from '@/lib/finance-validation';
-import {
-  createLedger,
-  listCategories,
-  loadLedger,
-  loadPreviousFinalizedLedger,
-  listLedgerSummaries,
-} from '@/lib/db/queries';
+import { createLedger, listCategories, loadLedger, loadPreviousLedger, listLedgerSummaries } from '@/lib/db/queries';
 import { ApiError, apiRoute, created, found, jsonBody, searchParam } from '@/lib/api';
-import { loadHoldingList } from '@/lib/db/holdings';
-import { saveLedgerSynced } from '@/lib/db/sync';
-import { accountsForNewMonth } from '@/lib/portfolio-sync';
+import { loadHoldingIdentities, saveLedgerSynced } from '@/lib/db/portfolio';
+import { accountsForNewMonth } from '@/lib/accounts';
 import type { MonthlyLedgerPayload } from '@/types/ledger';
 
 export const GET = apiRoute('GET /api/ledger', 'Failed to load ledger', async (req: Request) => {
@@ -27,7 +20,7 @@ export const POST = apiRoute('POST /api/ledger', 'Failed to create ledger', asyn
   const existing = await loadLedger(month);
   if (existing) return existing;
 
-  const [holdings, previous] = await Promise.all([loadHoldingList(), loadPreviousFinalizedLedger(month)]);
+  const [holdings, previous] = await Promise.all([loadHoldingIdentities(), loadPreviousLedger(month)]);
   return created(await createLedger({ month, accounts: accountsForNewMonth(holdings, previous) }));
 });
 

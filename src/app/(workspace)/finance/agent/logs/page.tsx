@@ -52,7 +52,7 @@ export default function FinanceAgentLogsPage() {
     <FinancePageShell
       section="agent"
       title="Assistant logs"
-      description="Review every tool call made by the assistant, including its arguments, result, model, timing, and errors. This page refreshes every 5 seconds."
+      description="Every tool call: internal ones from the assistant, external ones from MCP and REST clients, with arguments, result, caller, timing and errors. Refreshes every 5 seconds."
       actions={
         <button type="button" className={financeStyles.secondary} onClick={() => void loadLogs()} disabled={refreshing}>
           {refreshing ? 'Refreshing…' : 'Refresh logs'}
@@ -91,7 +91,7 @@ export default function FinanceAgentLogsPage() {
                   <tr className="border-b border-white/8 text-xs uppercase tracking-[0.12em] text-slate-600">
                     <th className="px-3 py-3 font-semibold">Time</th>
                     <th className="px-3 py-3 font-semibold">Tool</th>
-                    <th className="px-3 py-3 font-semibold">Model</th>
+                    <th className="px-3 py-3 font-semibold">Caller</th>
                     <th className="px-3 py-3 font-semibold">Duration</th>
                     <th className="px-3 py-3 font-semibold">Status</th>
                     <th className="px-3 py-3 font-semibold">Request</th>
@@ -105,7 +105,9 @@ export default function FinanceAgentLogsPage() {
                         {formatTimeAgo(log.createdAt)}
                       </td>
                       <td className="px-3 py-4">
-                        <p className="font-semibold text-cyan-200">{log.toolName}</p>
+                        <p className="font-semibold text-cyan-200">
+                          {log.toolName} <TypeBadge type={log.type} />
+                        </p>
                         <LogPayload log={log} />
                       </td>
                       <td className="max-w-40 break-words px-3 py-4 text-xs text-slate-500">{log.model}</td>
@@ -163,7 +165,9 @@ function LogCard({ log, copied, onCopy }: { log: ToolLog; copied: boolean; onCop
     <article className={`${financeStyles.inset} p-4`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-semibold text-cyan-200">{log.toolName}</p>
+          <p className="font-semibold text-cyan-200">
+            {log.toolName} <TypeBadge type={log.type} />
+          </p>
           <p className="mt-1 text-xs text-slate-500">{formatTimeAgo(log.createdAt)}</p>
         </div>
         <Status log={log} />
@@ -273,4 +277,16 @@ function formatTimeAgo(value: string) {
 
   const elapsedYears = Math.floor(elapsedMonths / 12);
   return `${elapsedYears} year${elapsedYears === 1 ? '' : 's'} ago`;
+}
+
+function TypeBadge({ type }: { type: ToolLog['type'] }) {
+  return (
+    <span
+      className={`ml-1 rounded-full px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide ${
+        type === 'external' ? 'bg-amber-400/10 text-amber-300' : 'bg-white/5 text-slate-400'
+      }`}
+    >
+      {type}
+    </span>
+  );
 }

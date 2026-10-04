@@ -16,10 +16,10 @@ const INSTRUCTIONS = [
   'Write tools apply immediately after the host confirms the tool call. tbo_send_inquiry really does send an email.',
 ].join(' ');
 
-export function createMcpServer(scopes: string[]) {
+export function createMcpServer(scopes: string[], clientId?: string) {
   const server = new McpServer({ name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION }, { instructions: INSTRUCTIONS });
 
-  registerTools(server, scopes);
+  registerTools(server, scopes, clientId);
   registerResources(server, scopes);
   return server;
 }

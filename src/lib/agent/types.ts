@@ -19,6 +19,9 @@ export type AgentActionType =
   | 'health_add'
   | 'health_update'
   | 'health_remove'
+  | 'health_metric_add'
+  | 'health_metric_update'
+  | 'health_metric_remove'
   | 'tbo_send_inquiry';
 
 export type PortfolioItemInput =
@@ -47,6 +50,15 @@ export type LedgerAccountChanges = {
   actualClosingBalance?: number | null;
   openingCostBasis?: number | null;
 };
+
+export type PersonalActionType =
+  | 'prayer_set'
+  | 'health_add'
+  | 'health_update'
+  | 'health_remove'
+  | 'health_metric_add'
+  | 'health_metric_update'
+  | 'health_metric_remove';
 
 export type AgentActionPayload =
   | {
@@ -118,14 +130,14 @@ export type AgentActionPayload =
     }
   | {
       actionType: 'health_add';
-      metric: string;
+      metricId: string;
       value: number;
       createdAt?: string;
     }
   | {
       actionType: 'health_update';
       id: string;
-      metric?: string;
+      metricId?: string;
       value?: number;
       createdAt?: string;
     }
@@ -133,6 +145,9 @@ export type AgentActionPayload =
       actionType: 'health_remove';
       id: string;
     }
+  | { actionType: 'health_metric_add'; name: string }
+  | { actionType: 'health_metric_update'; id: string; name: string }
+  | { actionType: 'health_metric_remove'; id: string }
   | {
       actionType: 'tbo_send_inquiry';
       name: string;
@@ -154,6 +169,14 @@ export type LedgerEntryFormState = {
   accounts: Pick<LedgerAccount, 'id' | 'name' | 'currency' | 'type' | 'exchangeRate'>[];
   categories: LedgerCategory[];
   entry: Partial<LedgerEntry> & { date: string };
+};
+
+export type AgentProposal = {
+  actionType: AgentActionType;
+  payload: AgentActionPayload;
+  preview: ActionPreview;
+  sourceFingerprint?: string | null;
+  form?: LedgerEntryFormState;
 };
 
 export type PendingAgentAction = {

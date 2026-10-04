@@ -1,20 +1,17 @@
-import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
-import { createAgentAction } from '@/lib/agent/repository';
+import { AgentActionError } from '@/lib/agent/action-utils';
 import { parseInquiry, sendInquiryEmail } from '@/lib/inquiry-email';
-import type { AgentActionPayload } from '@/lib/agent/types';
+import type { AgentActionPayload, AgentProposal } from '@/lib/agent/types';
 
-export async function proposeTboInquiry(rawArgs: unknown) {
+export async function proposeTboInquiry(rawArgs: unknown): Promise<AgentProposal> {
   const inquiry = parseInquiry(rawArgs);
-  return toPublicAction(
-    await createAgentAction({
-      actionType: 'tbo_send_inquiry',
-      payload: { actionType: 'tbo_send_inquiry', ...inquiry },
-      preview: {
-        title: 'Send inquiry email to The Byte Office',
-        after: inquiry,
-      },
-    })
-  );
+  return {
+    actionType: 'tbo_send_inquiry',
+    payload: { actionType: 'tbo_send_inquiry', ...inquiry },
+    preview: {
+      title: 'Send inquiry email to The Byte Office',
+      after: inquiry,
+    },
+  };
 }
 
 export async function executeTboInquiry(payload: Extract<AgentActionPayload, { actionType: 'tbo_send_inquiry' }>) {

@@ -7,10 +7,11 @@ import {
   loadHoldMovements,
   loadLedger,
 } from '@/lib/db/queries';
-import { loadHoldings } from '@/lib/db/holdings';
+import { loadHoldings } from '@/lib/db/portfolio';
 import { holdingTotals } from '@/lib/finance';
 import { categoryName, heldFunds, ledgerCategoryTotals, ledgerSummary } from '@/lib/ledger';
 import { agentToolRegistry } from '@/lib/agent/registry';
+import { saveProposal } from '@/lib/agent/repository';
 import { proposeFinanceAction } from './actions';
 import { accountBalances } from './ledger-accounts';
 import type { AgentActionType, PendingAgentAction } from '@/lib/agent/types';
@@ -102,7 +103,7 @@ export async function executeFinanceTool(
   }
 
   if (isWriteTool(name)) {
-    return pendingResult(await proposeFinanceAction(name, input));
+    return pendingResult(await saveProposal(await proposeFinanceAction(name, input)));
   }
 
   throw new Error(`Unknown tool: ${name}`);

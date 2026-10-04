@@ -1,13 +1,14 @@
 'use client';
 
-import { healthApi, prayersApi } from '@/lib/api-client';
+import { healthApi, healthMetricsApi, prayersApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import { NAMAAZ_VALUES, type Namaaz } from '@/lib/db/schema';
-import type { HealthTracking, Prayer } from '@/types/personal';
+import type { HealthMetric, HealthTracking, Prayer } from '@/types/personal';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FinanceToast, type FinanceToastState } from '../components/FinanceToast';
 import { FinanceCard, FinancePageShell, StatCard, financeStyles } from '../components/FinanceUI';
 import { HealthChart } from './HealthChart';
+import { HealthMetrics } from './HealthMetrics';
 
 const NAMAAZ_LABELS: Record<Namaaz, string> = {
   fajr: 'Fajr',
@@ -21,6 +22,7 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
   const [prayers, setPrayers] = useState<Prayer[]>([]);
   const [prayersUpdatedAt, setPrayersUpdatedAt] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthTracking[]>([]);
+  const [metrics, setMetrics] = useState<HealthMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<FinanceToastState>(null);
   const [metric, setMetric] = useState('');
@@ -37,7 +39,9 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
       setPrayersUpdatedAt(tracker.updatedAt);
       return;
     }
-    setHealth(await healthApi.list());
+    const [readings, metricList] = await Promise.all([healthApi.list(), healthMetricsApi.list()]);
+    setHealth(readings);
+    setMetrics(metricList);
   }, [view]);
 
   useEffect(() => {
@@ -68,14 +72,14 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
 
   async function submitHealth() {
     const parsedValue = Number(value);
-    if (!metric.trim() || !Number.isFinite(parsedValue) || !value.trim()) {
-      setToast({ tone: 'error', message: 'Enter a metric and a numeric value.' });
+    if (!metric || !Number.isFinite(parsedValue) || !value.trim()) {
+      setToast({ tone: 'error', message: 'Choose a metric and enter a numeric value.' });
       return;
     }
     setSavingHealth(true);
     try {
       const payload = {
-        metric: metric.trim(),
+        metricId: metric,
         value: parsedValue,
         ...(createdAt ? { createdAt } : {}),
       };
@@ -117,7 +121,7 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
 
   function startEdit(entry: HealthTracking) {
     setEditingId(entry.id);
-    setMetric(entry.metric);
+    setMetric(entry.metricId);
     setValue(String(entry.value));
     setCreatedAt(new Date(entry.createdAt).toISOString().slice(0, 16));
     setPendingDelete(null);
@@ -204,12 +208,18 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
             <div className={`${financeStyles.inset} mb-5 grid gap-4 p-4 md:grid-cols-4`}>
               <label>
                 <span className={financeStyles.label}>Metric</span>
-                <input
+                <select
                   className={financeStyles.input}
                   value={metric}
                   onChange={(event) => setMetric(event.target.value)}
-                  placeholder="weight_kg"
-                />
+                >
+                  <option value="">Choose a metric</option>
+                  {metrics.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 <span className={financeStyles.label}>Value</span>
@@ -290,6 +300,9 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
           </FinanceCard>
           <div className="mt-6">
             <HealthChart entries={health} />
+          </div>
+          <div className="mt-6">
+            <HealthMetrics metrics={metrics} onChange={refresh} onToast={setToast} />
           </div>
         </FinancePageShell>
       )}

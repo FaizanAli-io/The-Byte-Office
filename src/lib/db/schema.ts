@@ -27,8 +27,6 @@ export const finance = pgSchema('finance');
 export const personal = pgSchema('personal');
 
 export const ledgerStatusEnum = finance.enum('ledger_status', ['draft', 'finalized']);
-export const ledgerAccountTypeEnum = finance.enum('ledger_account_type', ['bank', 'fund']);
-export const ledgerCurrencyEnum = finance.enum('ledger_currency', ['PKR', 'USD']);
 export const ledgerEntryTypeEnum = finance.enum('ledger_entry_type', LEDGER_ENTRY_TYPES);
 export const categoryKindEnum = finance.enum('category_kind', CATEGORY_KINDS);
 export const financeAgentActionStatusEnum = finance.enum('finance_agent_action_status', [
@@ -48,17 +46,14 @@ export const holdings = finance.table(
     kind: holdingKindEnum('kind').notNull(),
     name: text('name').notNull(),
     groupName: text('group_name'),
-    amount: money('amount').notNull().default(0),
-    exchangeRate: rate('exchange_rate').notNull().default(1),
     sortOrder: sortOrder(),
+    archivedAt: utc('archived_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
     index('holdings_kind_sort_idx').on(table.kind, table.sortOrder),
     check('holdings_group_only_for_funds', sql`(${table.kind} = 'mutual_fund') = (${table.groupName} IS NOT NULL)`),
-    check('holdings_rate_only_for_remote', sql`${table.kind} = 'remote_bank' OR ${table.exchangeRate} = 1`),
-    check('holdings_amount_non_negative', sql`${table.amount} >= 0`),
   ]
 );
 
@@ -85,15 +80,13 @@ export const ledgerAccounts = finance.table(
     ledgerId: uuid('ledger_id')
       .notNull()
       .references(() => ledgers.id, { onDelete: 'cascade' }),
-    holdingId: uuid('holding_id').references(() => holdings.id, { onDelete: 'set null' }),
-    name: text('name').notNull(),
-    type: ledgerAccountTypeEnum('type').notNull(),
-    currency: ledgerCurrencyEnum('currency').notNull(),
+    holdingId: uuid('holding_id')
+      .notNull()
+      .references(() => holdings.id, { onDelete: 'restrict' }),
     openingBalance: money('opening_balance').notNull(),
     openingCostBasis: money('opening_cost_basis'),
     actualClosingBalance: money('actual_closing_balance'),
     exchangeRate: rate('exchange_rate').notNull().default(1),
-    sortOrder: sortOrder(),
   },
   (table) => [
     index('ledger_accounts_ledger_idx').on(table.ledgerId),
@@ -270,11 +263,14 @@ export const financeAgentMessages = finance.table(
   ]
 );
 
+export const toolLogTypeEnum = finance.enum('tool_log_type', ['internal', 'external']);
+
 export const financeAgentToolLogs = finance.table(
   'finance_agent_tool_logs',
   {
     id: uuid('id').defaultRandom().primaryKey(),
     requestId: uuid('request_id').notNull(),
+    type: toolLogTypeEnum('type').notNull().default('internal'),
     model: text('model').notNull(),
     toolCallId: text('tool_call_id').notNull(),
     toolName: text('tool_name').notNull(),
@@ -315,16 +311,28 @@ export const prayerHistory = personal.table('prayer_history', {
   counts: jsonb('counts').$type<Record<Namaaz, number>>().notNull(),
 });
 
+export const healthMetrics = personal.table(
+  'health_metrics',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [uniqueIndex('health_metrics_name_uidx').on(sql`lower(${table.name})`)]
+);
+
 export const healthTracking = personal.table(
   'health_tracking',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    metric: text('metric').notNull(),
+    metricId: uuid('metric_id')
+      .notNull()
+      .references(() => healthMetrics.id, { onDelete: 'restrict' }),
     value: numeric('value', { precision: 10, scale: 3, mode: 'number' }).notNull(),
     createdAt: createdAt(),
   },
   (table) => [
     index('health_tracking_created_idx').on(table.createdAt),
-    index('health_tracking_metric_idx').on(table.metric),
+    index('health_tracking_metric_id_idx').on(table.metricId),
   ]
 );

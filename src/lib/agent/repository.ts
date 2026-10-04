@@ -1,13 +1,12 @@
 import { createHash } from 'crypto';
 import { idEq } from '@/lib/db/ids';
-import { and, asc, desc, eq, gt, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, lt } from 'drizzle-orm';
+import { toPublicAction } from './action-utils';
 import { getDb } from '@/lib/db';
 import { agentConversations, financeAgentActions, financeAgentMessages, financeAgentToolLogs } from '@/lib/db/schema';
 import {
   parseAgentWorkspace,
-  type ActionPreview,
-  type AgentActionPayload,
-  type AgentActionType,
+  type AgentProposal,
   type AgentChatMessage,
   type AgentConversation,
   type AgentWorkspace,
@@ -16,8 +15,21 @@ import {
 
 const ACTION_TTL_MS = 15 * 60 * 1000;
 
+const MAX_LOGGED_JSON = 12_000;
+
+function bounded(value: unknown) {
+  if (value === undefined) return undefined;
+  try {
+    const json = JSON.stringify(value);
+    return json.length <= MAX_LOGGED_JSON ? (JSON.parse(json) as unknown) : { error: 'Too large to log' };
+  } catch {
+    return { error: 'Could not be serialized for logs' };
+  }
+}
+
 export async function logAgentToolCall(input: {
   requestId: string;
+  type: 'internal' | 'external';
   model: string;
   toolCallId: string;
   toolName: string;
@@ -30,11 +42,12 @@ export async function logAgentToolCall(input: {
     .insert(financeAgentToolLogs)
     .values({
       requestId: input.requestId,
+      type: input.type,
       model: input.model,
       toolCallId: input.toolCallId,
       toolName: input.toolName,
-      arguments: input.arguments,
-      result: input.result,
+      arguments: bounded(input.arguments) ?? null,
+      result: bounded(input.result),
       error: input.error?.slice(0, 1000),
       durationMs: input.durationMs,
     });
@@ -48,12 +61,16 @@ export async function listAgentToolLogs(limit = 200) {
     .limit(Math.min(Math.max(limit, 1), 500));
 }
 
-export async function createAgentAction(input: {
-  actionType: AgentActionType;
-  payload: AgentActionPayload;
-  preview: ActionPreview;
-  sourceFingerprint?: string | null;
-}) {
+const ACTION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+export async function saveProposal(proposal: AgentProposal) {
+  return toPublicAction(await createAgentAction(proposal), proposal.form);
+}
+
+async function createAgentAction(input: AgentProposal) {
+  await getDb()
+    .delete(financeAgentActions)
+    .where(lt(financeAgentActions.createdAt, new Date(Date.now() - ACTION_RETENTION_MS)));
   const [action] = await getDb()
     .insert(financeAgentActions)
     .values({

@@ -7,7 +7,7 @@ import { mcpResourceUrl } from '@/lib/oauth/metadata';
 import { accessTokenVerifier } from './auth';
 import { createMcpServer } from './server';
 
-const handler = createMcpHandler((ctx) => createMcpServer(ctx.authInfo?.scopes ?? []), {
+const handler = createMcpHandler((ctx) => createMcpServer(ctx.authInfo?.scopes ?? [], ctx.authInfo?.clientId), {
   legacy: 'stateless',
   responseMode: 'json',
 });

@@ -36,33 +36,30 @@ messages, tool logs and the action lifecycle (`actions.ts` claims, dispatches an
 
 ---
 
-## 1. Two account models, now linked rather than unified
+## 1. One account model: holdings are identity, ledger months hold the figures
 
-The portfolio keeps holdings in `holdings`; the ledger keeps `ledger_accounts`, one set **per month**. Each account
-carries a `holding_id` foreign key, and
-[`portfolio-sync.ts`](../src/lib/portfolio-sync.ts) keeps the newest month and the portfolio equal in both directions:
-a ledger save sets each holding to its account's value, a portfolio change becomes the account's closing balance, and
-adding, renaming or removing on one side does the same on the other. A new month opens at the portfolio's figures, and
-finalizing a month snapshots the portfolio.
+`holdings` is the list of accounts — kind, name, a fund's bank, order, and `archived_at`. `ledger_accounts` holds only
+the monthly figures for a holding (opening, actual closing, cost basis, rate); name, type and currency come from the
+holding. Nothing is stored twice, so nothing has to be kept in step.
 
-What is still not ideal:
+- **The portfolio is read from the newest month**: each holding is worth its account's statement balance there, else
+  what the entries add up to. [`accounts.ts`](../src/lib/accounts.ts) holds that rule; reads go through
+  [`db/portfolio.ts`](../src/lib/db/portfolio.ts).
+- **Portfolio writes land in the newest draft month**: a changed amount becomes the account's closing balance. If that
+  month is finalized, the next month is opened first.
+- **Removing is archiving.** A holding referenced by past months cannot be deleted (`holding_id` is a restricting
+  foreign key); archiving takes it out of the portfolio and the next month while history keeps its name.
+- **Ledger edits that touch identity** — adding, renaming or removing an account — create, rename or archive the
+  holding (`saveLedgerSynced`).
 
-- It is two stores kept in step, not one. Both directions are diff-based (before/after a save) precisely so that
-  neither side can overwrite the other with figures nobody touched — that rule is what keeps it safe, and any new
-  write path has to go through `saveLedgerSynced` or `withPortfolioSync` to stay inside it.
-- Held funds are still subtracted from the portfolio total as a whole, so there is no per-account net — you cannot ask
-  "how much of HBL is actually mine".
-
-A true account entity — holdings as balances _of_ an account, ledger rows as monthly records _for_ it — would remove the
-syncing altogether. Worth it only if the sync starts needing special cases.
+Still open: held funds are subtracted from the portfolio total as a whole, so there is no per-account net — you cannot
+ask "how much of HBL is actually mine".
 
 ## 2. One holding was three tables — storage merged, API not yet
 
 `local_banks`, `remote_banks` and `mutual_funds` differed only by currency and whether a holding sits under a bank.
-They are now one `holdings` table (`kind`, `name`, `group_name` for a fund's bank, `amount` in the kind's currency, and
-`exchange_rate` for remote banks), and [`db/holdings.ts`](../src/lib/db/holdings.ts) is the only code that touches it.
-Fund grouping is by bank name, so the `floor(sort_order / 1000)` stride is gone, and `ledger_accounts.holding_id` is a
-real foreign key.
+They are now one `holdings` table (see item 1), and [`db/holdings.ts`](../src/lib/db/holdings.ts) is the only code that
+touches it. Fund grouping is by bank name, so the `floor(sort_order / 1000)` stride is gone.
 
 What is left is the shape crossing the wire. The API still speaks in three kinds:
 
@@ -123,4 +120,3 @@ Worth stating, so a future pass does not "fix" these:
 
 1. **2 — flatten the holdings API.** One list of holdings on the wire instead of three kinds and grouped funds.
 2. **3 — row-level ledger entry endpoints.** Only once whole-month saves start to hurt.
-3. **1 — a shared account entity.** Only if the sync starts needing special cases.

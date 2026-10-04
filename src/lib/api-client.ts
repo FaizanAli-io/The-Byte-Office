@@ -2,12 +2,13 @@
 
 import { apiFetch, apiFetchOrNull } from './client-api';
 import type { FinanceDoc, FinanceSnapshot } from '@/types/finance';
-import type { HealthTracking, Prayer } from '@/types/personal';
+import type { HealthMetric, HealthTracking, Prayer } from '@/types/personal';
 import type { CategoryKind, LedgerCategory, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 import type { AgentConversation, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
 import type { heldFunds } from './ledger';
 
 export type ToolLog = {
+  type: 'internal' | 'external';
   id: string;
   requestId: string;
   model: string;
@@ -59,10 +60,17 @@ export const prayersApi = {
 
 export const healthApi = {
   list: () => apiFetch<HealthTracking[]>('/api/health-tracking'),
-  create: (body: { metric: string; value: number; createdAt?: string }) => apiFetch('/api/health-tracking', { body }),
-  update: (id: string, body: { metric?: string; value?: number; createdAt?: string }) =>
+  create: (body: { metricId: string; value: number; createdAt?: string }) => apiFetch('/api/health-tracking', { body }),
+  update: (id: string, body: { metricId?: string; value?: number; createdAt?: string }) =>
     apiFetch(`/api/health-tracking/${id}`, { method: 'PUT', body }),
   remove: (id: string) => apiFetch(`/api/health-tracking/${id}`, { method: 'DELETE' }),
+};
+
+export const healthMetricsApi = {
+  list: () => apiFetch<HealthMetric[]>('/api/health-metrics'),
+  create: (name: string) => apiFetch<HealthMetric>('/api/health-metrics', { body: { name } }),
+  rename: (id: string, name: string) => apiFetch('/api/health-metrics', { method: 'PUT', body: { id, name } }),
+  remove: (id: string) => apiFetch('/api/health-metrics', { method: 'DELETE', body: { id } }),
 };
 
 export const agentApi = {

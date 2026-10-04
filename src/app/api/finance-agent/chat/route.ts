@@ -96,13 +96,12 @@ export async function POST(request: Request) {
 
               await logAgentToolCall({
                 requestId,
+                type: 'internal',
                 model,
                 toolCallId: call.id,
                 toolName,
-                arguments: boundedJsonValue(
-                  toolError ? { raw: call.function.arguments ?? null, parsed: toolArgs } : toolArgs
-                ),
-                result: toolError ? undefined : boundedJsonValue(toolOutput),
+                arguments: toolError ? { raw: call.function.arguments ?? null, parsed: toolArgs } : toolArgs,
+                result: toolError ? undefined : toolOutput,
                 error: toolError,
                 durationMs: Date.now() - startedAt,
               }).catch((cause) => console.error('Could not persist finance agent tool log:', cause));
@@ -221,14 +220,6 @@ function parseToolArguments(raw: unknown): Record<string, unknown> {
 function safeJson(value: unknown) {
   const json = JSON.stringify(value);
   return json.length <= 12_000 ? json : JSON.stringify({ error: 'Tool result was too large; narrow the request' });
-}
-
-function boundedJsonValue(value: unknown) {
-  try {
-    return JSON.parse(safeJson(value)) as unknown;
-  } catch {
-    return { error: 'Value could not be serialized for logs' };
-  }
 }
 
 class RequestValidationError extends Error {

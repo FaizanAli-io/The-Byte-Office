@@ -34,6 +34,11 @@ the chat assistant the same tools create a confirmation card instead.
 | `health_list`          | `health_add`             |
 |                        | `health_update`          |
 |                        | `health_remove`          |
+| `health_metrics_list`  | `health_metric_add`      |
+|                        | `health_metric_update`   |
+|                        | `health_metric_remove`   |
+
+Health readings name their metric, which must already exist in `health_metrics_list`; an unknown name is rejected.
 
 ## TBO
 

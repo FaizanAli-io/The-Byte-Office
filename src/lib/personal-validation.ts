@@ -9,6 +9,7 @@ const missed = z
   .int({ error: 'Missed must be a non-negative integer' })
   .min(0, 'Missed must be a non-negative integer');
 const metric = z.string({ error: 'Metric is required' }).trim().min(1, 'Metric is required');
+const metricId = z.uuid({ error: 'metricId must be a health metric id' });
 const reading = z.number({ error: 'Value must be a number' }).finite('Value must be a number');
 const createdAt = z.coerce.date({ error: 'createdAt must be a valid date' });
 
@@ -22,11 +23,21 @@ export const prayerUpdateSchema = z
 
 export const prayerSetSchema = z.object({ namaaz: namaazSchema, missed });
 
-export const healthInputSchema = z.object({ metric, value: reading, createdAt: createdAt.optional() });
+export const healthInputSchema = z.object({ metricId, value: reading, createdAt: createdAt.optional() });
 
 export const healthUpdateSchema = z
+  .object({ metricId: metricId.optional(), value: reading.optional(), createdAt: createdAt.optional() })
+  .refine(hasAnyField, { error: 'Provide metricId, value, or createdAt to update' });
+
+export const healthByNameSchema = z.object({ metric, value: reading, createdAt: createdAt.optional() });
+
+export const healthUpdateByNameSchema = z
   .object({ metric: metric.optional(), value: reading.optional(), createdAt: createdAt.optional() })
   .refine(hasAnyField, { error: 'Provide metric, value, or createdAt to update' });
+
+export const healthMetricInputSchema = z.object({ name: metric });
+
+export const healthMetricUpdateSchema = z.object({ id: z.string().min(1), name: metric });
 
 export type PrayerInput = z.infer<typeof prayerInputSchema>;
 export type PrayerUpdate = z.infer<typeof prayerUpdateSchema>;

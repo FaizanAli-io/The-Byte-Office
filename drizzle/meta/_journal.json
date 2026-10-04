@@ -29,6 +29,20 @@
       "when": 1791119343913,
       "tag": "0003_drop_legacy_holdings",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791123441346,
+      "tag": "0004_holdings_as_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791123971828,
+      "tag": "0005_health_metrics",
+      "breakpoints": true
     }
   ]
 }

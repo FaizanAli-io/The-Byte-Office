@@ -30,12 +30,12 @@ async function resolve(request: Request, context: RouteContext, method: 'get' | 
     return { error: NextResponse.json({ error: `${name} expects ${expected}` }, { status: 405 }) };
   }
 
-  return { name };
+  return { name, clientId: auth.clientId };
 }
 
-async function run(name: string, args: unknown) {
+async function run(name: string, args: unknown, clientId: string) {
   try {
-    return NextResponse.json({ tool: name, result: await invokeAgentTool(name, args) });
+    return NextResponse.json({ tool: name, result: await invokeAgentTool(name, args, clientId) });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Tool execution failed';
     const status = message.startsWith('Unknown tool') ? 404 : message.includes('required') ? 400 : 500;
@@ -46,7 +46,7 @@ async function run(name: string, args: unknown) {
 export async function GET(request: Request, context: RouteContext) {
   const resolved = await resolve(request, context, 'get');
   if (resolved.error) return resolved.error;
-  return run(resolved.name, {});
+  return run(resolved.name, {}, resolved.clientId);
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -59,5 +59,5 @@ export async function POST(request: Request, context: RouteContext) {
   } catch {
     return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 });
   }
-  return run(resolved.name, body);
+  return run(resolved.name, body, resolved.clientId);
 }

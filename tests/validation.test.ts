@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { validateFinanceDoc, validateLedger, validateSnapshotInput } from '@/lib/finance-validation';
 import {
+  healthByNameSchema,
   healthInputSchema,
+  healthMetricInputSchema,
   healthUpdateSchema,
   prayerInputSchema,
   prayerUpdateSchema,
@@ -15,6 +17,8 @@ const doc = () => ({
   remoteBanks: [{ id: 'b', name: 'Wise', amountUsd: 5, exchangeRate: 280 }],
   mutualFunds: [{ Meezan: [{ id: 'c', fund: 'Cash', value: 1 }] }],
 });
+
+const METRIC = '6a13aeac-c3fc-4e56-8ed7-876b55c05827';
 
 describe('validateFinanceDoc', () => {
   it('accepts a document with ids', () => expect(validateFinanceDoc(doc())).toBe(true));
@@ -182,14 +186,16 @@ describe('personal schemas', () => {
   });
 
   it('trims the health metric', () =>
-    expect(healthInputSchema.parse({ metric: '  water  ', value: 8 }).metric).toBe('water'));
+    expect(healthByNameSchema.parse({ metric: '  water  ', value: 8 }).metric).toBe('water'));
   it('coerces an ISO string to a date', () =>
-    expect(healthInputSchema.parse({ metric: 'w', value: 1, createdAt: '2026-01-02' }).createdAt).toBeInstanceOf(Date));
+    expect(healthInputSchema.parse({ metricId: METRIC, value: 1, createdAt: '2026-01-02' }).createdAt).toBeInstanceOf(
+      Date
+    ));
   it('rejects an unparseable date', () =>
-    expect(healthInputSchema.safeParse({ metric: 'w', value: 1, createdAt: 'nope' }).success).toBe(false));
+    expect(healthInputSchema.safeParse({ metricId: METRIC, value: 1, createdAt: 'nope' }).success).toBe(false));
 
   it.each([[72.5], [36.65], [0.125], [-1.5], [0]])('accepts the decimal reading %s', (value) => {
-    expect(healthInputSchema.parse({ metric: 'weight_kg', value }).value).toBe(value);
+    expect(healthInputSchema.parse({ metricId: METRIC, value }).value).toBe(value);
   });
 
   it('accepts a decimal on update too', () => {
@@ -197,7 +203,7 @@ describe('personal schemas', () => {
   });
 
   it.each([[Number.NaN], [Number.POSITIVE_INFINITY], ['80'], [null]])('still rejects %s', (value) => {
-    expect(healthInputSchema.safeParse({ metric: 'w', value }).success).toBe(false);
+    expect(healthInputSchema.safeParse({ metricId: METRIC, value }).success).toBe(false);
   });
 });
 
@@ -227,5 +233,14 @@ describe('parseInquiry', () => {
     ['a non-object', 'nope'],
   ])('rejects %s', (_label, value) => {
     expect(() => parseInquiry(value)).toThrow();
+  });
+});
+
+describe('health metrics', () => {
+  it('requires a real metric id on a reading', () =>
+    expect(healthInputSchema.safeParse({ metricId: 'Weight (KG)', value: 90 }).success).toBe(false));
+  it('trims a metric name and refuses an empty one', () => {
+    expect(healthMetricInputSchema.parse({ name: '  Weight (KG) ' }).name).toBe('Weight (KG)');
+    expect(healthMetricInputSchema.safeParse({ name: '   ' }).success).toBe(false);
   });
 });

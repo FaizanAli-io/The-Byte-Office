@@ -1,7 +1,7 @@
 import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
-import { executePersonalPayload } from '@/lib/agent/modules/personal';
-import { executeTboInquiry } from '@/lib/agent/modules/tbo-actions';
-import { executeFinancePayload } from '@/lib/finance-agent/actions';
+import { executePersonalPayload, personalToolNames, proposePersonalAction } from '@/lib/agent/modules/personal';
+import { executeTboInquiry, proposeTboInquiry } from '@/lib/agent/modules/tbo-actions';
+import { executeFinancePayload, proposeFinanceAction } from '@/lib/finance-agent/actions';
 import {
   cancelAgentAction,
   claimAgentAction,
@@ -10,7 +10,7 @@ import {
   getAgentAction,
   syncActionInMessages,
 } from './repository';
-import type { AgentActionPayload } from './types';
+import type { AgentActionPayload, AgentActionType, AgentProposal } from './types';
 
 export async function executeAgentAction(id: string, entryOverride?: unknown) {
   const action = await claimAgentAction(id);
@@ -64,10 +64,24 @@ async function executePayload(payload: AgentActionPayload, sourceFingerprint: st
     case 'health_add':
     case 'health_update':
     case 'health_remove':
+    case 'health_metric_add':
+    case 'health_metric_update':
+    case 'health_metric_remove':
       return executePersonalPayload(payload, sourceFingerprint);
     case 'tbo_send_inquiry':
       return executeTboInquiry(payload);
     default:
       return executeFinancePayload(payload, sourceFingerprint, entryOverride);
   }
+}
+
+export async function proposeAgentAction(name: AgentActionType, args: Record<string, unknown>): Promise<AgentProposal> {
+  if (personalToolNames.has(name))
+    return proposePersonalAction(name as Parameters<typeof proposePersonalAction>[0], args);
+  if (name === 'tbo_send_inquiry') return proposeTboInquiry(args);
+  return proposeFinanceAction(name, args);
+}
+
+export function runProposal(proposal: AgentProposal, entryOverride?: unknown) {
+  return executePayload(proposal.payload, proposal.sourceFingerprint ?? null, entryOverride);
 }
