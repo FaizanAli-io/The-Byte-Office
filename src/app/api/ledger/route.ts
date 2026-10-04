@@ -26,11 +26,11 @@ export const POST = apiRoute('POST /api/ledger', 'Failed to create ledger', asyn
 
 export const PUT = apiRoute('PUT /api/ledger', 'Failed to save ledger', async (req: Request) => {
   const body = await jsonBody<MonthlyLedgerPayload>(req);
+  const existing = found(await loadLedger(body.month), 'Ledger not found');
   const categoryIds = new Set((await listCategories()).map((category) => category.id));
-  const validationError = validateLedger(body, categoryIds);
+  const validationError = validateLedger({ ...body, entries: existing.entries }, categoryIds);
   if (validationError) throw new ApiError(validationError);
 
-  const existing = found(await loadLedger(body.month), 'Ledger not found');
   if (existing.status === 'finalized' && body.status === 'finalized') {
     throw new ApiError('Reopen this month before editing it', 409);
   }

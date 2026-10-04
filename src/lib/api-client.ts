@@ -3,7 +3,7 @@
 import { apiFetch, apiFetchOrNull } from './client-api';
 import type { FinanceDoc, FinanceSnapshot } from '@/types/finance';
 import type { HealthMetric, HealthTracking, Prayer } from '@/types/personal';
-import type { CategoryKind, LedgerCategory, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
+import type { CategoryKind, LedgerCategory, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 import type { AgentConversation, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
 import type { heldFunds } from './ledger';
 
@@ -32,6 +32,12 @@ export const ledgerApi = {
   load: (month: string) => apiFetchOrNull<MonthlyLedger>(`/api/ledger?month=${encodeURIComponent(month)}`),
   create: (month: string) => apiFetch<MonthlyLedger>('/api/ledger', { body: { month } }),
   save: (payload: MonthlyLedgerPayload) => apiFetch<MonthlyLedger>('/api/ledger', { method: 'PUT', body: payload }),
+  addEntry: (month: string, entry: LedgerEntry) =>
+    apiFetch<MonthlyLedger>('/api/ledger/entries', { body: { month, entry } }),
+  updateEntry: (month: string, entry: LedgerEntry) =>
+    apiFetch<MonthlyLedger>(`/api/ledger/entries/${entry.id}`, { method: 'PUT', body: { month, entry } }),
+  removeEntry: (month: string, id: string) =>
+    apiFetch<MonthlyLedger>(`/api/ledger/entries/${id}?month=${encodeURIComponent(month)}`, { method: 'DELETE' }),
 };
 
 export const categoriesApi = {

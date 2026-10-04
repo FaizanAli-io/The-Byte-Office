@@ -7,7 +7,7 @@ import {
   LEDGER_ENTRY_TYPES,
   type LedgerAccount,
   type LedgerEntry,
-  type MonthlyLedgerPayload,
+  type LedgerDraft,
 } from '@/types/ledger';
 
 const categoryName = z.string().trim().min(1, 'A category needs a name').max(60, 'Category name is too long');
@@ -76,7 +76,7 @@ export function validateSnapshotInput(value: unknown) {
   return null;
 }
 
-export function validateLedger(body: MonthlyLedgerPayload, categoryIds: ReadonlySet<string> = new Set()) {
+export function validateLedger(body: LedgerDraft, categoryIds: ReadonlySet<string> = new Set()) {
   if (!body || !isMonth(body.month)) return 'Invalid month';
   if (!['draft', 'finalized'].includes(body.status)) return 'Invalid status';
   if (Number.isNaN(new Date(body.updatedAt).getTime())) return 'updatedAt is required: reload the month and try again';

@@ -13,6 +13,7 @@ import type {
   PortfolioItemType,
 } from '@/lib/agent/types';
 import { applyAccountAction, isAccountAction, planAccountAction } from './ledger-accounts';
+import { changeLedgerEntry } from '@/lib/ledger-entries';
 import {
   addPortfolioItem,
   getPortfolioItem,
@@ -282,30 +283,21 @@ async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: s
     return { ...rest, categoryId: resolveCategoryArg(categoryList, category) };
   };
 
-  let { accounts, entries } = ledger;
   if (payload.actionType === 'ledger_entry_add') {
     const entry = parseLedgerEntry(withCategory(payload.entry), { id: payload.entry.id });
-    if (ledger.entries.some((item) => item.id === entry.id)) {
-      throw new AgentActionError('This entry was already added. Ask the assistant to open a new form.', 409);
-    }
-    entries = [...ledger.entries, entry];
-  } else if (payload.actionType === 'ledger_entry_update') {
-    if (!ledger.entries.some((entry) => entry.id === payload.entryId)) {
-      throw new AgentActionError('Ledger entry no longer exists', 409);
-    }
+    return ledgerWriteResult(payload, await changeLedgerEntry(payload.month, { kind: 'add', entry }));
+  }
+  if (payload.actionType === 'ledger_entry_update') {
     const entry = parseLedgerEntry(withCategory(payload.entry), { id: payload.entryId });
-    entries = ledger.entries.map((item) => (item.id === payload.entryId ? entry : item));
-  } else if (payload.actionType === 'ledger_entry_remove') {
-    if (!ledger.entries.some((entry) => entry.id === payload.entryId)) {
-      throw new AgentActionError('Ledger entry no longer exists', 409);
-    }
-    entries = ledger.entries.filter((entry) => entry.id !== payload.entryId);
-  } else {
-    accounts = applyAccountAction(payload, ledger);
+    return ledgerWriteResult(payload, await changeLedgerEntry(payload.month, { kind: 'update', entry }));
+  }
+  if (payload.actionType === 'ledger_entry_remove') {
+    return ledgerWriteResult(payload, await changeLedgerEntry(payload.month, { kind: 'remove', id: payload.entryId }));
   }
 
-  assertLedger({ ...ledger, accounts, entries }, new Set(categoryList.map((category) => category.id)));
-  const saved = await saveLedgerSynced(ledger, { ...ledger, accounts, entries });
+  const accounts = applyAccountAction(payload, ledger);
+  assertLedger({ ...ledger, accounts }, new Set(categoryList.map((category) => category.id)));
+  const saved = await saveLedgerSynced(ledger, { ...ledger, accounts });
   if (!saved) throw new AgentActionError('The ledger changed while saving. Ask the assistant to try again.', 409);
   return ledgerWriteResult(payload, saved);
 }

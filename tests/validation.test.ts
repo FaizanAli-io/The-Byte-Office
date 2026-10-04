@@ -9,7 +9,7 @@ import {
   prayerUpdateSchema,
 } from '@/lib/personal-validation';
 import { parseInquiry } from '@/lib/inquiry-email';
-import type { MonthlyLedgerPayload } from '@/types/ledger';
+import type { LedgerDraft } from '@/types/ledger';
 
 const doc = () => ({
   name: 'finance',
@@ -58,7 +58,7 @@ describe('validateSnapshotInput', () => {
 });
 
 describe('validateLedger', () => {
-  const base = (): MonthlyLedgerPayload => ({
+  const base = (): LedgerDraft => ({
     month: '2026-03',
     status: 'draft',
     updatedAt: '2026-03-01T00:00:00.000Z',

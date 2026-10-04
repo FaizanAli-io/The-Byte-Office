@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { idEq } from './ids';
-import { asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { asc, desc, eq, inArray, lt, max, sql } from 'drizzle-orm';
 import type { FinanceDoc, FinanceSnapshot } from '@/types/finance';
 import type {
   CategoryKind,
@@ -158,6 +158,8 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   const sql = getSql();
   const ledgerId = String(existing._id);
   const expected = new Date(body.updatedAt).toISOString();
+  const kept = new Set(body.accounts.map((account) => account.id));
+  const had = new Set(existing.accounts.map((account) => account.id));
   // Stale-save guard: the HTTP transaction cannot branch, so dividing by the UPDATE row count
   // aborts it with 22012 when updated_at has moved on.
   const statements = [
@@ -165,14 +167,13 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
       UPDATE finance.ledgers SET status = ${body.status}, updated_at = ${now.toISOString()}, finalized_at = ${finalizedAt ? finalizedAt.toISOString() : null}
       WHERE id = ${ledgerId} AND date_trunc('milliseconds', updated_at) = ${expected} RETURNING 1
     ) SELECT 1 / (SELECT count(*) FROM saved)::int`,
-    sql`DELETE FROM finance.ledger_entries WHERE ledger_id = ${ledgerId}`,
-    sql`DELETE FROM finance.ledger_accounts WHERE ledger_id = ${ledgerId}`,
+    ...[...had].filter((id) => !kept.has(id)).map((id) => sql`DELETE FROM finance.ledger_accounts WHERE id = ${id}`),
+    ...body.accounts.map((account) =>
+      had.has(account.id)
+        ? sql`UPDATE finance.ledger_accounts SET opening_balance = ${account.openingBalance}, opening_cost_basis = ${account.openingCostBasis ?? null}, actual_closing_balance = ${account.actualClosingBalance ?? null}, exchange_rate = ${account.exchangeRate} WHERE id = ${account.id}`
+        : insertLedgerAccount(sql, ledgerId, account, account.actualClosingBalance ?? null)
+    ),
   ];
-
-  body.accounts.forEach((account) =>
-    statements.push(insertLedgerAccount(sql, ledgerId, account, account.actualClosingBalance ?? null))
-  );
-  body.entries.forEach((entry, index) => statements.push(insertLedgerEntry(sql, ledgerId, entry, index)));
 
   try {
     await sql.transaction(statements);
@@ -180,9 +181,41 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
     if ((cause as { code?: string }).code === '22012') return null;
     throw cause;
   }
-  const saved = await loadLedger(body.month);
-  if (!saved) throw new Error('Failed to save ledger');
-  return saved;
+  return loadLedger(existing.month);
+}
+
+export type EntryWrite = { kind: 'add' | 'update'; entry: LedgerEntry } | { kind: 'remove'; id: string };
+
+// Each write bumps the month's version and is refused (22012) once the month is finalized.
+export async function writeLedgerEntry(ledger: MonthlyLedger, write: EntryWrite) {
+  const sql = getSql();
+  const ledgerId = String(ledger._id);
+  const bump = sql`WITH bumped AS (
+    UPDATE finance.ledgers SET updated_at = ${new Date().toISOString()} WHERE id = ${ledgerId} AND status = 'draft' RETURNING 1
+  ) SELECT 1 / (SELECT count(*) FROM bumped)::int`;
+
+  let change;
+  if (write.kind === 'remove') {
+    change = sql`DELETE FROM finance.ledger_entries WHERE id = ${write.id} AND ledger_id = ${ledgerId}`;
+  } else if (write.kind === 'add') {
+    const [last] = await getDb()
+      .select({ value: max(ledgerEntries.sortOrder) })
+      .from(ledgerEntries)
+      .where(eq(ledgerEntries.ledgerId, ledgerId));
+    change = insertLedgerEntry(sql, ledgerId, write.entry, (last.value ?? -1) + 1);
+  } else {
+    const entry = write.entry;
+    change = sql`UPDATE finance.ledger_entries SET date = ${entry.date}, type = ${entry.type}, account_id = ${entry.accountId}, destination_account_id = ${entry.destinationAccountId ?? null}, amount = ${entry.amount}, destination_amount = ${entry.destinationAmount ?? null}, exchange_rate = ${entry.exchangeRate ?? null}, category_id = ${entry.categoryId ?? null}, counterparty = ${entry.counterparty ?? null}, note = ${entry.note ?? null}
+      WHERE id = ${entry.id} AND ledger_id = ${ledgerId}`;
+  }
+
+  try {
+    await sql.transaction([bump, change]);
+  } catch (cause) {
+    if ((cause as { code?: string }).code === '22012') return null;
+    throw cause;
+  }
+  return loadLedger(ledger.month);
 }
 
 function toCategory(row: typeof categories.$inferSelect, entryCount = 0): LedgerCategory {

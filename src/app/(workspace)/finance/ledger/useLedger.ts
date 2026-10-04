@@ -75,7 +75,7 @@ export function useLedger() {
     }
   }
 
-  async function persist(next: MonthlyLedger, successNotice: string) {
+  async function enqueue(month: string, write: () => Promise<MonthlyLedger>, successNotice: string) {
     persistChain.current = persistChain.current
       .catch(() => undefined)
       .then(async () => {
@@ -83,24 +83,35 @@ export function useLedger() {
         setError('');
         setNotice('');
         try {
-          const payload: MonthlyLedgerPayload = {
-            month: next.month,
-            status: next.status,
-            accounts: next.accounts,
-            entries: next.entries,
-            finalizedAt: next.status === 'finalized' ? next.finalizedAt : undefined,
-            updatedAt: versionRef.current,
-          };
-          adopt(await ledgerApi.save(payload));
-          setAccountsDirty(false);
+          adopt(await write());
           setNotice(successNotice);
         } catch (cause) {
           setError(errorMessage(cause, 'Could not save ledger'));
+          adopt(await ledgerApi.load(month).catch(() => ledgerRef.current));
         } finally {
           setSaving(false);
         }
       });
     await persistChain.current;
+  }
+
+  async function persist(next: MonthlyLedger, successNotice: string) {
+    await enqueue(
+      next.month,
+      async () => {
+        const payload: MonthlyLedgerPayload = {
+          month: next.month,
+          status: next.status,
+          accounts: next.accounts,
+          finalizedAt: next.status === 'finalized' ? next.finalizedAt : undefined,
+          updatedAt: versionRef.current,
+        };
+        const saved = await ledgerApi.save(payload);
+        setAccountsDirty(false);
+        return saved;
+      },
+      successNotice
+    );
   }
 
   async function save(status = ledger?.status) {
@@ -202,37 +213,39 @@ export function useLedger() {
     }
   }
 
+  function changeEntries(
+    update: (entries: LedgerEntry[]) => LedgerEntry[],
+    write: (month: string) => Promise<MonthlyLedger>,
+    notice: string
+  ) {
+    const month = ledgerRef.current?.month;
+    if (!month) return;
+    setLedger((current) => (current ? { ...current, entries: update(current.entries) } : current));
+    void enqueue(month, () => write(month), notice);
+  }
+
   function addEntry(entry: LedgerEntry) {
-    setLedger((current) => {
-      if (!current) return current;
-      const next = { ...current, entries: [...current.entries, entry] };
-      void persist(next, 'Transaction saved.');
-      return next;
-    });
+    changeEntries(
+      (entries) => [...entries, entry],
+      (month) => ledgerApi.addEntry(month, entry),
+      'Transaction saved.'
+    );
   }
 
   function updateEntry(entry: LedgerEntry) {
-    setLedger((current) => {
-      if (!current) return current;
-      const next = {
-        ...current,
-        entries: current.entries.map((item) => (item.id === entry.id ? entry : item)),
-      };
-      void persist(next, 'Transaction updated.');
-      return next;
-    });
+    changeEntries(
+      (entries) => entries.map((item) => (item.id === entry.id ? entry : item)),
+      (month) => ledgerApi.updateEntry(month, entry),
+      'Transaction updated.'
+    );
   }
 
   function removeEntry(id: string) {
-    setLedger((current) => {
-      if (!current) return current;
-      const next = {
-        ...current,
-        entries: current.entries.filter((entry) => entry.id !== id),
-      };
-      void persist(next, 'Transaction deleted.');
-      return next;
-    });
+    changeEntries(
+      (entries) => entries.filter((entry) => entry.id !== id),
+      (month) => ledgerApi.removeEntry(month, id),
+      'Transaction deleted.'
+    );
   }
 
   return {

@@ -75,7 +75,7 @@ export function accountFor(holding: HoldingIdentity, value: HoldingValue, finali
 
 export function planLedgerHoldings(
   before: Pick<MonthlyLedger, 'accounts'> | null,
-  after: LedgerState,
+  after: Pick<MonthlyLedger, 'accounts'>,
   newest: boolean
 ) {
   const previous = new Map(before?.accounts.map((account) => [account.id, account]));

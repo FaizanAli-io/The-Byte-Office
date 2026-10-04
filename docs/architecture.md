@@ -73,20 +73,7 @@ and `mutualFunds` is still `Record<bank, Fund[]>[]`, an array of single-key obje
 at several call sites. Exposing holdings as one flat list is the remaining half, and it changes the MCP tools, so it
 deserves its own pass.
 
-## 3. The ledger is edited as a document, not as rows
-
-`PUT /api/ledger` takes a whole month and `saveLedger` deletes every account and entry for it and reinserts them. A
-save carries the `updatedAt` it read and is rejected with a 409 if the month has moved on, so two tabs no longer lose
-each other's edits silently. What the shape still costs:
-
-- every entry's `sort_order` is reassigned on every save;
-- adding one transaction rewrites the month;
-- a rejected save means reloading the whole month, not merging one row.
-
-It is a reasonable shape for a form that edits a whole month at once, and it is genuinely simple. The larger fix is
-row-level endpoints for entries, which the assistant's action layer effectively already wants.
-
-## 4. Two validation systems
+## 3. Two validation systems
 
 `personal-validation.ts` is zod, shared by the REST routes and the assistant's tools.
 [`finance-validation.ts`](../src/lib/finance-validation.ts) is hand-rolled predicates returning `string | null`.
@@ -119,4 +106,3 @@ Worth stating, so a future pass does not "fix" these:
 ## If these were tackled, in this order
 
 1. **2 — flatten the holdings API.** One list of holdings on the wire instead of three kinds and grouped funds.
-2. **3 — row-level ledger entry endpoints.** Only once whole-month saves start to hurt.

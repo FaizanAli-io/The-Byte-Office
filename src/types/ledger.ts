@@ -63,4 +63,6 @@ export interface MonthlyLedger {
   finalizedAt?: Date | string;
 }
 
-export type MonthlyLedgerPayload = Omit<MonthlyLedger, '_id' | 'createdAt'>;
+export type LedgerDraft = Omit<MonthlyLedger, '_id' | 'createdAt'>;
+
+export type MonthlyLedgerPayload = Omit<LedgerDraft, 'entries'>;
