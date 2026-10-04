@@ -1,5 +1,5 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/server';
-import { executeFinanceTool } from '@/lib/finance-agent/tools';
+import { executeFinanceTool } from '@/lib/agent/modules/finance/tools';
 import { jsonResource } from '@/mcp/result';
 
 export function registerResources(server: McpServer, scopes: string[]) {

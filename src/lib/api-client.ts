@@ -94,11 +94,11 @@ export const agentApi = {
     }),
   logs: (limit = 200) => apiFetch<{ logs?: ToolLog[] }>(`/api/finance-agent/logs?limit=${limit}`),
 
-  streamChat: (chatId: string | null, messages: unknown[]) =>
+  streamChat: (chatId: string, message?: { id: string; content: string }) =>
     fetch('/api/finance-agent/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId, messages }),
+      body: JSON.stringify({ chatId, message }),
     }),
 };
 

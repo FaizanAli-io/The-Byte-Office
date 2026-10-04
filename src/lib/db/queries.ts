@@ -65,7 +65,7 @@ function toEntry(row: typeof ledgerEntries.$inferSelect): LedgerEntry {
 
 function toLedger(row: typeof ledgers.$inferSelect, accounts: LedgerAccount[], entries: LedgerEntry[]): MonthlyLedger {
   return {
-    _id: row.id,
+    id: row.id,
     month: row.month,
     status: row.status,
     accounts,
@@ -154,7 +154,7 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   const finalizedAt =
     body.status === 'finalized' ? (existing.finalizedAt ? new Date(existing.finalizedAt) : now) : null;
   const sql = getSql();
-  const ledgerId = String(existing._id);
+  const ledgerId = existing.id;
   const expected = new Date(body.updatedAt).toISOString();
   const kept = new Set(body.accounts.map((account) => account.id));
   const had = new Set(existing.accounts.map((account) => account.id));
@@ -187,7 +187,7 @@ export type EntryWrite = { kind: 'add' | 'update'; entry: LedgerEntry } | { kind
 // Each write bumps the month's version and is refused (22012) once the month is finalized.
 export async function writeLedgerEntry(ledger: MonthlyLedger, write: EntryWrite) {
   const sql = getSql();
-  const ledgerId = String(ledger._id);
+  const ledgerId = ledger.id;
   const bump = sql`WITH bumped AS (
     UPDATE finance.ledgers SET updated_at = ${new Date().toISOString()} WHERE id = ${ledgerId} AND status = 'draft' RETURNING 1
   ) SELECT 1 / (SELECT count(*) FROM bumped)::int`;
@@ -320,7 +320,7 @@ export async function listSnapshots(): Promise<FinanceSnapshot[]> {
   const rows = await getDb().select().from(financeSnapshots).orderBy(desc(financeSnapshots.timestamp)).limit(50);
 
   return rows.map((row) => ({
-    _id: row.id,
+    id: row.id,
     timestamp: row.timestamp,
     grandTotal: row.grandTotal,
     data: row.data,
@@ -329,7 +329,7 @@ export async function listSnapshots(): Promise<FinanceSnapshot[]> {
 
 export async function listSnapshotSummaries() {
   const rows = await listSnapshots();
-  return rows.map(({ _id, timestamp, grandTotal }) => ({ id: _id, timestamp, grandTotal }));
+  return rows.map(({ id, timestamp, grandTotal }) => ({ id, timestamp, grandTotal }));
 }
 
 export async function getSnapshot(id: string) {

@@ -1,14 +1,13 @@
 import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
 import { executePersonalPayload, personalToolNames, proposePersonalAction } from '@/lib/agent/modules/personal';
 import { executeTboInquiry, proposeTboInquiry } from '@/lib/agent/modules/tbo-actions';
-import { executeFinancePayload, proposeFinanceAction } from '@/lib/finance-agent/actions';
+import { executeFinancePayload, proposeFinanceAction } from '@/lib/agent/modules/finance/actions';
 import {
   cancelAgentAction,
   claimAgentAction,
   completeAgentAction,
   failAgentAction,
   getAgentAction,
-  syncActionInMessages,
 } from './repository';
 import type { AgentActionPayload, AgentActionType, AgentProposal } from './types';
 
@@ -34,13 +33,10 @@ export async function executeAgentAction(id: string, entryOverride?: unknown) {
     if (!completed) {
       throw new Error('Could not mark the action as completed');
     }
-    const publicAction = toPublicAction(completed);
-    await syncActionInMessages(action.id, publicAction);
-    return { action: publicAction, result };
+    return { action: toPublicAction(completed), result };
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : 'Action execution failed';
     await failAgentAction(action.id, message);
-    await syncActionInMessages(id, { status: 'failed', error: message });
     throw cause instanceof AgentActionError ? cause : new AgentActionError(message, 409);
   }
 }
@@ -48,9 +44,7 @@ export async function executeAgentAction(id: string, entryOverride?: unknown) {
 export async function cancelPendingAgentAction(id: string) {
   const cancelled = await cancelAgentAction(id);
   if (cancelled) {
-    const publicAction = toPublicAction(cancelled);
-    await syncActionInMessages(id, publicAction);
-    return publicAction;
+    return toPublicAction(cancelled);
   }
 
   const existing = await getAgentAction(id);

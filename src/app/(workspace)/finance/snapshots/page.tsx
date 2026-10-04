@@ -50,7 +50,7 @@ export default function SnapshotsPage() {
       setToast({ message: 'Failed to delete snapshot.', tone: 'error' });
       return;
     }
-    setSnapshots((items) => items.filter((snapshot) => snapshot._id !== id));
+    setSnapshots((items) => items.filter((snapshot) => snapshot.id !== id));
     setExpanded((items) => items.filter((item) => item !== id));
     setSelected((items) => items.filter((item) => item !== id));
     setPendingDelete(null);
@@ -62,7 +62,7 @@ export default function SnapshotsPage() {
   }
 
   const pair = selected
-    .map((id) => snapshots.find((snapshot) => snapshot._id === id))
+    .map((id) => snapshots.find((snapshot) => snapshot.id === id))
     .filter(Boolean) as FinanceSnapshot[];
 
   return (
@@ -95,7 +95,7 @@ export default function SnapshotsPage() {
             </p>
           ) : null}
           {snapshots.map((snapshot) => {
-            const id = String(snapshot._id);
+            const id = snapshot.id;
             const isExpanded = expanded.includes(id);
             return (
               <article key={id} className={`${financeStyles.card} overflow-hidden`}>

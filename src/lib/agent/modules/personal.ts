@@ -19,12 +19,8 @@ import { AgentActionError, pendingResult } from '@/lib/agent/action-utils';
 import { fingerprint, saveProposal } from '@/lib/agent/repository';
 import { agentToolRegistry, toolNamesForModule } from '@/lib/agent/registry';
 import type { AgentActionPayload, AgentProposal, PendingAgentAction, PersonalActionType } from '@/lib/agent/types';
-import {
-  healthByNameSchema,
-  healthMetricInputSchema,
-  healthUpdateByNameSchema,
-  prayerSetSchema,
-} from '@/lib/personal-validation';
+import type { Namaaz } from '@/lib/db/schema';
+import { healthByNameSchema, healthUpdateByNameSchema } from '@/lib/personal-validation';
 import { parseWith } from '@/lib/api';
 
 export const personalToolNames = toolNamesForModule('personal');
@@ -54,7 +50,7 @@ export async function proposePersonalAction(
   args: Record<string, unknown>
 ): Promise<AgentProposal> {
   if (actionType === 'prayer_set') {
-    const { namaaz, missed } = parseWith(prayerSetSchema, args);
+    const { namaaz, missed } = args as { namaaz: Namaaz; missed: number };
     const current = await getPrayerByNamaaz(namaaz);
     return {
       actionType,
@@ -65,7 +61,7 @@ export async function proposePersonalAction(
   }
 
   if (actionType === 'health_metric_add') {
-    const { name } = parseWith(healthMetricInputSchema, args);
+    const name = args.name as string;
     await assertMetricNameIsFree(name);
     return { actionType, payload: { actionType, name }, preview: { title: `Add health metric "${name}"` } };
   }
@@ -83,7 +79,7 @@ export async function proposePersonalAction(
         preview: { title: `Delete health metric "${current.name}"`, before: current },
       };
     }
-    const { name } = parseWith(healthMetricInputSchema, args);
+    const name = args.name as string;
     await assertMetricNameIsFree(name, current.id);
     return {
       actionType,

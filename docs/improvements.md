@@ -12,7 +12,7 @@ a backlog that is mostly ticked boxes is a backlog nobody reads.
 | -------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | **1**    | [1 — sessions cannot be revoked](#1-sessions-cannot-be-revoked) | Magic links are single-use and the token is out of `localStorage`; revocation is what is left. |
 
-**Deprioritised while this stays single-user:** items 2, 3 and 4.
+**Deprioritised while this stays single-user:** item 2.
 
 ---
 
@@ -28,26 +28,9 @@ some threshold.
 
 ## Deprioritised while single-user
 
-### 2. `syncActionInMessages` reads every chat message in the database
-
-```ts
-// src/lib/agent/repository.ts
-const rows = await getDb().select().from(financeAgentMessages);
-```
-
-No `WHERE`, no limit, on every action confirm and cancel — then an individual `UPDATE` per matching row, each its own
-round trip over Neon HTTP. Invisible at this size, degrades linearly forever. An `action_id` column, or a GIN index on
-`actions` with a `@>` query, makes it one statement.
-
-### 3. The login rate limiter does nothing in production
+### 2. The login rate limiter does nothing in production
 
 `const lastSentAt = new Map<string, number>()` at module scope in `src/app/api/finance-auth/login/route.ts` is
 per-instance on Vercel, so concurrency bypasses it, and it is an unbounded map keyed by client IP. With one recipient
 address the practical risk is mailbox flooding and SMTP quota burn rather than access. A real limit needs a shared
 store.
-
-### 4. Chat history round-trips through the client
-
-The client POSTs the full `messages` array and `sanitizeHistory` validates it — but the server already persists every
-message in `financeAgentMessages`, and the request carries a `chatId`. Loading history server-side would remove a
-tamperable input, a redundant payload and a second source of truth.

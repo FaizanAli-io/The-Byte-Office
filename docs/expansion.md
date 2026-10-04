@@ -72,7 +72,7 @@ Not needed today — the workspace has one user. If that changes, the shape of t
 - holdings, ledgers, prayers and health all need an owner column and every query needs scoping
 - the session becomes a real identity rather than a signed timestamp (see improvements item 1)
 - OAuth clients gain an owner, so a token names a person as well as a client
-- the per-instance throttles become a shared store (improvements item 3)
+- the per-instance throttles become a shared store (improvements item 2)
 
 Worth doing in that order, and not before there is a second person.
 

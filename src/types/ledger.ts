@@ -53,7 +53,7 @@ export interface LedgerEntry {
 }
 
 export interface MonthlyLedger {
-  _id?: string;
+  id: string;
   month: string;
   status: LedgerStatus;
   accounts: LedgerAccount[];
@@ -63,6 +63,6 @@ export interface MonthlyLedger {
   finalizedAt?: Date | string;
 }
 
-export type LedgerDraft = Omit<MonthlyLedger, '_id' | 'createdAt'>;
+export type LedgerDraft = Omit<MonthlyLedger, 'id' | 'createdAt'>;
 
 export type MonthlyLedgerPayload = Omit<LedgerDraft, 'entries'>;

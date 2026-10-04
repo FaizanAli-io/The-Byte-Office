@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { applyAccountAction, accountBalances, planAccountAction } from '@/lib/finance-agent/ledger-accounts';
-import { parseHolding } from '@/lib/finance-agent/action-parsing';
+import { applyAccountAction, accountBalances, planAccountAction } from '@/lib/agent/modules/finance/ledger-accounts';
+import { parseHolding } from '@/lib/agent/modules/finance/action-parsing';
 import type { MonthlyLedger } from '@/types/ledger';
 
 const ledger: MonthlyLedger = {
+  id: 'ledger-1',
   month: '2026-03',
   status: 'draft',
   createdAt: '2026-03-01T00:00:00.000Z',

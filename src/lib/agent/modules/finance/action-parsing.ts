@@ -1,6 +1,6 @@
 import { AgentActionError } from '@/lib/agent/action-utils';
-import { entryTypeSchema, holdingKindSchema } from '@/lib/agent/fields';
-import { isRecord, validMoney, validName, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
+import { entryTypeSchema } from '@/lib/agent/fields';
+import { isRecord, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
 import { eligibleAccounts, monthBounds } from '@/lib/ledger';
 import type { HoldingKind } from '@/types/finance';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger } from '@/types/ledger';
@@ -95,22 +95,21 @@ const KIND_LABELS: Record<HoldingKind, string> = {
 
 export const holdingLabel = (kind: HoldingKind) => KIND_LABELS[kind];
 
+// Field types and ranges are checked by the tool schema; only the rules between fields live here.
 export function parseHolding(args: Record<string, unknown>, current?: HoldingInput): HoldingInput {
-  const kind = current?.kind ?? parseKind(args.kind);
+  const merged = { ...current, ...args } as Partial<HoldingInput>;
+  const kind = current?.kind ?? merged.kind!;
+  if (kind === 'mutual_fund' && !merged.group) throw new AgentActionError('group is required for a mutual fund');
+  if (kind === 'remote_bank' && !merged.exchangeRate) {
+    throw new AgentActionError('exchangeRate is required for a remote bank');
+  }
   return {
     kind,
-    name: requireName(args.name ?? current?.name, 'name'),
-    group: kind === 'mutual_fund' ? requireName(args.group ?? current?.group, 'group') : null,
-    amount: requireMoney(args.amount ?? current?.amount, 'amount'),
-    exchangeRate:
-      kind === 'remote_bank' ? requirePositive(args.exchangeRate ?? current?.exchangeRate, 'exchangeRate') : 1,
+    name: merged.name!,
+    group: kind === 'mutual_fund' ? merged.group! : null,
+    amount: merged.amount!,
+    exchangeRate: kind === 'remote_bank' ? merged.exchangeRate! : 1,
   };
-}
-
-function parseKind(value: unknown): HoldingKind {
-  const parsed = holdingKindSchema.safeParse(value);
-  if (!parsed.success) throw new AgentActionError('kind must be local_bank, remote_bank or mutual_fund');
-  return parsed.data;
 }
 
 export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
@@ -146,28 +145,11 @@ function requireEntryType(value: unknown): LedgerEntry['type'] {
   return parsed.data;
 }
 
-export function requireRecord(value: unknown) {
-  if (!isRecord(value)) throw new AgentActionError('Invalid tool arguments');
-  return value;
-}
-
 export function requireString(value: unknown, key: string) {
   if (typeof value !== 'string' || !value.trim()) {
     throw new AgentActionError(`${key} is required`);
   }
   return value.trim();
-}
-
-function requireName(value: unknown, key: string) {
-  if (!validName(value)) throw new AgentActionError(`${key} is required`);
-  return value.trim();
-}
-
-function requireMoney(value: unknown, key: string) {
-  if (!validMoney(value)) {
-    throw new AgentActionError(`${key} must be a non-negative number`);
-  }
-  return value;
 }
 
 function requirePositive(value: unknown, key: string) {

@@ -30,9 +30,10 @@ row atomically, re-reads the source data, checks a fingerprint and only then wri
 and are gated by OAuth scope instead.
 
 **Shared agent core, three modules.** `lib/agent/` owns what every module uses — the wire types, conversations,
-messages, tool logs and the action lifecycle (`actions.ts` claims, dispatches and records). The finance module lives in
-`lib/finance-agent/`, personal and TBO in `lib/agent/modules/`. Modules import the core and never each other; only
-`runtime.ts` and `actions.ts` know all three.
+messages, tool logs and the action lifecycle (`actions.ts` claims, dispatches and records). The finance, personal and
+TBO modules live in `lib/agent/modules/`. Modules import the core and never each other; only `runtime.ts` and
+`actions.ts` know all three. Tool arguments are validated once, against the registry schema (`parseToolArgs`), on both
+the chat and MCP paths. A chat message stores only its cards' action ids; status and preview are read from the action.
 
 ---
 
@@ -57,8 +58,8 @@ ask "how much of HBL is actually mine".
 
 ## 2. Two validation systems
 
-`personal-validation.ts` is zod, shared by the REST routes and the assistant's tools.
-[`finance-validation.ts`](../src/lib/finance-validation.ts) is hand-rolled predicates returning `string | null`.
+Tool arguments and `personal-validation.ts` are zod. [`finance-validation.ts`](../src/lib/finance-validation.ts) —
+the ledger and portfolio checks behind the REST routes — is hand-rolled predicates returning `string | null`.
 
 Worth knowing rather than worth fixing. `validateLedger` does cross-field work — currency matching, account
 membership, hold-on-a-bank-account, category existence, finalize preconditions — that reads clearly as imperative code

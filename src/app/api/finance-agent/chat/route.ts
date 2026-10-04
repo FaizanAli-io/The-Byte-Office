@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { formatGroqErrorForUser, GroqError, PRIMARY_MODEL, requestGroq, type GroqMessage } from '@/lib/agent/groq';
 import { getAgentRuntime } from '@/lib/agent/runtime';
 import type { AgentResponse, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
-import { getConversation, logAgentToolCall, saveAgentMessage } from '@/lib/agent/repository';
+import { getConversation, listAgentMessages, logAgentToolCall, saveAgentMessage } from '@/lib/agent/repository';
 import { NextResponse } from 'next/server';
 
 export const maxDuration = 300;
@@ -21,16 +21,14 @@ type StreamEvent =
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { chatId?: unknown; messages?: unknown };
+    const body = (await request.json()) as { chatId?: unknown; message?: unknown };
     const chatId = typeof body.chatId === 'string' ? body.chatId : '';
     if (!chatId || !(await getConversation(chatId))) return error('Chat not found', 404);
 
     const runtime = getAgentRuntime();
-    const history = sanitizeHistory(body.messages);
-    const lastUser = history.at(-1);
-    if (!lastUser || lastUser.role !== 'user') return error('A user message is required', 400);
-
-    await saveAgentMessage(chatId, lastUser);
+    if (body.message !== undefined) await saveAgentMessage(chatId, parseUserMessage(body.message));
+    const history = await loadHistory(chatId);
+    if (history.at(-1)?.role !== 'user') return error('A user message is required', 400);
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -164,39 +162,30 @@ export async function POST(request: Request) {
   }
 }
 
-function sanitizeHistory(value: unknown): AgentChatMessage[] {
-  if (!Array.isArray(value)) throw new RequestValidationError('Invalid chat');
+function parseUserMessage(value: unknown): AgentChatMessage {
+  const message = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
+  const content = typeof message.content === 'string' ? message.content.trim() : '';
+  if (!content || content.length > MAX_MESSAGE_CHARS) {
+    throw new RequestValidationError('Chat message is empty or too long');
+  }
+  return {
+    id: typeof message.id === 'string' && message.id ? message.id : randomUUID(),
+    role: 'user',
+    content,
+    createdAt: new Date().toISOString(),
+  };
+}
 
+async function loadHistory(chatId: string) {
+  const stored = (await listAgentMessages(chatId, 200)).filter((message) => !message.isError).slice(-MAX_MESSAGES);
   let total = 0;
-  return value.slice(-MAX_MESSAGES).map((item) => {
-    if (
-      typeof item !== 'object' ||
-      item === null ||
-      !('role' in item) ||
-      !('content' in item) ||
-      (item.role !== 'user' && item.role !== 'assistant') ||
-      typeof item.content !== 'string'
-    ) {
-      throw new RequestValidationError('Invalid chat message');
-    }
-
-    const content = item.content.trim();
-    if (!content || content.length > MAX_MESSAGE_CHARS) {
-      throw new RequestValidationError('Chat message is empty or too long');
-    }
-    total += content.length;
-    if (total > MAX_TOTAL_CHARS) throw new RequestValidationError('Chat history is too large', 413);
-
-    return {
-      id: 'id' in item && typeof item.id === 'string' && item.id ? item.id : randomUUID(),
-      role: item.role,
-      content,
-      createdAt:
-        'createdAt' in item && typeof item.createdAt === 'string' && item.createdAt
-          ? item.createdAt
-          : new Date().toISOString(),
-    };
-  });
+  const kept: AgentChatMessage[] = [];
+  for (const message of stored.reverse()) {
+    total += message.content.length;
+    if (total > MAX_TOTAL_CHARS) break;
+    kept.unshift(message);
+  }
+  return kept;
 }
 
 function parseToolArguments(raw: unknown): Record<string, unknown> {

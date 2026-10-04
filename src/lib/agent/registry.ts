@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { AgentActionError } from './action-utils';
 import {
   empty,
   month,
@@ -50,7 +51,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Get snapshot',
     module: 'finance',
     description: 'Get one saved portfolio snapshot by its stable ID.',
-    schema: z.object({ id: z.string().min(1).describe('Stable snapshot ID') }),
+    schema: z.object({ id: z.string().trim().min(1).describe('Stable snapshot ID') }),
     mcp: true,
   },
   {
@@ -83,7 +84,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Create a confirmation proposal to rename, re-kind, archive or restore a ledger category, identified by id from categories_list. This never writes before confirmation.',
     schema: z.object({
       id: categoryId,
-      name: z.string().min(1).optional().describe('New name'),
+      name: z.string().trim().min(1).optional().describe('New name'),
       kind: categoryKind.optional(),
       archived: z.boolean().optional().describe('True to archive, false to restore'),
     }),
@@ -141,7 +142,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     chatDescription:
       'Create a confirmation proposal to update one portfolio item by stable ID. Include only changed fields. This never writes before confirmation.',
     schema: z.object({
-      id: z.string().min(1).describe('Holding id from portfolio_get'),
+      id: z.string().trim().min(1).describe('Holding id from portfolio_get'),
       ...z.object(holdingFields).partial().shape,
     }),
     write: true,
@@ -155,7 +156,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Remove one portfolio item by stable ID. Its account in the newest ledger month goes too, unless entries use it.',
     chatDescription:
       'Create a confirmation proposal to remove one portfolio item by stable ID. This never writes before confirmation.',
-    schema: z.object({ id: z.string().min(1).describe('Holding id from portfolio_get') }),
+    schema: z.object({ id: z.string().trim().min(1).describe('Holding id from portfolio_get') }),
     write: true,
     mcp: true,
     destructive: true,
@@ -225,7 +226,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     schema: z.object({
       month,
       ...accountFields,
-      name: z.string().min(1).describe('Account name'),
+      name: z.string().trim().min(1).describe('Account name'),
       type: z.enum(['bank', 'fund']).optional(),
       currency: z.enum(['PKR', 'USD']).optional(),
     }),
@@ -287,7 +288,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'personal',
     description:
       'List health tracking entries, newest first. Optionally filter by a metric name from health_metrics_list.',
-    schema: z.object({ metric: z.string().min(1).optional() }),
+    schema: z.object({ metric: z.string().trim().min(1).optional() }),
     mcp: true,
   },
   {
@@ -298,7 +299,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Add a health reading immediately. metric must name an existing metric from health_metrics_list; unknown names are rejected. createdAt is optional.',
     chatDescription:
       'Create a confirmation proposal to add a health reading. metric must name an existing metric from health_metrics_list. createdAt is optional.',
-    schema: z.object({ metric: z.string().min(1), value: z.number(), createdAt: z.string().optional() }),
+    schema: z.object({ metric: z.string().trim().min(1), value: z.number(), createdAt: z.string().optional() }),
     write: true,
     mcp: true,
   },
@@ -310,8 +311,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Update one health tracking entry by id. Include only changed fields; a new metric must name an existing one from health_metrics_list.',
     chatDescription: 'Create a confirmation proposal to update one health tracking entry by id.',
     schema: z.object({
-      id: z.string().min(1),
-      metric: z.string().min(1).optional(),
+      id: z.string().trim().min(1),
+      metric: z.string().trim().min(1).optional(),
       value: z.number().optional(),
       createdAt: z.string().optional(),
     }),
@@ -324,7 +325,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'personal',
     description: 'Delete one health tracking entry by id.',
     chatDescription: 'Create a confirmation proposal to delete one health tracking entry by id.',
-    schema: z.object({ id: z.string().min(1) }),
+    schema: z.object({ id: z.string().trim().min(1) }),
     write: true,
     mcp: true,
     destructive: true,
@@ -343,7 +344,9 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'personal',
     description: 'Create a health metric immediately. Names are unique regardless of case.',
     chatDescription: 'Create a confirmation proposal to add a health metric. Names are unique regardless of case.',
-    schema: z.object({ name: z.string().min(1).describe('Metric name, including its unit, such as Weight (KG)') }),
+    schema: z.object({
+      name: z.string().trim().min(1).describe('Metric name, including its unit, such as Weight (KG)'),
+    }),
     write: true,
     mcp: true,
   },
@@ -353,7 +356,10 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'personal',
     description: 'Rename a health metric by id from health_metrics_list. Its readings follow.',
     chatDescription: 'Create a confirmation proposal to rename a health metric by id from health_metrics_list.',
-    schema: z.object({ id: z.string().min(1).describe('Metric id from health_metrics_list'), name: z.string().min(1) }),
+    schema: z.object({
+      id: z.string().trim().min(1).describe('Metric id from health_metrics_list'),
+      name: z.string().trim().min(1),
+    }),
     write: true,
     mcp: true,
   },
@@ -363,7 +369,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'personal',
     description: 'Delete a health metric by id. Refused while any reading uses it — rename it instead.',
     chatDescription: 'Create a confirmation proposal to delete a health metric by id. Refused while readings use it.',
-    schema: z.object({ id: z.string().min(1).describe('Metric id from health_metrics_list') }),
+    schema: z.object({ id: z.string().trim().min(1).describe('Metric id from health_metrics_list') }),
     write: true,
     mcp: true,
     destructive: true,
@@ -387,11 +393,11 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       'Create a confirmation proposal to email The Byte Office with a visitor or user query. Never claim the email was sent until the user confirms.',
     schema: z.object({
-      name: z.string().min(1),
-      email: z.string().min(1),
-      company: z.string().min(1).optional(),
-      service: z.string().min(1).optional(),
-      message: z.string().min(1),
+      name: z.string().trim().min(1),
+      email: z.string().trim().min(1),
+      company: z.string().trim().min(1).optional(),
+      service: z.string().trim().min(1).optional(),
+      message: z.string().trim().min(1),
     }),
     write: true,
   },
@@ -399,6 +405,17 @@ export const agentToolRegistry: AgentToolDefinition[] = [
 
 export function toolNamesForModule(module: AgentToolModule) {
   return new Set(agentToolRegistry.filter((tool) => tool.module === module).map((tool) => tool.name));
+}
+
+export const agentToolByName = new Map(agentToolRegistry.map((tool) => [tool.name, tool]));
+
+// The single place tool arguments are validated, for the chat assistant and MCP alike.
+export function parseToolArgs(name: string, args: unknown): Record<string, unknown> {
+  const tool = agentToolByName.get(name);
+  if (!tool) throw new Error(`Unknown tool: ${name}`);
+  const parsed = tool.schema.safeParse(args ?? {});
+  if (!parsed.success) throw new AgentActionError(z.prettifyError(parsed.error));
+  return parsed.data as Record<string, unknown>;
 }
 
 export const mcpToolRegistry = agentToolRegistry.filter((tool) => tool.mcp);

@@ -1,7 +1,7 @@
 import { executePersonalTool, personalToolNames } from '@/lib/agent/modules/personal';
 import { executeTboTool, tboToolNames } from '@/lib/agent/modules/tbo';
-import { executeFinanceTool } from '@/lib/finance-agent/tools';
-import { groqTools } from '@/lib/agent/registry';
+import { executeFinanceTool } from '@/lib/agent/modules/finance/tools';
+import { groqTools, parseToolArgs } from '@/lib/agent/registry';
 import type { PendingAgentAction } from '@/lib/agent/types';
 
 const agentTools = groqTools;
@@ -41,9 +41,8 @@ export async function executeAgentTool(
   name: string,
   args: unknown
 ): Promise<{ output: unknown; pendingAction?: PendingAgentAction }> {
-  const input =
-    typeof args === 'object' && args !== null && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
+  const input = parseToolArgs(name, args);
   if (tboToolNames.has(name)) return executeTboTool(name, input);
   if (personalToolNames.has(name)) return executePersonalTool(name, input);
-  return executeFinanceTool(name, args);
+  return executeFinanceTool(name, input);
 }

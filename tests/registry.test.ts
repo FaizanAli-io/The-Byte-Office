@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agentToolRegistry, groqTools, httpMethodFor, mcpToolRegistry } from '@/lib/agent/registry';
+import { agentToolRegistry, groqTools, httpMethodFor, mcpToolRegistry, parseToolArgs } from '@/lib/agent/registry';
 import { OAUTH_SCOPES, READ_SCOPES, scopeForTool } from '@/lib/oauth/tokens';
 import { buildOpenApiDocument } from '@/mcp/openapi';
 
@@ -150,5 +150,21 @@ describe('scope filtering', () => {
 
   it('cannot send mail over MCP under any scope', () => {
     expect(names([...OAUTH_SCOPES])).not.toContain('tbo_send_inquiry');
+  });
+});
+
+describe('parseToolArgs', () => {
+  it('trims text and keeps valid arguments', () => {
+    expect(parseToolArgs('category_add', { name: '  Food  ' })).toEqual({ name: 'Food', kind: 'both' });
+  });
+
+  it('rejects invalid arguments with a readable message', () => {
+    expect(() => parseToolArgs('category_add', { name: '   ' })).toThrow(/name/);
+    expect(() => parseToolArgs('portfolio_item_add', { kind: 'crypto', name: 'X', amount: 1 })).toThrow(/kind/);
+    expect(() => parseToolArgs('ledger_get', { month: '2026-13' })).toThrow(/YYYY-MM/);
+  });
+
+  it('refuses a tool that does not exist', () => {
+    expect(() => parseToolArgs('drop_everything', {})).toThrow(/Unknown tool/);
   });
 });

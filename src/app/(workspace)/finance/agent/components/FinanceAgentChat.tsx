@@ -117,7 +117,11 @@ export function FinanceAgentChat() {
     setThinking('Thinking…');
 
     try {
-      const response = await agentApi.streamChat(chatId, nextMessages);
+      const latest = nextMessages.at(-1)!;
+      const response = await agentApi.streamChat(
+        chatId,
+        retry ? undefined : { id: latest.id, content: latest.content }
+      );
       if (!response.ok || !response.body) {
         const body = (await response.json()) as { error?: string };
         throw new Error(body.error || 'The assistant could not respond');

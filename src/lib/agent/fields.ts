@@ -19,12 +19,12 @@ export const isoDate = z
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .describe('ISO date YYYY-MM-DD within the ledger month');
 
-export const categoryName = z.string().min(1).describe('Category name, as categories_list reports it');
-export const categoryId = z.string().min(1).describe('Category id from categories_list');
+export const categoryName = z.string().trim().min(1).describe('Category name, as categories_list reports it');
+export const categoryId = z.string().trim().min(1).describe('Category id from categories_list');
 export const categoryKind = z.enum(CATEGORY_KINDS).describe('Which entry types may use it: income, expense, or both');
 
 export const holdingFields = {
-  name: z.string().min(1).describe('Bank or fund name'),
+  name: z.string().trim().min(1).describe('Bank or fund name'),
   group: z
     .string()
     .min(1)
@@ -38,9 +38,9 @@ export const holdingFields = {
 export const ledgerEntryFields = {
   date: isoDate.optional(),
   type: entryType.optional(),
-  accountId: z.string().min(1).optional().describe('Stable account UUID when known'),
-  accountName: z.string().min(1).optional().describe('Account name or shorthand, such as TBO'),
-  destinationAccountId: z.string().min(1).nullable().optional(),
+  accountId: z.string().trim().min(1).optional().describe('Stable account UUID when known'),
+  accountName: z.string().trim().min(1).optional().describe('Account name or shorthand, such as TBO'),
+  destinationAccountId: z.string().trim().min(1).nullable().optional(),
   amount: z.number().positive().optional(),
   destinationAmount: z.number().positive().nullable().optional(),
   exchangeRate: z.number().positive().nullable().optional(),
@@ -56,17 +56,17 @@ export const ledgerEntryFields = {
     .nullable()
     .optional()
     .describe('Whose money this is. Only for hold_received and hold_returned'),
-  note: z.string().min(1).nullable().optional(),
+  note: z.string().trim().min(1).nullable().optional(),
 };
 
 export const entryRef = {
   month,
   entrySerial: entrySerial.optional(),
-  entryId: z.string().min(1).optional().describe('Internal entry UUID'),
+  entryId: z.string().trim().min(1).optional().describe('Internal entry UUID'),
 };
 
 export const accountFields = {
-  name: z.string().min(1).optional().describe('Account name'),
+  name: z.string().trim().min(1).optional().describe('Account name'),
   openingBalance: z
     .number()
     .nonnegative()
@@ -89,6 +89,11 @@ export const accountFields = {
 
 export const accountRef = {
   month,
-  accountId: z.string().min(1).optional().describe('Account id from ledger_accounts_list'),
-  accountName: z.string().min(1).optional().describe('Account name or shorthand, when it matches exactly one account'),
+  accountId: z.string().trim().min(1).optional().describe('Account id from ledger_accounts_list'),
+  accountName: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe('Account name or shorthand, when it matches exactly one account'),
 };

@@ -13,7 +13,7 @@ export interface Holding {
 export type SnapshotHolding = Omit<Holding, 'id'>;
 
 export interface FinanceSnapshot {
-  _id?: string;
+  id: string;
   timestamp: Date;
   data: { holdings: SnapshotHolding[] };
   grandTotal: number;

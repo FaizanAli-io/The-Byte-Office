@@ -3,7 +3,7 @@ import { AgentActionError } from '@/lib/agent/action-utils';
 import { listCategories, loadLedger } from '@/lib/db/queries';
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { resolveCategoryId } from '@/lib/ledger';
-import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory, type MonthlyLedger } from '@/types/ledger';
+import { type CategoryKind, type LedgerCategory, type MonthlyLedger } from '@/types/ledger';
 import { fingerprint } from '@/lib/agent/repository';
 import type { AgentActionPayload, AgentActionType, AgentProposal, PersonalActionType } from '@/lib/agent/types';
 import { applyAccountAction, isAccountAction, planAccountAction } from './ledger-accounts';
@@ -25,7 +25,6 @@ import {
   parseHolding,
   parseLedgerEntry,
   holdingLabel,
-  requireRecord,
   requireString,
   resolveAccountId,
   resolveEntryId,
@@ -34,8 +33,11 @@ import {
 type FinancePayload = Exclude<AgentActionPayload, { actionType: PersonalActionType | 'tbo_send_inquiry' }>;
 type LedgerPayload = Extract<FinancePayload, { actionType: `ledger_${string}` }>;
 
-export async function proposeFinanceAction(actionType: AgentActionType, rawArgs: unknown): Promise<AgentProposal> {
-  const args = requireRecord(rawArgs);
+export async function proposeFinanceAction(
+  actionType: AgentActionType,
+  rawArgs: Record<string, unknown>
+): Promise<AgentProposal> {
+  const args = rawArgs as Record<string, unknown>;
 
   if (actionType === 'portfolio_item_add') {
     const item = parseHolding(args);
@@ -47,7 +49,7 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
   }
 
   if (actionType === 'portfolio_item_update' || actionType === 'portfolio_item_remove') {
-    const id = requireString(args.id, 'id');
+    const id = args.id as string;
     const current = await getHolding(id);
     if (!current) throw new AgentActionError('Holding not found. Call portfolio_get for the ids.', 404);
 
@@ -70,16 +72,16 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
   }
 
   if (actionType === 'category_add') {
-    const name = requireString(args.name, 'name');
+    const name = args.name as string;
     return {
       actionType,
-      payload: { actionType, name, kind: parseCategoryKind(args.kind) },
+      payload: { actionType, name, kind: args.kind as CategoryKind },
       preview: { title: `Add category "${name}"` },
     };
   }
 
   if (actionType === 'category_update' || actionType === 'category_remove') {
-    const id = requireString(args.id, 'id');
+    const id = args.id as string;
     const current = (await listCategories()).find((category) => category.id === id);
     if (!current) {
       throw new AgentActionError('Category not found. Call categories_list for the current ids.', 404);
@@ -94,8 +96,8 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
     }
 
     const changes = {
-      ...(args.name === undefined ? {} : { name: requireString(args.name, 'name') }),
-      ...(args.kind === undefined ? {} : { kind: parseCategoryKind(args.kind) }),
+      ...(args.name === undefined ? {} : { name: args.name as string }),
+      ...(args.kind === undefined ? {} : { kind: args.kind as CategoryKind }),
       ...(typeof args.archived === 'boolean' ? { archived: args.archived } : {}),
     };
     if (!Object.keys(changes).length) {
@@ -108,7 +110,7 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
     };
   }
 
-  const month = requireString(args.month, 'month');
+  const month = args.month as string;
   const [ledger, categoryList] = await Promise.all([requireEditableLedger(month), listCategories()]);
   const sourceFingerprint =
     actionType === 'ledger_entry_add' ? ledgerStructureFingerprint(ledger) : ledgerFingerprint(ledger);
@@ -308,14 +310,6 @@ function resolveCategoryArg(categoryList: LedgerCategory[], value: unknown): str
       : `No category is called "${name}". Call categories_list for the valid names.`,
     404
   );
-}
-
-function parseCategoryKind(value: unknown): CategoryKind {
-  if (value === undefined) return 'both';
-  if (typeof value !== 'string' || !(CATEGORY_KINDS as readonly string[]).includes(value)) {
-    throw new AgentActionError(`kind must be one of: ${CATEGORY_KINDS.join(', ')}`);
-  }
-  return value as CategoryKind;
 }
 
 async function requireCurrentHolding(id: string, sourceFingerprint: string | null) {

@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { idEq } from '@/lib/db/ids';
-import { and, asc, desc, eq, gt, inArray, lt } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray } from 'drizzle-orm';
 import { toPublicAction } from './action-utils';
 import { getDb } from '@/lib/db';
 import { agentConversations, financeAgentActions, financeAgentMessages, financeAgentToolLogs } from '@/lib/db/schema';
@@ -61,16 +61,11 @@ export async function listAgentToolLogs(limit = 200) {
     .limit(Math.min(Math.max(limit, 1), 500));
 }
 
-const ACTION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-
 export async function saveProposal(proposal: AgentProposal) {
   return toPublicAction(await createAgentAction(proposal), proposal.form);
 }
 
 async function createAgentAction(input: AgentProposal) {
-  await getDb()
-    .delete(financeAgentActions)
-    .where(lt(financeAgentActions.createdAt, new Date(Date.now() - ACTION_RETENTION_MS)));
   const [action] = await getDb()
     .insert(financeAgentActions)
     .values({
@@ -226,6 +221,10 @@ export async function listAgentMessages(chatId: string, limit = 80) {
   });
 }
 
+// Only the id is stored (plus the ledger form, which never changes): status and preview are read from the action row.
+const storedActions = (message: AgentChatMessage) =>
+  (message.actions ?? []).map(({ id, form }) => ({ id, ...(form ? { form } : {}) }));
+
 export async function saveAgentMessage(chatId: string, message: AgentChatMessage) {
   await getDb()
     .insert(financeAgentMessages)
@@ -234,7 +233,7 @@ export async function saveAgentMessage(chatId: string, message: AgentChatMessage
       chatId,
       role: message.role,
       content: message.content,
-      actions: message.actions ?? [],
+      actions: storedActions(message),
       isError: Boolean(message.isError),
       createdAt: new Date(message.createdAt),
     })
@@ -242,7 +241,7 @@ export async function saveAgentMessage(chatId: string, message: AgentChatMessage
       target: financeAgentMessages.id,
       set: {
         content: message.content,
-        actions: message.actions ?? [],
+        actions: storedActions(message),
         isError: Boolean(message.isError),
       },
     });
@@ -260,30 +259,21 @@ export async function clearAgentMessages(chatId: string) {
   await touchConversation(chatId);
 }
 
-export async function syncActionInMessages(actionId: string, patch: Partial<PendingAgentAction>) {
-  const rows = await getDb().select().from(financeAgentMessages);
-  for (const row of rows) {
-    if (!Array.isArray(row.actions) || row.actions.length === 0) continue;
-    let changed = false;
-    const actions = row.actions.map((item) => {
-      if (typeof item !== 'object' || item === null || !('id' in item) || item.id !== actionId) {
-        return item;
-      }
-      changed = true;
-      return { ...item, ...patch };
-    });
-    if (!changed) continue;
-    await getDb().update(financeAgentMessages).set({ actions }).where(eq(financeAgentMessages.id, row.id));
-  }
-}
-
 function hydrateStoredAction(
   item: unknown,
   liveById: Map<string, typeof financeAgentActions.$inferSelect>
 ): PendingAgentAction {
-  const stored = item as PendingAgentAction;
-  const live = stored?.id ? liveById.get(stored.id) : undefined;
-  if (!live) return stored;
+  const stored = item as Partial<PendingAgentAction> & { id: string };
+  const live = liveById.get(stored.id);
+  if (!live) {
+    return {
+      actionType: 'portfolio_item_add',
+      preview: { title: 'This action is no longer available' },
+      status: 'cancelled',
+      expiresAt: new Date(0).toISOString(),
+      ...stored,
+    } as PendingAgentAction;
+  }
   return {
     ...stored,
     actionType: live.actionType as PendingAgentAction['actionType'],
