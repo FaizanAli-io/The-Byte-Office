@@ -5,14 +5,6 @@ import type { LedgerAccount, LedgerCategory, LedgerEntryType } from '@/types/led
 import { financeStyles } from '../components/FinanceUI';
 import { Field } from './LedgerAccounts';
 
-/**
- * The ledger page and the assistant's in-chat form collect exactly the same
- * fields with the same rules, and used to do it with two copies of the same
- * markup. The only genuine differences are whether the account selects offer
- * a blank placeholder and whether the inputs are disabled while saving.
- */
-
-/** The chat form only carries these columns, so that is what the fields need. */
 export type EntryAccount = Pick<LedgerAccount, 'id' | 'name' | 'currency' | 'type' | 'exchangeRate'>;
 
 export type EntryDraft = {
@@ -45,7 +37,6 @@ export function firstOtherAccountId(accounts: EntryAccount[], accountId: string)
   return accounts.find((account) => account.id !== accountId)?.id ?? '';
 }
 
-/** A cross-currency transfer cannot be inferred, so the destination amount is required. */
 function conversionTarget(draft: EntryDraft, accounts: EntryAccount[]) {
   if (draft.type !== 'transfer') return null;
   const source = accounts.find((account) => account.id === draft.accountId);
@@ -86,7 +77,6 @@ export function EntryFields({
   categories: LedgerCategory[];
   bounds: { min: string; max: string };
   disabled?: boolean;
-  /** Show a blank "Select…" option, as the ledger page does. */
   placeholders?: boolean;
 }) {
   const eligible = eligibleAccounts(accounts, draft.type);
@@ -95,16 +85,11 @@ export function EntryFields({
 
   function changeType(type: LedgerEntryType) {
     const next = eligibleAccounts(accounts, type);
-    // Keep the current account when it is still valid; otherwise fall back to
-    // the first eligible one, or to the placeholder where there is one.
     const accountId = next.some((account) => account.id === draft.accountId)
       ? draft.accountId
       : placeholders
         ? ''
         : (next[0]?.id ?? '');
-    // Category and counterparty share a slot, so the one that just went off
-    // screen is cleared rather than left to be submitted invisibly. A category
-    // that no longer suits the new type goes too, for the same reason.
     const keepsCategory =
       !isHoldType(type) && pickableCategories(categories, type, undefined).some((item) => item.id === draft.categoryId);
     setDraft({
@@ -194,8 +179,6 @@ export function EntryFields({
           </Field>
         </>
       ) : null}
-      {/* A hold has no category — it is neither income nor expense. The slot
-          asks whose money it is instead, which is the thing worth recording. */}
       {isHoldType(draft.type) ? (
         <Field label="Counterparty (optional)">
           <input

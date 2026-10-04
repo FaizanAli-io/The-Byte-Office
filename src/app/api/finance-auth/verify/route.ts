@@ -17,8 +17,6 @@ export const POST = apiRoute('POST /api/finance-auth/verify', 'Unable to complet
     throw new ApiError('This login link is invalid, already used, or has expired', 401);
   }
 
-  // The session token is only ever sent as an httpOnly cookie. The companion
-  // flag is what the client reads to know it is signed in.
   const response = NextResponse.json({ success: true });
   response.cookies.set(FINANCE_SESSION_COOKIE, await createFinanceSession(), sessionCookieOptions());
   response.cookies.set(FINANCE_SIGNED_IN_COOKIE, '1', signedInCookieOptions());

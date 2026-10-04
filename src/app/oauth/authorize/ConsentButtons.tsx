@@ -8,20 +8,6 @@ type Decision = 'approve' | 'deny';
 
 type FormAction = (formData: FormData) => void | Promise<void>;
 
-/**
- * Approve and Deny, with feedback that the press registered.
- *
- * Granting runs a database write and then a redirect back to the client, which
- * is long enough to look like nothing happened. `useFormStatus` reports the
- * parent form's submission, and the click records which button caused it, so
- * the pressed one can say what it is doing while both lock.
- *
- * `disabled` is driven by `pending` alone, never by the click. React flushes a
- * click's state update synchronously, so disabling from `onClick` would
- * disable the button before the browser ran the form's default submit action
- * — and a disabled button's submission is simply dropped. The label may
- * change on click; the disabled state may not.
- */
 export function ConsentButtons({ approve, deny }: { approve: FormAction; deny: FormAction }) {
   const { pending } = useFormStatus();
   const [pressed, setPressed] = useState<Decision | null>(null);
@@ -31,6 +17,7 @@ export function ConsentButtons({ approve, deny }: { approve: FormAction; deny: F
       <button
         type="submit"
         formAction={approve}
+        // Disable from `pending` only: disabling on click drops the form submission.
         disabled={pending}
         onClick={() => setPressed('approve')}
         aria-busy={pressed === 'approve'}

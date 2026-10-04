@@ -37,7 +37,6 @@ export function useFinanceHandlers() {
     })();
   }, []);
 
-  /** Every mutation is "clone the doc, hand it to a mutator" — so that is the one primitive. */
   function edit(mutate: (draft: FinanceDoc) => void) {
     setData((prev) => {
       if (!prev) return prev;
@@ -47,7 +46,6 @@ export function useFinanceHandlers() {
     });
   }
 
-  /** Replaces the funds of one bank group, preserving the bank's name. */
   function editFunds(mfIndex: number, bankKey: string, mutate: (funds: MutualFundGroup[string]) => void) {
     edit((draft) => {
       const funds = draft.mutualFunds[mfIndex]?.[bankKey];
@@ -88,9 +86,6 @@ export function useFinanceHandlers() {
     setSaving(true);
     try {
       const { data: saved } = await financeApi.save(data);
-      // Adopt the server's copy so holdings added in this session pick up the
-      // IDs Postgres just assigned. Skipping this would make the next save
-      // insert them again as new rows.
       if (saved) setData(saved);
       setError('');
       return { tone: 'success', message: 'Portfolio saved.' };

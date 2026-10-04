@@ -71,7 +71,6 @@ export async function getAgentAction(id: string) {
   return (await getDb().select().from(financeAgentActions).where(idEq(financeAgentActions.id, id)).limit(1))[0] ?? null;
 }
 
-/** Status transitions are all "update if the row is still in the expected state". */
 async function setActionStatus(
   id: string,
   status: 'executing' | 'cancelled' | 'completed' | 'failed',

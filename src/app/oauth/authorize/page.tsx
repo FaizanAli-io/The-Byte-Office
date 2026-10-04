@@ -30,13 +30,6 @@ const SCOPE_COPY: Record<string, { label: string; caution?: string }> = {
   'tbo:read': { label: 'Read public company information' },
 };
 
-/**
- * The consent screen: the only part of OAuth a person sees.
- *
- * The middleware has already required a finance session to reach this path,
- * carrying the whole authorization request through the magic-link login in
- * its `next` parameter, so by the time this renders the user is known.
- */
 export default async function AuthorizePage({
   searchParams,
 }: {
@@ -59,9 +52,6 @@ export default async function AuthorizePage({
     granted: scopes.filter((scope) => scope.startsWith(`${module}:`)),
   })).filter((entry) => entry.granted.length);
 
-  // The decision is bound into the action. React does not pass a submitting
-  // button's name and value through to a server action, so encoding it in the
-  // form would silently read as a denial.
   const approve = decideAuthorization.bind(null, true);
   const deny = decideAuthorization.bind(null, false);
 
@@ -69,17 +59,13 @@ export default async function AuthorizePage({
     <div className="flex min-h-screen items-center justify-center px-4 py-20">
       <div className="w-full max-w-3xl rounded-2xl border border-white/8 bg-slate-900/75 p-7 shadow-2xl backdrop-blur-xl sm:p-8">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">Authorize access</p>
-        <h1 className="mt-3 text-2xl font-bold text-white">
-          {/* Attacker-controlled: React escapes it, and it is never placed in markup. */}
-          {clientName}
-        </h1>
+        <h1 className="mt-3 text-2xl font-bold text-white">{clientName}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
           This application is asking to connect to your workspace through the MCP server. Approving grants exactly what
           is listed below.
         </p>
 
         <form>
-          {/* One column per module side by side, stacking on a narrow screen. */}
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             {modules.map(({ module, granted }) => (
               <ModuleConsent key={module} module={module} granted={granted} />
@@ -94,7 +80,6 @@ export default async function AuthorizePage({
   );
 }
 
-/** What approving grants, stated plainly. Nothing here is a control. */
 function ModuleConsent({ module, granted }: { module: OAuthModule; granted: string[] }) {
   return (
     <div className={`${financeStyles.inset} flex flex-col gap-3 p-4`}>

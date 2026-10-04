@@ -4,10 +4,6 @@ import type { HealthTrackingInput, HealthTrackingUpdate, PrayerInput, PrayerUpda
 import { getDb } from './index';
 import { NAMAAZ_VALUES, healthTracking, prayerHistory, prayers, type Namaaz } from './schema';
 
-/**
- * Drizzle writes an explicit `undefined` as a column value, so partial updates
- * have to drop absent keys rather than pass them through.
- */
 function defined<T extends object>(input: T) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as T;
 }
@@ -16,7 +12,6 @@ export async function listPrayers() {
   return getDb().select().from(prayers).orderBy(asc(prayers.namaaz));
 }
 
-/** The counts, and when they last changed: the newest history row, or `null` before the first change. */
 export async function loadPrayerTracker() {
   const [rows, [latest]] = await Promise.all([
     listPrayers(),
@@ -25,11 +20,6 @@ export async function loadPrayerTracker() {
   return { prayers: rows, updatedAt: latest?.recordedAt ?? null };
 }
 
-/**
- * Appends all five counts to the history after a prayer write. A write that
- * changed nothing records nothing, so saving the same value again cannot move
- * "last updated".
- */
 async function recordPrayerHistory() {
   const db = getDb();
   const [rows, [latest]] = await Promise.all([

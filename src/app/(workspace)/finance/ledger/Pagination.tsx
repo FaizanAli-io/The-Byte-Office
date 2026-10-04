@@ -2,7 +2,6 @@
 
 import { financeStyles } from '../components/FinanceUI';
 
-/** Ten is enough to scan; the rest are for a month being worked through. */
 export const PAGE_SIZES = [10, 25, 50, 100];
 
 export function Pagination({
@@ -44,8 +43,6 @@ export function Pagination({
             ))}
           </select>
         </label>
-        {/* Hidden rather than disabled on a single page: a lone "1 of 1" with
-            two dead arrows is noise. */}
         {pageCount > 1 ? (
           <div className="flex items-center gap-2">
             <button

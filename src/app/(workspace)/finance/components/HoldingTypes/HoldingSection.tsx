@@ -1,15 +1,9 @@
 import { DeleteButton, Field, SectionCard, SectionTotal } from './shared';
 
-/**
- * The bank sections differ only in their fields, grid and how a row converts to
- * PKR, so they share one component driven by this spec.
- */
 export type HoldingField<T> = {
   key: keyof T & string;
   label: string;
-  /** A plain number, such as an exchange rate. */
   numeric?: boolean;
-  /** A money amount, in rupees, shown with two decimal places. */
   money?: boolean;
   placeholder?: string;
 };

@@ -121,8 +121,6 @@ export default function LedgerPage() {
                 hint="Contributions minus withdrawals"
                 tone="amber"
               />
-              {/* Only shown in months that actually moved a hold, so the row
-                  stays four tiles wide the rest of the time. */}
               {summary.heldMovement ? (
                 <StatCard
                   label="Held funds"

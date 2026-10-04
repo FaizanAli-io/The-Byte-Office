@@ -11,12 +11,6 @@ import type {
   PortfolioItemType,
 } from '@/lib/agent/types';
 
-/**
- * Pure helpers behind `actions.ts`: argument parsing, the ledger and portfolio
- * fingerprints used for staleness checks, and the defaults applied when the
- * assistant leaves a field out. Nothing here touches the database.
- */
-
 export function resolveEntryId(ledger: MonthlyLedger, args: Record<string, unknown>) {
   const hasSerial = args.entrySerial !== undefined;
   const hasId = args.entryId !== undefined;
@@ -66,7 +60,6 @@ export function optionalString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-/** Validates a ledger as it would be saved, after a proposed change. */
 export function assertLedger(next: MonthlyLedger, categoryIds: ReadonlySet<string>) {
   const error = validateLedger(next, categoryIds);
   if (error) throw new AgentActionError(error);
@@ -98,11 +91,6 @@ export function assertLedgerStructure(ledger: MonthlyLedger, sourceFingerprint: 
   }
 }
 
-/**
- * One field spec per holding type serves both the create and the update path:
- * an update simply falls back to the stored row for anything the caller left
- * out, so the two used to be the same list written twice.
- */
 const HOLDING_FIELDS = {
   local_bank: { name: requireName, amountPkr: requireMoney },
   remote_bank: { name: requireName, amountUsd: requireMoney, exchangeRate: requirePositive },
@@ -132,8 +120,6 @@ export function parsePortfolioUpdate(
 }
 
 export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
-  // Named apart from the exported `optionalString`, which takes a value
-  // rather than a key and means something different.
   const carriedString = (key: 'categoryId' | 'counterparty' | 'note') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requireString(args[key], key);
   const carriedNumber = (key: 'destinationAmount' | 'exchangeRate') =>

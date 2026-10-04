@@ -10,7 +10,6 @@ import {
   type MonthlyLedgerPayload,
 } from '@/types/ledger';
 
-/** Names are trimmed on the way in, because " Food" and "Food" are one category. */
 const categoryName = z.string().trim().min(1, 'A category needs a name').max(60, 'Category name is too long');
 const categoryKind = z.enum(CATEGORY_KINDS);
 
@@ -33,9 +32,6 @@ export function validateFinanceDoc(value: unknown): value is Omit<FinanceDoc, '_
     return false;
   }
 
-  // Holding IDs are optional (a row the editor just added has none) but must be
-  // unique within their table: two rows sharing one ID would both resolve to the
-  // same UPDATE in saveFinanceDoc and one of the edits would be lost silently.
   const localIds = new Set<string>();
   const remoteIds = new Set<string>();
   const fundIds = new Set<string>();
@@ -80,14 +76,6 @@ export function validateSnapshotInput(value: unknown) {
   return null;
 }
 
-/**
- * `categoryIds` is every category that exists, archived ones included: an
- * archived category still names old entries, so editing one of those entries
- * must not be blocked by a category that has merely left the picker.
- *
- * The foreign key would reject an unknown id anyway; checking here is what
- * turns a Postgres constraint violation into a sentence.
- */
 export function validateLedger(body: MonthlyLedgerPayload, categoryIds: ReadonlySet<string> = new Set()) {
   if (!body || !isMonth(body.month)) return 'Invalid month';
   if (!['draft', 'finalized'].includes(body.status)) return 'Invalid status';
@@ -187,9 +175,6 @@ function validateLedgerEntry(
   ) {
     return 'Transfers need two different valid accounts';
   }
-  // Enforced here and not merely in the form: a hold parked on a fund account
-  // would move the expected balance without moving the cost basis, so the
-  // fund's gain or loss would come out wrong with nothing on screen to say why.
   if (isHoldType(entry.type) && !eligibleAccounts(accounts, entry.type).some((item) => item.id === entry.accountId)) {
     return 'Held funds must sit in a bank account';
   }

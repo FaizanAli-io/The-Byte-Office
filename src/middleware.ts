@@ -40,15 +40,8 @@ export const config = {
     '/api/health-tracking',
     '/api/health-tracking/:path*',
     '/api/agent/:path*',
-    // The API docs describe a private surface, so they stay behind the session
-    // even though Swagger now authenticates against OAuth rather than a key.
     '/docs',
     '/api/openapi',
-    // The OAuth consent screen is the one place a human authenticates, so it
-    // needs the session; the login redirect carries the whole authorization
-    // request through in `next`. Everything else under /oauth is machine to
-    // machine and must stay out of this list, along with /.well-known, or
-    // discovery would get a JSON 401 before it could start.
     '/oauth/authorize',
   ],
 };

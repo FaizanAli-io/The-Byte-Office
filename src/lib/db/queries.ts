@@ -14,11 +14,6 @@ import { getDb, getSql } from './index';
 import { byAccountKind } from '@/lib/ledger';
 import { categories, financeSnapshots, ledgerAccounts, ledgerEntries, ledgers, type SnapshotHoldings } from './schema';
 
-/**
- * A snapshot records values at a point in time, so it keeps its own JSONB copy
- * of the holdings rather than pointing at live rows that can later be edited or
- * deleted. Row IDs are dropped for the same reason.
- */
 export function toSnapshotHoldings(
   doc: Pick<FinanceDoc, 'name' | 'localBanks' | 'remoteBanks' | 'mutualFunds'>
 ): SnapshotHoldings {
@@ -101,7 +96,6 @@ export async function loadLedger(month: string): Promise<MonthlyLedger | null> {
     db.select().from(ledgerEntries).where(eq(ledgerEntries.ledgerId, ledger.id)).orderBy(asc(ledgerEntries.sortOrder)),
   ]);
 
-  // Stable sort: within a kind, the stored order still holds.
   return toLedger(ledger, accounts.map(toAccount).sort(byAccountKind), entries.map(toEntry));
 }
 
@@ -119,19 +113,11 @@ export async function loadPreviousFinalizedLedger(month: string) {
 
 type Sql = ReturnType<typeof getSql>;
 
-/**
- * The column lists for the two ledger child tables, written once.
- *
- * `createLedger` and `saveLedger` both rewrite accounts, and both had their
- * own copy of a four-hundred-character INSERT — which is how a new column
- * gets added to one and forgotten in the other.
- */
 function insertLedgerAccount(
   sql: Sql,
   ledgerId: string,
   account: LedgerAccount,
   index: number,
-  /** A new month has no closing balance yet; a save writes what the form holds. */
   actualClosingBalance: number | null
 ) {
   return sql`INSERT INTO finance.ledger_accounts (id, ledger_id, holding_id, name, type, currency, opening_balance, opening_cost_basis, actual_closing_balance, exchange_rate, sort_order)
@@ -159,16 +145,6 @@ export async function createLedger(input: { month: string; accounts: LedgerAccou
   return created;
 }
 
-/**
- * Rewrites a month, but only if it is still the version the caller read
- * (`body.updatedAt`). Returns `null` when it is not, so two open tabs reject
- * the stale save instead of silently discarding the other one's edits.
- *
- * The HTTP transaction cannot branch, so the guard aborts it instead: the
- * conditional UPDATE runs first, and dividing by its row count raises when it
- * matched nothing. A concurrent save blocks on the row lock and then re-checks
- * `updated_at`, so the race between two saves is closed too.
- */
 export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPayload): Promise<MonthlyLedger | null> {
   const now = new Date();
   const finalizedAt =
@@ -176,6 +152,8 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   const sql = getSql();
   const ledgerId = String(existing._id);
   const expected = new Date(body.updatedAt).toISOString();
+  // Stale-save guard: the HTTP transaction cannot branch, so dividing by the UPDATE row count
+  // aborts it with 22012 when updated_at has moved on.
   const statements = [
     sql`WITH saved AS (
       UPDATE finance.ledgers SET status = ${body.status}, updated_at = ${now.toISOString()}, finalized_at = ${finalizedAt ? finalizedAt.toISOString() : null}
@@ -193,7 +171,6 @@ export async function saveLedger(existing: MonthlyLedger, body: MonthlyLedgerPay
   try {
     await sql.transaction(statements);
   } catch (cause) {
-    // 22012 is division_by_zero: the guard above, meaning the month moved on.
     if ((cause as { code?: string }).code === '22012') return null;
     throw cause;
   }
@@ -213,15 +190,6 @@ function toCategory(row: typeof categories.$inferSelect, entryCount = 0): Ledger
   };
 }
 
-/**
- * Every category, archived ones included. Callers filling a picker hide the
- * archived ones themselves; callers rendering an existing entry need them, or
- * a historical category would display as a blank.
- *
- * The usage count comes from the same round trip. A left join keeps categories
- * nothing references, which are exactly the ones that can still be deleted;
- * grouping by the primary key lets the other columns come along.
- */
 export async function listCategories(): Promise<LedgerCategory[]> {
   const rows = await getDb()
     .select({ category: categories, entryCount: sql<number>`count(${ledgerEntries.id})::int` })
@@ -260,7 +228,6 @@ export async function updateCategory(
   return row ? toCategory(row) : null;
 }
 
-/** How many entries would break if this category went away. */
 export async function countCategoryUses(id: string) {
   const [{ uses }] = await getDb()
     .select({ uses: sql<number>`count(*)::int` })
@@ -274,14 +241,6 @@ export async function deleteCategory(id: string) {
   return deleted.length > 0;
 }
 
-/**
- * Every hold movement ever recorded, oldest first, already converted to PKR.
- *
- * Holds are the one ledger figure that has to be read across months: a hold
- * taken in January is still outstanding in March, so a single month's entries
- * cannot answer what is currently being held. Draft ledgers count, because the
- * cash is in the account whether or not the month has been finalized.
- */
 export async function loadHoldMovements() {
   const rows = await getDb()
     .select({
@@ -311,8 +270,6 @@ export async function loadHoldMovements() {
     account: row.accountName,
     amount: row.amount,
     currency: row.currency,
-    // The entry's own rate is the one in force when the money moved; the
-    // account's is only a fallback for entries written before rates were kept.
     amountPkr: row.currency === 'USD' ? row.amount * (row.entryRate ?? row.accountRate) : row.amount,
   }));
 }
@@ -328,7 +285,6 @@ export async function listSnapshots(): Promise<FinanceSnapshot[]> {
   }));
 }
 
-/** The same list without the holdings blob, which the assistant does not need. */
 export async function listSnapshotSummaries() {
   const rows = await listSnapshots();
   return rows.map(({ _id, timestamp, grandTotal }) => ({ id: _id, timestamp, grandTotal }));

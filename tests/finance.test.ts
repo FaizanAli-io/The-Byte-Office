@@ -42,8 +42,6 @@ describe('portfolioTotals', () => {
 
   it('nets out money being held for someone else', () => {
     const totals = portfolioTotals(doc, 6000);
-    // Gross is unchanged: the cash really is in the accounts, and
-    // reconciliation has to keep agreeing with the bank.
     expect(totals.grandTotal).toBe(36_000);
     expect(totals.net).toBe(30_000);
   });
@@ -53,8 +51,6 @@ describe('portfolioTotals', () => {
   });
 
   it('agrees with holdingTotals over the same holdings', () => {
-    // The editor holds grouped funds and the assistant holds flat rows; both
-    // must report the same number.
     const flat = docToRows(doc)
       .filter((row) => row.kind === 'mutual_fund')
       .map((row) => ({ value: row.amount }));

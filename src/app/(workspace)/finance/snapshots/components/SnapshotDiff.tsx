@@ -22,7 +22,6 @@ function Delta({ value }: { value: number }) {
   return <span className={`font-bold ${tone}`}>{`${value > 0 ? '+' : ''}${formatMoney(value, 'PKR')}`}</span>;
 }
 
-/** Compares two snapshots, whichever order they were picked in: the older one is always "before". */
 export function SnapshotDiff({ pair, onClear }: { pair: [FinanceSnapshot, FinanceSnapshot]; onClear: () => void }) {
   const [older, newer] = [...pair].sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp));
   const { classes, lines } = snapshotDiff(older.data, newer.data);

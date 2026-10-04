@@ -10,15 +10,8 @@ export type Inquiry = {
   message: string;
 };
 
-// Generous caps: enough for a real project brief, small enough that a bot
-// cannot post a megabyte of text through a public endpoint.
 const LIMITS = { name: 120, email: 254, company: 160, service: 80, message: 5_000 } as const;
 
-/**
- * Validates an inquiry from either the public contact form or the assistant's
- * `tbo_send_inquiry` tool. Both reach the same mailbox, so both get the same
- * rules.
- */
 export function parseInquiry(value: unknown): Inquiry {
   if (typeof value !== 'object' || value === null) throw new ApiError('Invalid inquiry');
   const raw = value as Record<string, unknown>;

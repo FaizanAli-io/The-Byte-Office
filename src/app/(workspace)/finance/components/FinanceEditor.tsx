@@ -34,9 +34,6 @@ export default function FinanceEditor() {
   const [toast, setToast] = useState<FinanceToastState>(null);
   const [held, setHeld] = useState<ReturnType<typeof heldFunds> | null>(null);
 
-  // Held funds come from the ledger rather than from the portfolio, so they
-  // are a second read. A failure here only costs the net line, and the gross
-  // figures are still correct without it, so it does not block the page.
   useEffect(() => {
     heldFundsApi
       .load()
@@ -77,9 +74,6 @@ export default function FinanceEditor() {
     );
   }
 
-  // The snapshot keeps recording the gross total: it is a record of what the
-  // accounts held, and what is owed back is derivable from the ledger for any
-  // past date anyway.
   const totals = portfolioTotals(data, held?.total ?? 0);
   const holdingForOthers = Math.abs(totals.held) >= 0.005;
 
@@ -113,8 +107,6 @@ export default function FinanceEditor() {
           hint={holdingForOthers ? 'Everything the accounts hold' : undefined}
           tone={holdingForOthers ? 'cyan' : 'emerald'}
         />
-        {/* Two totals, because neither alone is honest: the accounts really do
-            hold the gross figure, but only the net figure is yours. */}
         {holdingForOthers ? (
           <>
             <StatCard

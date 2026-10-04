@@ -4,11 +4,6 @@ import Navigation from '@/components/Navigation';
 import { siteUrl } from '@/content/site';
 import { jsonLd, organizationSchema, websiteSchema } from '@/lib/seo';
 
-/**
- * The public marketing site: home, services, projects, about and contact.
- * Everything indexable, and the only place the Organization/WebSite structured
- * data belongs.
- */
 export const metadata: Metadata = {
   alternates: {
     canonical: siteUrl,

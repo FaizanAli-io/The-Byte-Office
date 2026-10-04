@@ -6,18 +6,10 @@ import type { FinanceDoc, FinanceFund } from '@/types/finance';
 import type { PortfolioItemInput, PortfolioItemType } from '@/lib/agent/types';
 import { FUND_SEPARATOR, type Holding } from '@/lib/portfolio-sync';
 
-/**
- * Every read and write of the `holdings` table, in the three shapes callers
- * want: the editor's grouped document, the assistant's per-kind items, and the
- * flat `Holding` the ledger sync works in. The API still speaks in local
- * banks, remote banks and mutual funds; only storage became one table.
- */
-
 type HoldingRow = typeof holdings.$inferSelect;
 type HoldingValues = Pick<HoldingRow, 'kind' | 'name' | 'groupName' | 'amount' | 'exchangeRate'>;
 type RowInput = HoldingValues & { id?: string; sortOrder: number };
 
-/** The editor's document as rows, each kind in its own display order. */
 export function docToRows(doc: Pick<FinanceDoc, 'localBanks' | 'remoteBanks' | 'mutualFunds'>): RowInput[] {
   const funds = doc.mutualFunds.flatMap((group) => {
     const bank = Object.keys(group)[0] ?? '';
@@ -46,7 +38,6 @@ export function docToRows(doc: Pick<FinanceDoc, 'localBanks' | 'remoteBanks' | '
   ];
 }
 
-/** Rows as the editor's document. Funds group by bank, banks in the order they first appear. */
 export function rowsToDoc(rows: RowInput[]): FinanceDoc {
   const sorted = [...rows].sort((a, b) => a.sortOrder - b.sortOrder);
   const ofKind = (kind: HoldingRow['kind']) => sorted.filter((row) => row.kind === kind);
@@ -68,7 +59,6 @@ export function rowsToDoc(rows: RowInput[]): FinanceDoc {
   };
 }
 
-/** Rows in the per-kind shapes the assistant's items and `portfolio_get` have always used. */
 const meta = (row: HoldingRow) => ({ sortOrder: row.sortOrder, createdAt: row.createdAt, updatedAt: row.updatedAt });
 const localItem = (row: HoldingRow) => ({ id: row.id, name: row.name, amountPkr: row.amount, ...meta(row) });
 const remoteItem = (row: HoldingRow) => ({
@@ -104,7 +94,6 @@ function itemValues(item: PortfolioItemInput): HoldingValues {
   return { kind: item.itemType, name: item.fundName, groupName: item.bankName, amount: item.value, exchangeRate: 1 };
 }
 
-/** Per-kind field names (`amountPkr`, `bankName`, …) to columns, for partial updates. */
 const ITEM_COLUMNS: Record<string, keyof HoldingValues> = {
   amountPkr: 'amount',
   amountUsd: 'amount',
@@ -115,7 +104,6 @@ const ITEM_COLUMNS: Record<string, keyof HoldingValues> = {
   name: 'name',
 };
 
-/** Kinds in their declared order (local, remote, funds), each in its own sort order. */
 async function loadRows() {
   return getDb().select().from(holdings).orderBy(asc(holdings.kind), asc(holdings.sortOrder));
 }
@@ -128,7 +116,6 @@ async function nextSortOrder(kind: HoldingRow['kind']) {
   return (order.value ?? -1) + 1;
 }
 
-/** Holdings split by kind, as `portfolio_get` serves them. */
 export async function loadHoldings() {
   const rows = await loadRows();
   const ofKind = (kind: HoldingRow['kind']) => rows.filter((row) => row.kind === kind);
@@ -143,14 +130,6 @@ export async function loadFinanceDoc(): Promise<FinanceDoc> {
   return rowsToDoc(await loadRows());
 }
 
-/**
- * Saves the editor's document as a diff against the stored rows: known ids
- * update in place, new rows insert, rows the editor dropped are deleted.
- *
- * Ids have to survive a save — the assistant's proposals and the ledger's
- * account links point at them. An unrecognised id inserts rather than fails,
- * so a stale editor tab degrades to a duplicate instead of a lost save.
- */
 export async function saveFinanceDoc(doc: Omit<FinanceDoc, '_id'>): Promise<FinanceDoc> {
   const sql = getSql();
   const existing = new Set((await getDb().select({ id: holdings.id }).from(holdings)).map((row) => row.id));
@@ -179,7 +158,6 @@ export async function getPortfolioItem(itemType: PortfolioItemType, id: string) 
   return row ? toItem(row) : null;
 }
 
-/** `id` is passed when the ledger sync has already linked an account to the new holding. */
 export async function addPortfolioItem(item: PortfolioItemInput, id?: string) {
   const values = itemValues(item);
   const [row] = await getDb()
@@ -205,7 +183,6 @@ export async function removePortfolioItem(itemType: PortfolioItemType, id: strin
   return getDb().delete(holdings).where(byKindAndId(itemType, id)).returning({ id: holdings.id });
 }
 
-/** Every holding in the flat shape the ledger sync works in; a fund reads "Bank · Fund". */
 export async function loadHoldingList(): Promise<Holding[]> {
   return (await loadRows()).map((row) => ({
     id: row.id,
@@ -221,7 +198,6 @@ function holdingValues(holding: Holding): HoldingValues {
     const exchangeRate = holding.kind === 'remote_bank' ? holding.exchangeRate : 1;
     return { kind: holding.kind, name: holding.name, groupName: null, amount: holding.amount, exchangeRate };
   }
-  // A fund account named without the separator files under a bank of the same name.
   const [bank, ...rest] = holding.name.split(FUND_SEPARATOR);
   return {
     kind: holding.kind,

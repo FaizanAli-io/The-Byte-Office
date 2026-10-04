@@ -4,17 +4,6 @@ import { ENTRY_LABELS, categoryName, formatMoney, isHoldType } from '@/lib/ledge
 import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType } from '@/types/ledger';
 import { financeStyles } from '../components/FinanceUI';
 
-/**
- * How one transaction looks, in the two shapes it has to take.
- *
- * A phone gets stacked cards and a desktop gets a table: genuinely different
- * layouts, not one layout with `hidden` classes, because a seven-column table
- * squeezed onto a phone is unreadable. What they must not differ on is *what*
- * they show, so both consume the same pre-resolved `EntryRow` rather than
- * each looking up its own account, destination and detail text.
- */
-
-/** One transaction, with everything both layouts render already resolved. */
 export type EntryRow = {
   entry: LedgerEntry;
   account?: LedgerAccount;
@@ -30,7 +19,6 @@ export type RowActions = {
   onRemove: (id: string) => void;
 };
 
-/** A hold's counterparty occupies the column a category would otherwise use. */
 export function entryDetail(entry: LedgerEntry, categoryList: LedgerCategory[]) {
   if (!isHoldType(entry.type)) return categoryName(categoryList, entry.categoryId);
   return entry.counterparty ? `for ${entry.counterparty}` : '';
@@ -174,8 +162,6 @@ const TYPE_BADGE: Record<LedgerEntryType, string> = {
   transfer: 'border-cyan-400/25 bg-cyan-400/12 text-cyan-300',
   fund_contribution: 'border-amber-400/25 bg-amber-400/12 text-amber-300',
   fund_withdrawal: 'border-violet-400/25 bg-violet-400/12 text-violet-300',
-  // Holds are deliberately the same colour in both directions: they are one
-  // concept moving two ways, not an income and an expense.
   hold_received: 'border-sky-400/25 bg-sky-400/12 text-sky-300',
   hold_returned: 'border-sky-400/25 bg-sky-400/12 text-sky-300',
 };

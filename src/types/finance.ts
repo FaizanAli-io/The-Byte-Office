@@ -1,9 +1,3 @@
-/**
- * `id` is the Postgres row UUID. It is present on everything loaded from the
- * database and absent on rows the editor has just created. `saveFinanceDoc`
- * uses it to update in place instead of replacing the row, which is what keeps
- * the IDs the finance agent proposes actions against stable across saves.
- */
 export interface FinanceFund {
   id?: string;
   fund: string;

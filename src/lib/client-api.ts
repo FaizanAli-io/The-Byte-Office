@@ -1,14 +1,5 @@
 'use client';
 
-/**
- * The browser-side counterpart to `src/lib/api.ts`.
- *
- * Every component hand-rolled the same four lines: fetch, parse the JSON, check
- * `response.ok`, and throw `body.error` or a fallback. Doing it once means a
- * route that starts returning a useful message is surfaced everywhere rather
- * than in whichever call site remembered to read it.
- */
-
 export class ApiRequestError extends Error {
   constructor(
     message: string,
@@ -36,7 +27,6 @@ export async function apiFetch<T>(url: string, { body, method, headers, ...init 
   return payload as T;
 }
 
-/** Resolves to `null` on 404 instead of throwing, for "may not exist yet" reads. */
 export async function apiFetchOrNull<T>(url: string, options: Options = {}): Promise<T | null> {
   try {
     return await apiFetch<T>(url, options);

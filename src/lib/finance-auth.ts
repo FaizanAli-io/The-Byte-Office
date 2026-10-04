@@ -1,19 +1,10 @@
-/**
- * Session and magic-link signing. This module is imported by the edge
- * middleware, so it stays free of the database driver; the magic-link nonce
- * store lives in `finance-magic-link.ts`.
- */
+// Runs in the edge middleware: no database driver imports here or in hmac.ts.
 import { constantTimeEqual, hmacHex } from '@/lib/hmac';
 
 export const FINANCE_SESSION_COOKIE = 'finance_session';
 
-// Declared alongside the reader that uses it; re-exported so routes setting
-// both cookies only need one import.
 export { FINANCE_SIGNED_IN_COOKIE } from './finance-session-client';
 
-// Sessions are stateless, so this window is also how long a stolen token
-// stays usable. Kept short enough to bound that, long enough that a magic
-// link is not needed every few days.
 export const FINANCE_SESSION_MAX_AGE = 3600 * 24 * 14;
 export const FINANCE_MAGIC_LINK_MAX_AGE = 60 * 15;
 
@@ -52,7 +43,6 @@ export async function signMagicLink(nonce: string, expires: number) {
   return `magic.${expires}.${nonce}.${signature}`;
 }
 
-/** Returns the nonce for a well-formed, unexpired, correctly signed link. */
 export async function verifyMagicLinkSignature(token?: string) {
   if (!token) return null;
   const [prefix, expiresValue, nonce, signature, ...extra] = token.split('.');
@@ -67,7 +57,6 @@ export async function verifyMagicLinkSignature(token?: string) {
   return constantTimeEqual(signature, expected) ? nonce : null;
 }
 
-/** Accepts a `Request` or bare `Headers`, which is what server components have. */
 export function appOrigin(source: Request | Headers) {
   const headers = source instanceof Headers ? source : source.headers;
   const host = headers.get('x-forwarded-host') || headers.get('host');
@@ -86,7 +75,6 @@ export function sessionCookieOptions(maxAge = FINANCE_SESSION_MAX_AGE) {
   };
 }
 
-/** Same lifetime, but readable by the client so the nav can reflect sign-in state. */
 export function signedInCookieOptions(maxAge = FINANCE_SESSION_MAX_AGE) {
   return { ...sessionCookieOptions(maxAge), httpOnly: false };
 }

@@ -3,7 +3,6 @@ import { Inter } from 'next/font/google';
 import type { Metadata, Viewport } from 'next';
 import { company, siteUrl } from '@/content/site';
 
-// Work around Node runtimes that expose a malformed global localStorage object.
 if (typeof window === 'undefined') {
   const currentStorage = (globalThis as { localStorage?: Storage }).localStorage;
 
@@ -37,11 +36,6 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
-/**
- * Only what both halves of the app share: the document shell, fonts and
- * identity. Marketing chrome and SEO live in `(site)`; the private workspace
- * supplies its own in `(workspace)`.
- */
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {

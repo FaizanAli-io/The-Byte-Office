@@ -4,24 +4,11 @@ import { portfolioTotals } from '@/lib/finance';
 import { planLedgerSave, planPortfolioSync } from '@/lib/portfolio-sync';
 import type { MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 
-/**
- * The writes behind `portfolio-sync.ts`. Every ledger save and every portfolio
- * save goes through one of these two, which is what keeps the two in step.
- */
-
 async function newestLedger() {
   return (await listLedgerSummaries())[0] ?? null;
 }
 
-/**
- * Saves a month; when it is the newest one, the portfolio follows it. Finalizing
- * any month also snapshots the portfolio as it now stands.
- *
- * The order follows the foreign key from accounts to holdings: holdings an
- * account will point at are created before the ledger is written, and the
- * rest of the holding changes wait until it has been. A stale save (the
- * `null` return) takes its new holdings back out, so it changes nothing.
- */
+// holding_id is a foreign key: create holdings before the ledger save, update/remove after.
 export async function saveLedgerSynced(existing: MonthlyLedger, body: MonthlyLedgerPayload) {
   const isNewest = body.month === (await newestLedger())?.month;
   const plan = isNewest ? planLedgerSave(existing, body, await loadHoldingList()) : null;
@@ -44,16 +31,7 @@ export async function saveLedgerSynced(existing: MonthlyLedger, body: MonthlyLed
   return saved;
 }
 
-/**
- * Runs a portfolio write, then brings the newest month in line with what it
- * changed. A finalized month is left alone: it is read-only, and the next
- * month opens at the portfolio's figures anyway.
- *
- * The month is read before the write: deleting a holding clears its accounts'
- * links in the database, and the plan needs them to know which accounts went
- * with it. Neither that nor anything else in the write touches the ledger's
- * version, so saving against the earlier read is still guarded properly.
- */
+// Read the ledger before the write: deleting a holding nulls its accounts' holding_id.
 export async function withPortfolioSync<T>(write: () => Promise<T>): Promise<T> {
   const newest = await newestLedger();
   const before = await loadHoldingList();

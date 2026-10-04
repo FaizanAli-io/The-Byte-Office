@@ -8,10 +8,6 @@ export const runtime = 'nodejs';
 
 type RouteContext = { params: Promise<{ name: string }> };
 
-/**
- * REST wrappers over the same tools, for Swagger and for scripts. They share
- * the MCP bearer gate, so the same access token works here.
- */
 async function resolve(request: Request, context: RouteContext, method: 'get' | 'post') {
   const auth = await gateFor(request)(request);
   if (auth instanceof Response) return { error: auth };

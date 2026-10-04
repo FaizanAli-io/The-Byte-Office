@@ -1,7 +1,5 @@
 import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType, MonthlyLedger } from '@/types/ledger';
 
-/** Every amount below is a major-unit amount: rupees for PKR, dollars for USD. */
-
 export const ENTRY_LABELS: Record<LedgerEntry['type'], string> = {
   income: 'Income',
   expense: 'Expense',
@@ -12,18 +10,10 @@ export const ENTRY_LABELS: Record<LedgerEntry['type'], string> = {
   hold_returned: 'Hold returned',
 };
 
-/** Money someone else owns that is sitting in one of your accounts. */
 export function isHoldType(type: LedgerEntryType) {
   return type === 'hold_received' || type === 'hold_returned';
 }
 
-/**
- * Which accounts an entry type may touch. Fund movements only make sense on a
- * fund; a hold only makes sense on a bank, because a hold on a fund would
- * move `expected` without moving `netInvested` and silently distort the
- * fund's gain or loss. The ledger form, the assistant's defaults and the
- * validator all ask this one question rather than each repeating the rule.
- */
 export function eligibleAccounts<T extends Pick<LedgerAccount, 'type'>>(accounts: T[], type: LedgerEntryType) {
   if (type === 'fund_contribution' || type === 'fund_withdrawal') {
     return accounts.filter((account) => account.type === 'fund');
@@ -32,22 +22,12 @@ export function eligibleAccounts<T extends Pick<LedgerAccount, 'type'>>(accounts
   return accounts;
 }
 
-/** Seeded by migration 0013: the only category the application writes itself. */
 export const RECONCILIATION_CATEGORY = 'Reconciliation';
 
-/** The name behind an entry's category id, or nothing if it has none. */
 export function categoryName(categoryList: LedgerCategory[], id?: string) {
   return categoryList.find((category) => category.id === id)?.name ?? '';
 }
 
-/**
- * The categories a picker should offer for one entry.
- *
- * `kind` narrows income and expense to the categories that suit them; every
- * other entry type is neither, so it sees the whole list. The entry's current
- * category always stays in the list even when archived, because otherwise
- * editing an old entry's amount would silently blank its category.
- */
 export function pickableCategories(categoryList: LedgerCategory[], type: LedgerEntryType, keepId?: string) {
   return categoryList.filter((category) => {
     if (category.id === keepId) return true;
@@ -57,16 +37,6 @@ export function pickableCategories(categoryList: LedgerCategory[], type: LedgerE
   });
 }
 
-/**
- * Resolves a category from a name the way `resolveAccountId` resolves an
- * account: the assistant is handed names, not UUIDs. An exact name wins, a
- * single unambiguous partial match is accepted, and anything ambiguous
- * resolves to nothing rather than guessing.
- *
- * Archived categories are skipped: a retired one cannot be revived by naming
- * it on an entry. Managing categories goes by id instead, so nothing needs to
- * look one up by name.
- */
 export function resolveCategoryId(categoryList: LedgerCategory[], name: unknown) {
   if (typeof name !== 'string' || !name.trim()) return undefined;
   const requested = name.trim().toLowerCase();
@@ -97,7 +67,6 @@ export function monthBounds(month: string) {
   };
 }
 
-/** PKR is shown whole; USD keeps its cents. */
 export function formatMoney(value: number, currency: string) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -116,8 +85,6 @@ export function accountMovement(accountId: string, entry: LedgerEntry) {
   }
 
   if (entry.accountId !== accountId) return 0;
-  // A received hold is real cash arriving, so the balance must rise by it or
-  // reconciliation against the statement would fail. It is simply not income.
   if (entry.type === 'income' || entry.type === 'fund_contribution' || entry.type === 'hold_received') {
     return entry.amount;
   }
@@ -137,8 +104,6 @@ export function reconcileDate(month: string) {
 
 export function variancePct(difference: number | undefined, expected: number) {
   if (difference === undefined) return undefined;
-  // Sums of decimal amounts drift a little in binary floating point, so treat
-  // anything below a hundredth of a unit as the zero it was meant to be.
   if (Math.abs(expected) < 0.005) return Math.abs(difference) < 0.005 ? 0 : null;
   return (difference / expected) * 100;
 }
@@ -211,7 +176,6 @@ export function ledgerSummary(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'
   return { income, expenses, netCashFlow: income - expenses, fundFlow, heldMovement };
 }
 
-/** Income and expenses per category in PKR, largest first. Uncategorised entries group under "Uncategorised". */
 export function ledgerCategoryTotals(
   ledger: Pick<MonthlyLedger, 'accounts' | 'entries'>,
   categories: LedgerCategory[]
@@ -241,20 +205,6 @@ export type HoldMovement = {
   amountPkr: number;
 };
 
-/**
- * How much of your cash belongs to someone else, and to whom.
- *
- * There is no register table: a hold is outstanding exactly when it has been
- * received and not yet returned, which the entries already say. Feeding this
- * the hold entries from one month gives that month's movement; feeding it
- * every hold entry ever written gives what is outstanding now, and cutting
- * the list off at a date gives what was outstanding then. One derivation, so
- * a stored balance can never disagree with the entries behind it.
- *
- * Counterparties that net to zero have been settled and are dropped. A
- * negative one means more was returned than was ever received, which is a
- * mistake worth seeing rather than hiding.
- */
 export function heldFunds(movements: HoldMovement[]) {
   const byCounterparty = new Map<string, { received: number; returned: number }>();
   let total = 0;
@@ -265,8 +215,6 @@ export function heldFunds(movements: HoldMovement[]) {
     const who = movement.counterparty?.trim() || UNATTRIBUTED_HOLD;
     const running = byCounterparty.get(who) ?? { received: 0, returned: 0 };
 
-    // Both directions are kept, not just the net: "still owe 30,000" and
-    // "took 50,000 and gave back 20,000" are different things to know.
     if (isReceipt) running.received += movement.amountPkr;
     else running.returned += movement.amountPkr;
 
@@ -288,12 +236,10 @@ function toPkr(amount: number, accountId: string, accounts: LedgerAccount[], exc
   return account?.currency === 'USD' ? amount * (exchangeRate ?? account.exchangeRate) : amount;
 }
 
-/** Whether an entry moves money in or out of the account, which blocks removing it. */
 export function entryUsesAccount(entry: LedgerEntry, id: string) {
   return entry.accountId === id || entry.destinationAccountId === id;
 }
 
-/** Display order for accounts, matching the portfolio: local banks, remote banks, then funds. */
 export function byAccountKind(
   a: Pick<LedgerAccount, 'type' | 'currency'>,
   b: Pick<LedgerAccount, 'type' | 'currency'>

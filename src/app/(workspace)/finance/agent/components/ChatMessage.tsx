@@ -6,12 +6,6 @@ import type { AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
 import { financeStyles } from '../../components/FinanceUI';
 import { LedgerEntryChatForm } from './LedgerEntryChatForm';
 
-/**
- * Everything the chat renders, split out from the container that owns the
- * conversation state. These are all pure: they take a message or an action and
- * draw it.
- */
-
 export function EmptyState({
   description,
   prompts,
@@ -79,12 +73,6 @@ export function Message({
   );
 }
 
-/**
- * Assistant replies are Markdown. `react-markdown` parses it and `remark-gfm`
- * adds the table syntax the assistant is told to use; the component map below
- * is the only thing this app needs to own, replacing a hand-rolled parser that
- * reimplemented tables, headings, lists and inline formatting.
- */
 const MARKDOWN_COMPONENTS: Components = {
   h1: (props) => <p className="mb-2 text-sm font-bold text-white" {...props} />,
   h2: (props) => <p className="mb-2 text-sm font-bold text-white" {...props} />,

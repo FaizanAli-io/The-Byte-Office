@@ -3,14 +3,6 @@ import { parseInquiry, sendInquiryEmail } from '@/lib/inquiry-email';
 
 export const runtime = 'nodejs';
 
-/**
- * This endpoint is public — it is not covered by the middleware matcher — and
- * it sends mail, so it needs its own brakes.
- *
- * The throttle is per-instance, which on a serverless host means it is a
- * courtesy limit rather than a real one. Item 8 in docs/improvements.md covers
- * moving both this and the finance login throttle to a shared store.
- */
 const THROTTLE_MS = 30_000;
 const lastSentAt = new Map<string, number>();
 
@@ -22,8 +14,6 @@ export const POST = apiRoute('POST /api/contact', 'Unable to send your message',
 
   const body = await jsonBody<Record<string, unknown>>(request);
 
-  // Honeypot: a field hidden from people but attractive to form-filling bots.
-  // Report success so the bot has no signal that it was rejected.
   if (typeof body.website === 'string' && body.website.trim()) {
     return { success: true };
   }

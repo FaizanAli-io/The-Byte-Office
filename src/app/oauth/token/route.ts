@@ -5,14 +5,6 @@ import { OAUTH_ACCESS_TOKEN_MAX_AGE, signAccessToken, verifyCodeChallenge } from
 
 export const runtime = 'nodejs';
 
-/**
- * Both grants end the same way: an access token bound to this resource, and a
- * fresh refresh token.
- *
- * Every failure answers a flat `invalid_grant` with no detail about which
- * check failed — distinguishing "unknown code" from "wrong verifier" would
- * let a caller probe for valid values.
- */
 export async function POST(request: Request) {
   const form = await formBody(request);
   if (!form) return oauthError('invalid_request', 'Body must be application/x-www-form-urlencoded');
@@ -32,8 +24,7 @@ async function exchangeCode(form: URLSearchParams, request: Request) {
     return oauthError('invalid_request', 'code, code_verifier, client_id and redirect_uri are required');
   }
 
-  // Claimed first: a code is spent by the attempt, not by its success, so a
-  // failed exchange cannot be retried with a different verifier.
+  // Claim before checking: a code is spent by the attempt. Every failure is a flat invalid_grant.
   const claimed = await consumeAuthorizationCode(code);
   if (!claimed) return oauthError('invalid_grant', 'Authorization code is invalid, expired or already used');
 
@@ -63,7 +54,6 @@ async function exchangeRefreshToken(form: URLSearchParams, request: Request) {
     return oauthError('invalid_grant', 'Refresh token is invalid, expired or has been revoked');
   }
 
-  // A client may narrow its scopes on refresh, never widen them.
   const requested = form.get('scope')?.split(/\s+/).filter(Boolean);
   const scopes = requested?.length ? rotated.scopes.filter((scope) => requested.includes(scope)) : rotated.scopes;
   if (!scopes.length) return oauthError('invalid_scope', 'Requested scopes are not a subset of the granted scopes');

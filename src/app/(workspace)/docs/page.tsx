@@ -3,23 +3,6 @@
 import { useEffect } from 'react';
 import { oauthApi } from '@/lib/api-client';
 
-/**
- * Swagger UI for the MCP endpoint and the REST tool wrappers.
- *
- * This page sits behind the finance session (see the middleware matcher) and
- * is disallowed in robots.txt, because it describes a private API.
- *
- * It no longer asks for a key. Authorize runs the real OAuth authorization
- * code flow with PKCE, so nothing secret is ever typed into a page that loads
- * a third-party script. The page registers itself as an OAuth client the
- * first time it is opened and remembers the resulting public `client_id`,
- * which grants nothing on its own.
- *
- * The assets are still pinned to an exact version with subresource integrity
- * rather than floating on `@5`: a script running in an authenticated context
- * can read anything on the page, so a swapped CDN build would matter even
- * without a key to steal.
- */
 const SWAGGER_VERSION = '5.17.14';
 const CLIENT_ID_KEY = 'tbo-docs-oauth-client-id';
 
@@ -34,7 +17,6 @@ const ASSETS = {
   },
 };
 
-/** The redirect page is served from our own origin: the code must not leave it. */
 function redirectUri() {
   return `${window.location.origin}/oauth2-redirect.html`;
 }
@@ -75,8 +57,6 @@ export default function DocsPage() {
           url: '/api/openapi',
           dom_id: '#swagger-ui',
           deepLinking: true,
-          // The token lives for the tab only; Authorize is one click when the
-          // workspace session is already live.
           persistAuthorization: false,
           displayRequestDuration: true,
           tryItOutEnabled: true,
@@ -89,9 +69,7 @@ export default function DocsPage() {
             scopes: 'finance:read personal:read tbo:read',
             usePkceWithAuthorizationCodeGrant: true,
           });
-        } catch {
-          // Leave Swagger usable for reading even if registration failed.
-        }
+        } catch {}
       },
     });
     document.body.appendChild(script);

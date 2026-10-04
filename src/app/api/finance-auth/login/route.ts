@@ -6,7 +6,6 @@ import { ApiError, apiRoute, optionalJsonBody } from '@/lib/api';
 
 export const runtime = 'nodejs';
 
-// Per-instance only, so this is a courtesy throttle rather than a real limit.
 const lastSentAt = new Map<string, number>();
 
 export const POST = apiRoute('POST /api/finance-auth/login', 'Unable to send login link', async (request: Request) => {

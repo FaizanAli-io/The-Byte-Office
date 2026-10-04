@@ -1,8 +1,6 @@
 import { z } from 'zod/v4';
 import { CATEGORY_KINDS, LEDGER_ENTRY_TYPES } from '@/types/ledger';
 
-/** The argument schemas tools share, so a field is described the same way everywhere it appears. */
-
 export const empty = z.object({});
 export const month = z
   .string()

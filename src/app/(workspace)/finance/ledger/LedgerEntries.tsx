@@ -46,21 +46,11 @@ export function LedgerEntries({
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [holdingsOpen, setHoldingsOpen] = useState(false);
 
-  // Refs rather than dependencies: restoring must happen when the month
-  // changes, not every time an account is added or an entry is edited.
   const optionsRef = useRef<{ accounts: string[]; categories: string[] }>({ accounts: [], categories: [] });
 
   useEffect(() => {
     setDraft(emptyDraft(bounds.min));
     setEditingId(null);
-    // Read here rather than in the initial state because this page is
-    // prerendered, and touching localStorage during render would not match
-    // what the server produced. Running on every month change is also what
-    // keeps the choices sticky as you move between months.
-    //
-    // A remembered account or category that this month knows nothing about
-    // falls back to "all": the select could not show it, and filtering by it
-    // would produce an empty table for no visible reason.
     const stored = rememberedFilters();
     const known = optionsRef.current;
     setFilters({
@@ -70,14 +60,11 @@ export function LedgerEntries({
     });
   }, [bounds.min]);
 
-  /** Persisted at the point of change, so no effect can race the first read. */
   function applyFilters(next: EntryFilters) {
     rememberFilters(next);
     setFilters(next);
   }
 
-  // Only the categories this month actually uses, so the filter does not list
-  // dozens of options that would all return nothing.
   const usedCategories = useMemo(
     () =>
       categories
@@ -136,22 +123,13 @@ export function LedgerEntries({
   const showRunning = filters.accountId !== 'all' && filters.sortBy === 'date';
   const sourceAccount = accounts.find((account) => account.id === draft.accountId);
 
-  /**
-   * Every value the two layouts need, derived once.
-   *
-   * The phone cards and the desktop table used to each look up the account,
-   * the destination and the detail text for themselves, and each re-reduced
-   * the whole filtered list to get a running balance — quadratic in the
-   * number of transactions. One pass with an accumulator does all of it.
-   */
   const rows = useMemo<EntryRow[]>(() => {
     const byId = new Map(accounts.map((account) => [account.id, account]));
     const filtered = byId.get(filters.accountId);
-    // A balance only runs forwards in time. The date sort breaks ties by id,
-    // so newest-first is exactly oldest-first reversed.
     const balances = new Map<string, number>();
     if (filtered && showRunning) {
       let balance = filtered.openingBalance;
+      // The date sort breaks ties by id, so newest-first is exactly oldest-first reversed.
       const chronological = filters.sortDir === 'asc' ? visibleEntries : [...visibleEntries].reverse();
       for (const entry of chronological) balances.set(entry.id, (balance += accountMovement(filtered.id, entry)));
     }
@@ -168,8 +146,6 @@ export function LedgerEntries({
   const runningCurrency = accounts.find((account) => account.id === filters.accountId)?.currency ?? 'PKR';
 
   const pageCount = Math.max(1, Math.ceil(visibleEntries.length / pageSize));
-  // Clamped rather than corrected in state: deleting the last row of the last
-  // page should show the page before it, not an empty table.
   const currentPage = Math.min(page, pageCount);
   const firstOnPage = (currentPage - 1) * pageSize;
   const pageRows = rows.slice(firstOnPage, firstOnPage + pageSize);
@@ -204,14 +180,11 @@ export function LedgerEntries({
     };
     if (editingId) onUpdate(entry);
     else onAdd(entry);
-    // The type and account carry over: entering a month's transactions means
-    // several in a row from the same account.
     setDraft({ ...emptyDraft(draft.date), type: draft.type, accountId: draft.accountId });
     setEditingId(null);
     setEntryOpen(false);
   }
 
-  /** Opens a blank draft, keeping the date already being worked in. */
   function openAdd() {
     setEditingId(null);
     setDraft(emptyDraft(draft.date));
@@ -266,8 +239,6 @@ export function LedgerEntries({
           editingId ? 'Update the selected row.' : 'Record income, expense, transfer, hold, or fund movement.'
         }
       >
-        {/* Two columns rather than the four the inline form used: a modal is
-            narrower than the card it replaced. */}
         <div className="grid gap-3 md:grid-cols-2">
           <EntryFields
             draft={draft}

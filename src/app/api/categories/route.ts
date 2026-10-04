@@ -3,14 +3,6 @@ import { listCategories } from '@/lib/db/queries';
 import { categoryInputSchema, categoryUpdateSchema } from '@/lib/finance-validation';
 import { ApiError, apiRoute, created, jsonBody, parseWith } from '@/lib/api';
 
-/**
- * The canonical category list. Archived categories are returned too: they
- * still name historical entries, and a picker that hides them is the caller's
- * job rather than this endpoint's.
- *
- * The rules behind the writes live in `lib/categories.ts`, because the
- * assistant reaches them through the action layer rather than through here.
- */
 export const GET = apiRoute('GET /api/categories', 'Failed to load categories', () => listCategories());
 
 export const POST = apiRoute('POST /api/categories', 'Failed to create category', async (req: Request) =>

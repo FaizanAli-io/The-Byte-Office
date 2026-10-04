@@ -18,7 +18,6 @@ function numberOrZero(value: string) {
   return isNaN(n) ? 0 : n;
 }
 
-/** One labelled input. `money` fields are numeric and accept two decimals. */
 export function Field({
   label,
   value,

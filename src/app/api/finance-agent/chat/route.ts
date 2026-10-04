@@ -5,7 +5,6 @@ import type { AgentResponse, AgentChatMessage, PendingAgentAction } from '@/lib/
 import { getConversation, logAgentToolCall, saveAgentMessage } from '@/lib/agent/repository';
 import { NextResponse } from 'next/server';
 
-// Worst case is MAX_TOOL_ROUNDS Groq calls, each with its own timeout.
 export const maxDuration = 300;
 
 const MAX_MESSAGES = 24;
@@ -52,8 +51,6 @@ export async function POST(request: Request) {
           let finalText = '';
 
           for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-            // The client has gone away; stop burning Groq calls on a response
-            // nobody will read.
             if (request.signal.aborted) return;
             if (round > 0) send({ type: 'status', status: 'reading' });
 
@@ -210,7 +207,6 @@ function parseToolArguments(raw: unknown): Record<string, unknown> {
   if (typeof raw !== 'string') return {};
 
   const text = raw.trim();
-  // Models routinely signal "no arguments" with something other than `{}`.
   if (!text || text === '{}' || text === 'null' || text === 'undefined' || text === 'None') return {};
 
   try {
@@ -218,9 +214,7 @@ function parseToolArguments(raw: unknown): Record<string, unknown> {
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
       return parsed as Record<string, unknown>;
     }
-  } catch {
-    // fall through to a single, clear error
-  }
+  } catch {}
   throw new Error(`The model returned invalid tool arguments: ${text.slice(0, 100)}`);
 }
 

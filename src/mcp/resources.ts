@@ -2,7 +2,6 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/server';
 import { executeFinanceTool } from '@/lib/finance-agent/tools';
 import { jsonResource } from '@/mcp/result';
 
-/** Every resource here reads the finance module, so one scope covers them all. */
 export function registerResources(server: McpServer, scopes: string[]) {
   if (!scopes.includes('finance:read')) return;
 

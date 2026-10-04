@@ -22,12 +22,9 @@ export function useLedger() {
   const [notice, setNotice] = useState('');
   const persistChain = useRef(Promise.resolve());
   const ledgerRef = useRef<MonthlyLedger | null>(null);
-  // The version the server last returned. Queued saves read it when they run,
-  // not when they were queued, or back-to-back saves would reject each other.
+  // Read when a queued save runs, not when it was queued, or back-to-back saves reject each other.
   const versionRef = useRef<MonthlyLedger['updatedAt']>('');
   const [accountsDirty, setAccountsDirty] = useState(false);
-  // Categories are global rather than per-month, so they load once and
-  // survive a month change.
   const [categories, setCategories] = useState<LedgerCategory[]>([]);
   ledgerRef.current = ledger;
 
@@ -173,7 +170,6 @@ export function useLedger() {
     });
   }
 
-  /** One handler for both create and update, since the only difference is the id. */
   async function saveCategory(input: { id?: string; name?: string; kind?: CategoryKind; archived?: boolean }) {
     setSaving(true);
     setError('');
@@ -200,8 +196,6 @@ export function useLedger() {
       await loadCategories();
       setNotice('Category deleted.');
     } catch (cause) {
-      // Deleting a category in use is refused by the API with a count, which
-      // is more useful than anything this layer could say.
       setError(errorMessage(cause, 'Could not delete category'));
     } finally {
       setSaving(false);

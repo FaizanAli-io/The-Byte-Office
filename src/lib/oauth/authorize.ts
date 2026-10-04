@@ -3,19 +3,6 @@ import { getClient } from './store';
 import { mcpResourceUrl } from './metadata';
 import { parseScopes, type OAuthScope } from './tokens';
 
-/**
- * Validation for `/oauth/authorize`, shared by the page that renders consent
- * and the action that grants it. The action re-runs it rather than trusting
- * its own hidden fields, so a tampered form is caught in exactly the same way
- * a tampered query string is.
- *
- * The order matters and is the security-critical part. Until the client and
- * its redirect URI are both confirmed, there is nowhere safe to send the user:
- * redirecting to an unverified URI would hand an attacker the `state` and the
- * error detail, which is a textbook open redirect. So those two failures
- * render a page, and only afterwards does anything redirect.
- */
-
 export type AuthorizationRequest = {
   clientId: string;
   clientName: string;
@@ -42,13 +29,11 @@ export async function parseAuthorizationRequest(
   if (!client) {
     return { status: 'error', message: 'Unknown client. Register the client before authorizing it.' };
   }
-  // Exact match only. A prefix or origin comparison is an open redirect.
+  // Exact match, and confirmed before any redirect: anything looser is an open redirect.
   if (!redirectUri || !client.redirectUris.includes(redirectUri)) {
     return { status: 'error', message: 'This redirect URI is not registered for this client.' };
   }
 
-  // From here a redirect is safe, so every remaining failure reports back to
-  // the client the way RFC 6749 expects.
   const state = params.get('state') ?? '';
   const fail = (error: string, description: string): AuthorizationParse => {
     const url = new URL(redirectUri);
@@ -78,9 +63,6 @@ export async function parseAuthorizationRequest(
     return fail('invalid_scope', 'Supported scopes are finance:read and finance:write');
   }
 
-  // RFC 8707. There is exactly one resource here, so an absent parameter is
-  // taken to mean it rather than refused — a client that omits it still ends
-  // up with a token bound to this server and nothing else.
   const resource = mcpResourceUrl(headers);
   const requested = params.get('resource');
   if (requested && normalise(requested) !== normalise(resource)) {
@@ -101,7 +83,6 @@ export async function parseAuthorizationRequest(
   };
 }
 
-/** Where the browser goes once the user decides. */
 export function decisionRedirect(redirectUri: string, state: string, result: { code: string } | { error: string }) {
   const url = new URL(redirectUri);
   if ('code' in result) url.searchParams.set('code', result.code);

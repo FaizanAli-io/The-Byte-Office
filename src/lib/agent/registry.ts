@@ -13,50 +13,21 @@ import {
   accountRef,
 } from './fields';
 
-/**
- * Every agent tool, declared once.
- *
- * Three surfaces consume this list and each used to carry its own copy of the
- * names, descriptions and schemas:
- *
- *   - the chat assistant, which needs JSON Schema for Groq's tool calling
- *   - the MCP server, which registers zod schemas and annotations
- *   - the REST wrappers under `/api/mcp/tools/{name}`, plus the OpenAPI document
- *
- * Keeping one declaration is what stops those copies drifting apart. They
- * already had: the chat catalogue promised writes were proposals while the MCP
- * catalogue described the same tool as applying immediately.
- *
- * Schemas are deliberately flat rather than discriminated unions. Tool-calling
- * models handle a flat object far better than `oneOf`, and the real per-type
- * validation happens in the action layer (`parsePortfolioItem` and friends),
- * which every surface goes through before anything is written.
- */
-
 export type AgentToolModule = 'finance' | 'personal' | 'tbo';
 
 export type AgentToolDefinition = {
   name: string;
   title: string;
   module: AgentToolModule;
-  /** Shown to MCP clients and in the OpenAPI document. */
   description: string;
-  /**
-   * Shown to the chat model when it differs. Writes are proposals in chat and
-   * immediate on MCP, so several tools genuinely need to say different things.
-   */
   chatDescription?: string;
   schema: z.ZodObject;
-  /** Mutating tools route through the action layer. */
   write?: boolean;
-  /** Exposed over MCP and the REST wrappers, gated by the module's OAuth scope. */
   mcp?: boolean;
-  /** Removes data, for the MCP `destructiveHint` annotation. */
   destructive?: boolean;
 };
 
 export const agentToolRegistry: AgentToolDefinition[] = [
-  // ---------------------------------------------------------------- finance
   {
     name: 'portfolio_get',
     title: 'Get portfolio',
@@ -284,7 +255,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     destructive: true,
   },
 
-  // --------------------------------------------------------------- personal
   {
     name: 'prayers_list',
     title: 'List prayers',
@@ -353,7 +323,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     destructive: true,
   },
 
-  // -------------------------------------------------------------------- tbo
   {
     name: 'tbo_info',
     title: 'Get The Byte Office information',
@@ -386,7 +355,6 @@ export function toolNamesForModule(module: AgentToolModule) {
   return new Set(agentToolRegistry.filter((tool) => tool.module === module).map((tool) => tool.name));
 }
 
-/** Tools reachable over MCP and the REST wrappers. Each needs its module's scope. */
 export const mcpToolRegistry = agentToolRegistry.filter((tool) => tool.mcp);
 export const mcpToolByName = new Map(mcpToolRegistry.map((tool) => [tool.name, tool]));
 
@@ -399,7 +367,7 @@ export type GroqTool = {
   };
 };
 
-/** Groq rejects the `$schema` key that `z.toJSONSchema` adds, so drop it. */
+// Groq rejects the `$schema` key that z.toJSONSchema adds.
 function jsonSchemaFor(tool: AgentToolDefinition): Record<string, unknown> {
   const { $schema: _schema, ...parameters } = z.toJSONSchema(tool.schema) as Record<string, unknown>;
   return parameters;
@@ -418,7 +386,6 @@ function toGroqTool(tool: AgentToolDefinition): GroqTool {
 
 export const groqTools: GroqTool[] = agentToolRegistry.map(toGroqTool);
 
-/** A tool with no properties is exposed as a GET in the REST wrappers. */
 export function httpMethodFor(tool: AgentToolDefinition): 'get' | 'post' {
   return Object.keys(tool.schema.shape).length === 0 ? 'get' : 'post';
 }

@@ -97,7 +97,6 @@ describe('planLedgerSave (ledger → portfolio)', () => {
   });
 
   it('adds an account for a holding the month lacks, rather than deleting the holding', () => {
-    // Deel today: a holding with no account. Absence alone must never read as removal.
     const { accounts, changes } = planLedgerSave(ledger([meezan, nbp]), ledger([meezan, nbp]), holdings);
     expect(changes.remove).toEqual([]);
     expect(accounts.at(-1)).toMatchObject({
@@ -121,7 +120,6 @@ describe('planPortfolioSync (portfolio → ledger)', () => {
   });
 
   it('leaves the month alone when a stale portfolio is saved unchanged', () => {
-    // The ledger has moved on (an expense) but the portfolio still says 1000.
     expect(planPortfolioSync(ledger([meezan, deel, nbp], [expense(150)]), holdings, holdings)).toBeNull();
   });
 
@@ -145,7 +143,6 @@ describe('planPortfolioSync (portfolio → ledger)', () => {
     const remaining = [holdings[1], holdings[2]];
     const month = ledger([meezan, deel, nbp]);
     expect(planPortfolioSync(month, holdings, remaining)?.map((account) => account.id)).toEqual(['a-deel', 'a-nbp']);
-    // Kept for the month's history, but unlinked: the database clears the link when the holding goes.
     const kept = planPortfolioSync(ledger([meezan, deel, nbp], [expense(10)]), holdings, remaining);
     expect(kept?.[0]).toEqual({ ...meezan, holdingId: undefined });
   });

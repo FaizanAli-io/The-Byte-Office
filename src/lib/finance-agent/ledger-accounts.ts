@@ -5,12 +5,6 @@ import { accountStats, entryUsesAccount } from '@/lib/ledger';
 import type { LedgerAccount, MonthlyLedger } from '@/types/ledger';
 import { requireString, resolveAccountId } from './action-parsing';
 
-/**
- * The "Accounts & opening balances" section, for the assistant and MCP. Field
- * values are not checked here: every result goes through `validateLedger`,
- * which is the same gate the ledger page's own saves pass.
- */
-
 type AccountActionType = 'ledger_account_add' | 'ledger_account_update' | 'ledger_account_remove';
 export type AccountPayload = Extract<AgentActionPayload, { actionType: AccountActionType }>;
 
@@ -20,7 +14,6 @@ export function isAccountAction(actionType: AgentActionType): actionType is Acco
   return actionType.startsWith('ledger_account_');
 }
 
-/** `ledger_accounts_list`: each account with the figures the ledger page derives for it. */
 export function accountBalances(ledger: MonthlyLedger) {
   return ledger.accounts.map((account) => {
     const stats = accountStats(account, ledger.entries);
@@ -33,7 +26,6 @@ export function accountBalances(ledger: MonthlyLedger) {
   });
 }
 
-/** Turns tool arguments into a payload and a confirmation preview, against the ledger as it stands. */
 export function planAccountAction(
   actionType: AccountActionType,
   args: Record<string, unknown>,
@@ -85,7 +77,6 @@ export function planAccountAction(
   };
 }
 
-/** The ledger's accounts with the payload applied; the caller validates the result. */
 export function applyAccountAction(payload: AccountPayload, ledger: MonthlyLedger): LedgerAccount[] {
   const { accounts } = ledger;
   if (payload.actionType === 'ledger_account_add') {

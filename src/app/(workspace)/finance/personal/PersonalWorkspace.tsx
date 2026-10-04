@@ -288,8 +288,6 @@ export function PersonalWorkspace({ view }: { view: 'prayers' | 'health' }) {
               </div>
             )}
           </FinanceCard>
-          {/* Below the readings: the list is what the page is used to edit,
-              and the trend is what it is used to read. */}
           <div className="mt-6">
             <HealthChart entries={health} />
           </div>

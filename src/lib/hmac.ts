@@ -1,9 +1,3 @@
-/**
- * HMAC-SHA-256 over Web Crypto, shared by the finance session and the OAuth
- * tokens. Both run in the edge middleware or in routes that must stay free of
- * the database driver, so this module has no imports.
- */
-
 const encoder = new TextEncoder();
 
 export async function hmacHex(message: string, secret: string) {
@@ -18,7 +12,6 @@ export async function sha256Hex(message: string) {
   return toHex(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(message))));
 }
 
-/** Base64url of the SHA-256 digest, the encoding PKCE `S256` specifies. */
 export async function sha256Base64Url(message: string) {
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(message)));
   return base64UrlEncode(bytes);
@@ -41,7 +34,6 @@ export function randomToken(bytes = 32) {
   return base64UrlEncode(crypto.getRandomValues(new Uint8Array(bytes)));
 }
 
-/** Compares without leaking where two values first differ. */
 export function constantTimeEqual(left: string, right: string) {
   if (left.length !== right.length) return false;
   let difference = 0;

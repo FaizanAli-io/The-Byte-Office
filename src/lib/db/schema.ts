@@ -15,28 +15,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-/**
- * Money columns are `numeric(18, 2)` holding an amount in its major unit —
- * rupees for PKR, dollars for USD. That is the unit everywhere: the database,
- * the API, the MCP tools and the UI all speak the same one, so nothing ever
- * has to convert.
- *
- * Two schemas: `finance` holds the portfolio, ledgers, snapshots and the
- * assistant's conversations and pending actions; `personal` holds prayers and
- * health tracking.
- *
- * Holdings are one row per item in `holdings`, ordered by `sort_order` within
- * each kind; a mutual fund's bank is its `group_name`.
- */
-
-/**
- * Column shapes that repeat across tables, written once.
- *
- * `money` is the major-unit amount described above; `rate` carries six
- * decimals because an exchange rate needs them and an amount does not; `utc`
- * is the only timestamp flavour this schema uses. Each is a factory rather
- * than a shared value, because a Drizzle column builder belongs to one column.
- */
+// Money is stored in major units (rupees, dollars), never paisa or cents.
 const money = (name: string) => numeric(name, { precision: 18, scale: 2, mode: 'number' });
 const rate = (name: string) => numeric(name, { precision: 18, scale: 6, mode: 'number' });
 const utc = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
@@ -62,12 +41,6 @@ export const financeAgentActionStatusEnum = finance.enum('finance_agent_action_s
 
 export const holdingKindEnum = finance.enum('holding_kind', ['local_bank', 'remote_bank', 'mutual_fund']);
 
-/**
- * Every portfolio holding, one row each. `amount` is in the kind's currency —
- * PKR, except USD for a remote bank, which also carries its rate. A mutual
- * fund's `name` is the fund and `group_name` the bank it sits under; banks
- * have no group. Currency is not stored because the kind decides it.
- */
 export const holdings = finance.table(
   'holdings',
   {
@@ -112,8 +85,6 @@ export const ledgerAccounts = finance.table(
     ledgerId: uuid('ledger_id')
       .notNull()
       .references(() => ledgers.id, { onDelete: 'cascade' }),
-    // The holding this account mirrors. Deleting the holding clears the link
-    // rather than being refused: past months keep their accounts as history.
     holdingId: uuid('holding_id').references(() => holdings.id, { onDelete: 'set null' }),
     name: text('name').notNull(),
     type: ledgerAccountTypeEnum('type').notNull(),
@@ -126,19 +97,10 @@ export const ledgerAccounts = finance.table(
   },
   (table) => [
     index('ledger_accounts_ledger_idx').on(table.ledgerId),
-    // One account per holding per month.
     uniqueIndex('ledger_accounts_holding_uidx').on(table.ledgerId, table.holdingId),
   ]
 );
 
-/**
- * The canonical list of ledger categories.
- *
- * Entries reference a row rather than repeating a string, so renaming a
- * category updates every entry that used it and a typo cannot quietly invent
- * a new one. `on delete restrict` plus `archived_at` is what keeps history
- * readable: a category can leave the picker without rewriting the past.
- */
 export const categories = finance.table(
   'categories',
   {
@@ -149,9 +111,6 @@ export const categories = finance.table(
     archivedAt: utc('archived_at'),
     createdAt: createdAt(),
   },
-  // Unique on the folded name, so "Food" and "food" cannot both exist. The
-  // application checks this too, for a readable message; the index is what
-  // makes it true.
   (table) => [uniqueIndex('categories_name_uidx').on(sql`lower(${table.name})`)]
 );
 
@@ -172,7 +131,6 @@ export const ledgerEntries = finance.table(
     destinationAmount: money('destination_amount'),
     exchangeRate: rate('exchange_rate'),
     categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'restrict' }),
-    /** Whose money a hold belongs to; null on every other entry type. */
     counterparty: text('counterparty'),
     note: text('note'),
     sortOrder: sortOrder(),
@@ -224,12 +182,6 @@ export const financeAgentActions = finance.table(
   (table) => [index('finance_agent_actions_status_expiry_idx').on(table.status, table.expiresAt)]
 );
 
-/**
- * Issued magic-link nonces, so a login link can only be redeemed once.
- * Verification claims the row with `consumed_at IS NULL`, which makes a
- * replayed link — from a forwarded email, a proxy log or browser history —
- * fail even inside its validity window.
- */
 export const magicLinks = finance.table(
   'magic_links',
   {
@@ -241,19 +193,9 @@ export const magicLinks = finance.table(
   (table) => [index('magic_links_expires_idx').on(table.expiresAt)]
 );
 
-/**
- * OAuth 2.1 authorization server state. `/api/mcp` is a resource server and
- * these three tables are the authorization server behind it; see
- * `docs/oauth.md`.
- *
- * Clients are public — ChatGPT and Claude cannot keep a secret — so there is
- * no client secret anywhere here. PKCE is what proves a token request came
- * from whoever started the flow.
- */
 export const oauthClients = finance.table('oauth_clients', {
   clientId: uuid('client_id').defaultRandom().primaryKey(),
   clientName: text('client_name').notNull(),
-  // Matched exactly, never by prefix: a prefix match is an open redirect.
   redirectUris: jsonb('redirect_uris').$type<string[]>().notNull(),
   createdAt: createdAt(),
   lastUsedAt: utc('last_used_at'),
@@ -276,14 +218,6 @@ export const oauthAuthorizationCodes = finance.table(
   (table) => [index('oauth_authorization_codes_expires_idx').on(table.expiresAt)]
 );
 
-/**
- * Refresh tokens rotate: redeeming one revokes it and issues a replacement
- * carrying the same `family_id`. Presenting an already-revoked token means it
- * leaked and was replayed, so the whole family is revoked.
- *
- * `expires_at` is reset on each rotation, which makes the window measure
- * inactivity rather than time since authorization.
- */
 export const oauthRefreshTokens = finance.table(
   'oauth_refresh_tokens',
   {
@@ -375,12 +309,7 @@ export const prayers = personal.table(
   ]
 );
 
-/**
- * Every change to the prayer counts, as a snapshot of all five. The newest row
- * is when the tracker was last updated; the rows before it are the record of
- * how it got there. Append-only — nothing updates or deletes a row — so no
- * later write can erase when a count was set.
- */
+// Append-only: never update or delete rows; the newest row is "last updated".
 export const prayerHistory = personal.table('prayer_history', {
   recordedAt: utc('recorded_at').primaryKey().defaultNow(),
   counts: jsonb('counts').$type<Record<Namaaz, number>>().notNull(),
@@ -391,8 +320,6 @@ export const healthTracking = personal.table(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     metric: text('metric').notNull(),
-    // Readings are decimal: weight, temperature and glucose are not whole
-    // numbers. Not money, so a float is fine — nothing sums these.
     value: numeric('value', { precision: 10, scale: 3, mode: 'number' }).notNull(),
     createdAt: createdAt(),
   },

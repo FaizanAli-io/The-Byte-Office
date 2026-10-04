@@ -25,8 +25,6 @@ export async function executeFinanceTool(
     const [portfolio, movements] = await Promise.all([loadHoldings(), loadHoldMovements()]);
     const held = heldFunds(movements);
     const totals = holdingTotals(portfolio, held.total);
-    // Both totals are reported, because neither alone is the honest answer:
-    // gross is what the accounts hold, net is what is actually owned.
     return {
       output: {
         ...portfolio,
@@ -55,8 +53,6 @@ export async function executeFinanceTool(
     const month = requireArg(input, 'month');
     const [ledger, categoryList] = await Promise.all([loadLedger(month), listCategories()]);
     if (!ledger) throw new Error('Ledger not found');
-    // Entries carry a category id, which means nothing to a reader. The name
-    // travels with it so the assistant never has to join the two lists.
     return {
       output: {
         ...ledger,
@@ -81,7 +77,6 @@ export async function executeFinanceTool(
     if (!ledger) throw new Error('Ledger not found');
     const totals = ledgerSummary(ledger);
     const balances = accountBalances(ledger);
-    // The same figures as the tiles on the ledger page, plus where the money went.
     return {
       output: {
         month: ledger.month,

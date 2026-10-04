@@ -6,18 +6,6 @@ import { errorMessage } from '@/lib/client-api';
 import { formatMoney, type heldFunds } from '@/lib/ledger';
 import { Modal } from '../components/Modal';
 
-/**
- * What is currently being held for other people, by counterparty.
- *
- * Holds outlive the month they were taken in, so this cannot be read off the
- * ledger on screen — it asks `/api/held-funds`, which folds every hold entry
- * ever written. It refetches on each open rather than caching, because adding
- * a hold entry behind it is exactly what someone does before looking.
- *
- * Only outstanding counterparties appear. One paid back in full nets to zero
- * and drops out; the entries that settled them are still in the ledger.
- */
-
 type HeldFunds = ReturnType<typeof heldFunds>;
 
 export function HeldFundsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -74,8 +62,6 @@ export function HeldFundsModal({ open, onClose }: { open: boolean; onClose: () =
                   <td className="border-b border-white/5 px-3 py-3 text-right text-slate-400">
                     {row.returned ? formatMoney(row.returned, 'PKR') : '—'}
                   </td>
-                  {/* Negative means more went back than ever came in, which is
-                      a mistake worth seeing rather than hiding. */}
                   <td
                     className={`border-b border-white/5 px-3 py-3 text-right font-bold ${
                       row.amount < 0 ? 'text-rose-300' : 'text-cyan-300'

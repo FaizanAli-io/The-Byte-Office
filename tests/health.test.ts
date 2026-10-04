@@ -53,7 +53,6 @@ describe('readingsFor', () => {
 
 describe('weekStart', () => {
   it('rolls back to the Monday that began the week', () => {
-    // Local time throughout, because that is the week the reader lived in.
     const wednesday = new Date(2026, 2, 11, 15, 30).getTime();
     expect(new Date(weekStart(wednesday)).getDay()).toBe(1);
   });
@@ -72,11 +71,7 @@ describe('weeklyAverages', () => {
   });
 
   it('averages the readings inside each week and counts them', () => {
-    const points = weeklyAverages([
-      reading([2026, 2, 9], 80), // Monday
-      reading([2026, 2, 11], 82), // Wednesday, same week
-      reading([2026, 2, 16], 78), // the following Monday
-    ]);
+    const points = weeklyAverages([reading([2026, 2, 9], 80), reading([2026, 2, 11], 82), reading([2026, 2, 16], 78)]);
 
     expect(points).toHaveLength(2);
     expect(points[0]).toMatchObject({ value: 81, readings: 2 });

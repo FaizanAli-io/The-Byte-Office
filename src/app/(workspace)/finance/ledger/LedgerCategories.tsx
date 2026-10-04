@@ -5,21 +5,6 @@ import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory } from '@/types/
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 import { CollapseToggle } from './LedgerAccounts';
 
-/**
- * The canonical category list, managed where categories are used.
- *
- * Categories are global rather than per-month, so this table does not belong
- * to the ledger being viewed — but a settings page holding a single list is a
- * page nobody remembers exists.
- *
- * Archiving, not deleting, is the ordinary way to retire a category: entries
- * that used it keep their label. Deleting is only for a category nothing
- * points at, and the API refuses the rest with a count.
- *
- * Collapsed by default, because the list is picked from far more often than
- * it is edited and it sits above the transactions people came for.
- */
-
 const KIND_LABELS: Record<CategoryKind, string> = {
   income: 'Income only',
   expense: 'Expense only',
@@ -46,15 +31,9 @@ export function LedgerCategories({
   const [kind, setKind] = useState<CategoryKind>('both');
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  // Active first, then archived, so the list people actually pick from is at
-  // the top and retired names stay visible without being in the way. The two
-  // counts also make up the collapsed summary.
   const active = categories.filter((category) => !category.archivedAt);
   const archived = categories.filter((category) => category.archivedAt);
 
-  // Most-used first within each group, which puts the unused ones — the only
-  // ones that can be deleted — together at the bottom. The sort is stable, so
-  // equal counts keep the canonical order the API returned them in.
   const byUsage = (list: LedgerCategory[]) => [...list].sort((a, b) => b.entryCount - a.entryCount);
   const ordered = [...byUsage(active), ...byUsage(archived)];
 
@@ -83,8 +62,6 @@ export function LedgerCategories({
                     <th className="border-b border-white/8 px-3 py-3 font-semibold">Name</th>
                     <th className="border-b border-white/8 px-3 py-3 font-semibold">Applies to</th>
                     <th className="border-b border-white/8 px-3 py-3 font-semibold">Status</th>
-                    {/* `w-px` collapses the column to its content, so the badge
-                        does not claim a share of the leftover width. */}
                     <th className="w-px border-b border-white/8 px-3 py-3 text-center font-semibold">Used</th>
                     <th className="border-b border-white/8 px-3 py-3 text-right font-semibold" />
                   </tr>
@@ -166,8 +143,6 @@ function CategoryRow({
   onSave: (input: SaveInput) => void;
   onDelete: () => void;
 }) {
-  // Renaming commits on blur rather than on every keystroke, since each save
-  // is a round trip and a rename rewrites what every entry displays.
   const [draftName, setDraftName] = useState(category.name);
   const archived = Boolean(category.archivedAt);
 
@@ -201,8 +176,6 @@ function CategoryRow({
           {archived ? 'Archived' : 'Active'}
         </span>
       </td>
-      {/* Zero means nothing references it, which is the only state in which
-          Delete will succeed — the API refuses the rest. */}
       <td className="w-px border-b border-white/5 px-3 py-3 text-center">
         <span
           title={`${category.entryCount} ${category.entryCount === 1 ? 'entry uses' : 'entries use'} this category`}

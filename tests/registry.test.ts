@@ -109,7 +109,6 @@ describe('openapi document', () => {
 });
 
 describe('scope filtering', () => {
-  // The same predicate `registerTools` and the REST wrapper apply.
   const visibleWith = (scopes: string[]) => mcpToolRegistry.filter((tool) => scopes.includes(scopeForTool(tool)));
   const names = (scopes: string[]) => visibleWith(scopes).map((tool) => tool.name);
 
@@ -146,7 +145,6 @@ describe('scope filtering', () => {
     for (const scope of OAUTH_SCOPES) {
       expect(visibleWith([scope]).length).toBeGreaterThan(0);
     }
-    // Withdrawing the mail tool withdrew its scope with it.
     expect(OAUTH_SCOPES).not.toContain('tbo:write');
   });
 

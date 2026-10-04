@@ -15,7 +15,6 @@ export default function SnapshotsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<string[]>([]);
-  // Up to two snapshots to compare; picking a third drops the earliest pick.
   const [selected, setSelected] = useState<string[]>([]);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [toast, setToast] = useState<FinanceToastState>(null);

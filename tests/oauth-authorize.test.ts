@@ -1,12 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-/**
- * The authorize endpoint's ordering is the security-critical part: nothing may
- * redirect until the client and its redirect URI are both confirmed, because
- * redirecting to an unverified URI hands an attacker the `state` and the error
- * detail. These tests stub the client lookup so that ordering can be checked
- * without a database.
- */
 const getClient = vi.fn();
 vi.mock('@/lib/oauth/store', () => ({ getClient: (id: string) => getClient(id) }));
 

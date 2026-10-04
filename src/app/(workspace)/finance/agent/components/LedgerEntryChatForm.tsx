@@ -48,8 +48,6 @@ export function LedgerEntryChatForm({
         draft={draft}
         setDraft={setDraft}
         accounts={form.accounts}
-        // A proposal made before categories existed was stored without a
-        // list; an empty one renders "No category" rather than throwing.
         categories={form.categories ?? []}
         bounds={monthBounds(form.month)}
         disabled={busy}

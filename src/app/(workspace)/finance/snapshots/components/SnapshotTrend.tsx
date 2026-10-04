@@ -18,11 +18,6 @@ const longDate = (time: number) =>
 const compact = (value: number) =>
   new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 
-/**
- * One series at a time over every snapshot, from the whole portfolio down to a
- * single fund. A holding absent from a snapshot counts as zero there: it was
- * not held, which is what the line should show.
- */
 export function SnapshotTrend({ snapshots }: { snapshots: FinanceSnapshot[] }) {
   const [open, setOpen] = useState(true);
   const [key, setKey] = useState(TOTAL);
@@ -38,7 +33,6 @@ export function SnapshotTrend({ snapshots }: { snapshots: FinanceSnapshot[] }) {
     return { points: series, options };
   }, [snapshots]);
 
-  // A deleted snapshot can take the picked holding with it; fall back to the total.
   const activeKey = options.has(key) ? key : TOTAL;
   const selected = options.get(activeKey)!;
   const data = points.map(({ time, values }) => ({ time, value: values.get(activeKey)?.value ?? 0 }));

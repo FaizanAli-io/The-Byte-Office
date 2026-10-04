@@ -1,16 +1,3 @@
-/**
- * Mints a refresh token for a non-browser client, such as the smoke test or a
- * cron job.
- *
- * This is not a way around the consent screen. It needs `DATABASE_URL`, which
- * is already total access to the data the token would reach, so it grants
- * nothing that whoever runs it does not already have. What it does is give a
- * CLI a credential without a browser, which the authorization code flow
- * cannot do by design.
- *
- *   npm run oauth:token -- "smoke test"
- *   npm run oauth:token -- "backup job" finance:read finance:write personal:read
- */
 import nextEnv from '@next/env';
 import { fileURLToPath } from 'node:url';
 
@@ -33,8 +20,6 @@ if (unknown.length) {
 
 const { issueRefreshToken, registerClient } = await import('../src/lib/oauth/store.ts');
 
-// The redirect URI is never used — this client cannot run a browser flow —
-// but the column is required and must hold something valid.
 const client = await registerClient(name, ['http://localhost/cli-unused']);
 const refreshToken = await issueRefreshToken(client.clientId, scopes);
 

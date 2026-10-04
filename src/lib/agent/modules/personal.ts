@@ -136,11 +136,6 @@ export async function executePersonalPayload(
   });
 }
 
-/**
- * Payloads are stored as JSONB, so dates travel as ISO strings. Undefined keys
- * are dropped rather than passed through: the update preview spreads these over
- * the current row, and an explicit `createdAt: undefined` would blank it.
- */
 function toStoredHealth<T extends { createdAt?: Date }>(value: T) {
   const stored: Record<string, unknown> = { ...value, createdAt: value.createdAt?.toISOString() };
   for (const key of Object.keys(stored)) {

@@ -11,7 +11,6 @@ type FormData = {
   companyName: string;
   service: string;
   message: string;
-  /** Honeypot. Hidden from people; bots fill it in and get silently dropped. */
   website: string;
 };
 

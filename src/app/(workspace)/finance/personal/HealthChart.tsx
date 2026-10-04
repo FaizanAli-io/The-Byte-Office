@@ -13,19 +13,6 @@ import {
 import type { HealthTracking } from '@/types/personal';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 
-/**
- * One metric over time.
- *
- * Deliberately one metric per chart rather than several overlaid. Metrics are
- * free text and carry their own units, so plotting a weight in the eighties
- * against a body-fat percentage in the teens on one axis says nothing true —
- * and a second Y axis makes the same misreading quietly instead of loudly.
- *
- * Everything is derived from the readings the page already loaded, so the
- * chart costs no extra request and the metric list cannot go stale. The
- * arithmetic lives in `@/lib/health`; this file only draws.
- */
-
 const RANGES = [
   { key: '30', label: '30d', days: 30 },
   { key: '90', label: '90d', days: 90 },
@@ -35,14 +22,12 @@ const RANGES = [
 
 type RangeKey = (typeof RANGES)[number]['key'];
 
-/** Weekly averaging only earns a control once there is enough noise to smooth. */
 const ENOUGH_TO_SMOOTH = 12;
 
 const A_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
 export function HealthChart({ entries }: { entries: HealthTracking[] }) {
   const metrics = useMemo(() => distinctMetrics(entries), [entries]);
-  // The metric of the newest reading is the one most likely being worked on.
   const [metric, setMetric] = useState(() => entries[0]?.metric ?? '');
   const [range, setRange] = useState<RangeKey>('90');
   const [weekly, setWeekly] = useState(false);
@@ -204,7 +189,6 @@ function ButtonGroup({
   );
 }
 
-/** A window longer than a year wants months, not days. */
 function formatAxisDate(at: number, spansAYear: boolean) {
   return new Date(at).toLocaleDateString(
     'en-US',

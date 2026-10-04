@@ -188,7 +188,6 @@ describe('personal schemas', () => {
   it('rejects an unparseable date', () =>
     expect(healthInputSchema.safeParse({ metric: 'w', value: 1, createdAt: 'nope' }).success).toBe(false));
 
-  // Weight, temperature and glucose are not whole numbers.
   it.each([[72.5], [36.65], [0.125], [-1.5], [0]])('accepts the decimal reading %s', (value) => {
     expect(healthInputSchema.parse({ metric: 'weight_kg', value }).value).toBe(value);
   });

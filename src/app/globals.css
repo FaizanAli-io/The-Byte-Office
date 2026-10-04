@@ -69,7 +69,6 @@ textarea {
   color: var(--ink);
 }
 
-/* Subtle scrollbars: transparent track, themed thumb, no visible rail */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(103, 232, 249, 0.28) transparent;

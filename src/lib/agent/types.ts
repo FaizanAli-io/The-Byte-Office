@@ -40,7 +40,6 @@ export type PortfolioItemInput =
       value: number;
     };
 
-/** What an account update may touch. `null` clears an optional balance. */
 export type LedgerAccountChanges = {
   name?: string;
   openingBalance?: number;
@@ -153,12 +152,7 @@ export type LedgerEntryFormState = {
   kind: 'ledger_entry_add' | 'ledger_entry_update';
   month: string;
   accounts: Pick<LedgerAccount, 'id' | 'name' | 'currency' | 'type' | 'exchangeRate'>[];
-  /** Archived ones included, so an existing entry's category still has a name. */
   categories: LedgerCategory[];
-  /**
-   * Whatever of an entry is known so far. Spelling the fields out again was
-   * how `counterparty` came to exist everywhere except the in-chat form.
-   */
   entry: Partial<LedgerEntry> & { date: string };
 };
 

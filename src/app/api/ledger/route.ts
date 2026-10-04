@@ -27,7 +27,6 @@ export const POST = apiRoute('POST /api/ledger', 'Failed to create ledger', asyn
   const existing = await loadLedger(month);
   if (existing) return existing;
 
-  // A month opens with an account per holding, at the portfolio's figures.
   const [holdings, previous] = await Promise.all([loadHoldingList(), loadPreviousFinalizedLedger(month)]);
   return created(await createLedger({ month, accounts: accountsForNewMonth(holdings, previous) }));
 });

@@ -1,15 +1,3 @@
-/**
- * Replaces the application's schemas with the contents of a backup.
- *
- *   npm run db:restore                     # the newest file in ./backups
- *   npm run db:restore -- backups/x.sql    # a specific one
- *   npm run db:restore -- --yes            # skip the prompt
- *
- * This is destructive: the schemas are dropped and rebuilt, so anything
- * written since the backup is gone. It runs as one transaction with
- * ON_ERROR_STOP, so a failure part way through rolls back and leaves the
- * database exactly as it was rather than half restored.
- */
 import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import { existsSync, readdirSync, statSync } from 'node:fs';
@@ -51,8 +39,6 @@ if (!skipPrompt) {
   }
 }
 
-// One psql invocation so the drop and the reload share a transaction: -c and
-// -f run in the order given, and --single-transaction wraps the lot.
 const result = spawnSync(
   'psql',
   [

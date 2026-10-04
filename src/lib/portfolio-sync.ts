@@ -2,26 +2,8 @@ import { randomUUID } from 'crypto';
 import { accountStats, entryUsesAccount, expectedBalance } from '@/lib/ledger';
 import type { LedgerAccount, MonthlyLedger } from '@/types/ledger';
 
-/**
- * Keeps the portfolio and the newest ledger month describing the same money.
- *
- * Every holding has exactly one account in that month, linked by
- * `holdingId`, and the two are kept equal in both directions:
- *
- * - a ledger save sets each holding to what its account is worth — the
- *   statement balance once entered, otherwise what the entries add up to;
- * - a portfolio save that changes an amount records it as the account's
- *   actual closing balance, the same as typing in a statement figure;
- * - adding, renaming or removing on either side does the same on the other.
- *
- * Only the newest month is linked live. Older months are history, and a new
- * month opens at whatever the portfolio holds. Everything here is pure: the
- * callers in `db/sync.ts` load the rows and write the results.
- */
-
 export type HoldingKind = 'local_bank' | 'remote_bank' | 'mutual_fund';
 
-/** A holding as the ledger sees it: an amount in its own currency. Fund names read "Bank · Fund". */
 export type Holding = { id: string; kind: HoldingKind; name: string; amount: number; exchangeRate: number };
 
 export type HoldingChanges = { create: Holding[]; update: Holding[]; remove: Holding[] };
@@ -41,14 +23,12 @@ export function kindOf(account: Pick<LedgerAccount, 'type' | 'currency'>): Holdi
   return account.currency === 'USD' ? 'remote_bank' : 'local_bank';
 }
 
-/** What the ledger says an account holds: the statement balance once entered, otherwise its entries' total. */
 export function accountValue(account: LedgerAccount, entries: MonthlyLedger['entries']) {
   return account.actualClosingBalance ?? expectedBalance(account, entries);
 }
 
 const differs = (a: number, b: number) => Math.abs(a - b) >= 0.005;
 
-/** A fresh account for a holding, opening at its current amount. */
 export function accountFor(holding: Holding, finalized = false): LedgerAccount {
   const shape = ACCOUNT_SHAPE[holding.kind];
   return {
@@ -59,20 +39,11 @@ export function accountFor(holding: Holding, finalized = false): LedgerAccount {
     openingBalance: holding.amount,
     exchangeRate: shape.currency === 'USD' ? holding.exchangeRate : 1,
     ...(shape.type === 'fund' ? { openingCostBasis: holding.amount } : {}),
-    // A month being finalized needs a closing figure on every account.
     ...(finalized ? { actualClosingBalance: holding.amount } : {}),
   };
 }
 
-/**
- * Ledger → portfolio, planned before the ledger is written. Returns the
- * accounts to save (unlinked ones get a new holding, holdings missing an
- * account get one) and the holding writes to make once that save succeeds.
- *
- * Removal is read from the before/after difference, never from a holding
- * merely lacking an account: that is also what a just-added holding looks
- * like, and guessing wrong would delete it.
- */
+// Removal is read from the before/after diff, never from a holding lacking an account.
 export function planLedgerSave(
   before: Pick<MonthlyLedger, 'accounts'> | null,
   after: LedgerState,
@@ -90,8 +61,7 @@ export function planLedgerSave(
 
   const accounts = after.accounts.map((account) => {
     const amount = accountValue(account, after.entries);
-    // An account that was already here unlinked lost its holding to a removal
-    // and stays as history; only an account added in this save gets one.
+    // An existing unlinked account lost its holding to a removal; never recreate it.
     if (!account.holdingId && existed.has(account.id)) return account;
     if (!account.holdingId) {
       const holding = {
@@ -129,16 +99,7 @@ export function planLedgerSave(
   return { accounts, changes };
 }
 
-/**
- * Portfolio → ledger, from the holdings before and after a portfolio save.
- * Returns the month's next accounts, or `null` when nothing needs to change.
- *
- * Only what the save changed moves across. Comparing every holding with its
- * account instead would also push values nobody touched — a portfolio that
- * is behind the ledger would overwrite the month's closing balances with its
- * stale figures. An account whose holding was removed goes with it, unless
- * entries still use it; then it stays, unlinked, for the month's history.
- */
+// Only holdings this save changed move across, so stale figures never overwrite the ledger.
 export function planPortfolioSync(ledger: LedgerState, before: Holding[], after: Holding[]): LedgerAccount[] | null {
   const previous = new Map(before.map((holding) => [holding.id, holding]));
   const current = new Map(after.map((holding) => [holding.id, holding]));
@@ -194,12 +155,7 @@ export function planPortfolioSync(ledger: LedgerState, before: Holding[], after:
   return changed ? accounts : null;
 }
 
-/**
- * A new month's accounts: one per holding, opening at the portfolio's amount.
- * From the previous month only a fund's cost basis carries over, since the
- * portfolio does not know it. Ids are always fresh: account ids are unique
- * across every month, so reusing one would collide with last month's row.
- */
+// Always fresh ids: ledger_accounts.id is unique across every month.
 export function accountsForNewMonth(holdings: Holding[], previous: Pick<MonthlyLedger, 'accounts' | 'entries'> | null) {
   return holdings.map((holding) => {
     const fresh = accountFor(holding);

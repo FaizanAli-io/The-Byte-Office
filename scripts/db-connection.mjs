@@ -3,21 +3,9 @@ import { fileURLToPath } from 'node:url';
 
 nextEnv.loadEnvConfig(fileURLToPath(new URL('..', import.meta.url)));
 
-/**
- * The schemas this application owns. `drizzle` holds the migration
- * bookkeeping, and a restore that left it behind would put the database and
- * the migration history out of step — so it travels with the data.
- */
 export const SCHEMAS = ['finance', 'personal', 'drizzle'];
 
-/**
- * Connection details for the Postgres command line tools.
- *
- * The password goes through the environment rather than the argument list,
- * because anything in argv is readable by every process on the machine.
- * Neon's pooler endpoint cannot serve `pg_dump`, so the direct host is used —
- * the same rule `drizzle.config.ts` applies for migrations.
- */
+// The password goes through env, not argv, which other processes can read.
 export function connection() {
   const direct = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL?.replace('-pooler.', '.');
   if (!direct) {

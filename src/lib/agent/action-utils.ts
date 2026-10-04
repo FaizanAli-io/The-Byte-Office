@@ -31,7 +31,6 @@ export function toPublicAction(
   };
 }
 
-/** What a chat write tool returns: the card to render, and what the model may say about it. */
 export function pendingResult(
   pendingAction: PendingAgentAction,
   instruction = 'Tell the user to review the confirmation card. Do not claim the change was applied.'

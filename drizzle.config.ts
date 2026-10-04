@@ -13,7 +13,7 @@ function migrationUrl() {
     throw new Error('DATABASE_URL is not set');
   }
 
-  // Drizzle Kit needs a direct connection. Strip Neon's pooler hostname if needed.
+  // Drizzle Kit needs a direct connection, not Neon's pooler.
   return pooled.replace('-pooler.', '.');
 }
 

@@ -3,15 +3,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { financeStyles } from './FinanceUI';
 
-/**
- * A modal dialog.
- *
- * Built on `<dialog>` rather than a positioned div: focus trapping, Escape
- * and the top layer come free, and the alternative is reimplementing all
- * three badly. The `close` event drives `onClose`, so Escape and the Close
- * button take the same path, and a click landing on the dialog element itself
- * is a backdrop click — every child covers its own area.
- */
 export function Modal({
   open,
   onClose,

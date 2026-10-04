@@ -5,12 +5,6 @@ import type { LedgerAccount } from '@/types/ledger';
 import { financeStyles } from '../components/FinanceUI';
 import { CollapseToggle, Field } from './LedgerAccounts';
 
-/**
- * Filtering and sorting for the transactions table, kept out of the table
- * itself: eight controls that all patch one key of the same object, plus the
- * predicates that describe a default filter set.
- */
-
 const ENTRY_SORT_KEYS = ['date', 'amount', 'type', 'account', 'category'] as const;
 const ENTRY_SORT_DIRS = ['asc', 'desc'] as const;
 
@@ -47,22 +41,6 @@ export const emptyFilters: EntryFilters = {
   sortDir: 'desc',
 };
 
-/**
- * Filters are remembered between visits, because there is almost always one
- * account or category being worked through and re-picking it every time is
- * friction. They live in this browser only: a convenience, not data, so a
- * fresh device simply starts on the defaults.
- *
- * The date window is deliberately *not* remembered. Every other filter means
- * the same thing in any month, but a date range belongs to the month it was
- * typed in — restoring March's "to 20 March" while viewing April would hide
- * every row with nothing on screen to explain why.
- *
- * Both accessors swallow their errors, and every stored value is checked on
- * the way back in. A private window, blocked site data or a hand-edited entry
- * should cost the remembered filters, never the ledger.
- */
-// Versioned: v1 saved the old oldest-first default, which would otherwise outlive the change.
 const FILTERS_KEY = 'ledger.filters.v2';
 
 export function rememberedFilters(): EntryFilters {
@@ -88,9 +66,7 @@ export function rememberFilters(filters: EntryFilters) {
   try {
     const { accountId, type, category, query, sortBy, sortDir } = filters;
     localStorage.setItem(FILTERS_KEY, JSON.stringify({ accountId, type, category, query, sortBy, sortDir }));
-  } catch {
-    // Nothing to do: the filters still work for this visit.
-  }
+  } catch {}
 }
 
 function storedText(value: unknown, fallback: string) {
@@ -134,7 +110,6 @@ export function EntryFiltersPanel({
   filters: EntryFilters;
   setFilters: (filters: EntryFilters) => void;
   accounts: LedgerAccount[];
-  /** Only the categories in use this month, as id and name. */
   categories: { id: string; name: string }[];
   bounds: { min: string; max: string };
   open: boolean;

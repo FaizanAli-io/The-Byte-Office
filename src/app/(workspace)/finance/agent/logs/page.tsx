@@ -241,9 +241,7 @@ async function copyLog(log: ToolLog, setCopiedLogId: (id: string | null) => void
     await navigator.clipboard.writeText(JSON.stringify(log, null, 2));
     setCopiedLogId(log.id);
     window.setTimeout(() => setCopiedLogId(null), 2000);
-  } catch {
-    // Clipboard access can be unavailable outside a secure browser context.
-  }
+  } catch {}
 }
 
 function formatTimeAgo(value: string) {

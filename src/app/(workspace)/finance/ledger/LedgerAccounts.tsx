@@ -73,8 +73,6 @@ export function LedgerAccounts({
       accountId: account.id,
       amount: Math.round(Math.abs(stats.difference) * 100) / 100,
       exchangeRate: account.exchangeRate,
-      // The seeded "Reconciliation" category, looked up rather than typed.
-      // If it has been deleted the entry is simply uncategorised.
       categoryId: categories.find((category) => category.name === RECONCILIATION_CATEGORY)?.id,
       note: 'Force reconcile',
     });
@@ -283,9 +281,6 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-/**
- * A rupee amount that may be left blank, which is different from zero.
- */
 function MoneyInput({
   value,
   onChange,

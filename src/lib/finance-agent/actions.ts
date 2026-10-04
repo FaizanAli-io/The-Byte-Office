@@ -103,9 +103,6 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
   }
 
   if (actionType === 'category_update' || actionType === 'category_remove') {
-    // Identified by id, not by name: a rename would otherwise have to match
-    // the name it is about to replace, and archived categories — the ones you
-    // restore — are deliberately unreachable by name.
     const id = requireString(args.id, 'id');
     const current = (await listCategories()).find((category) => category.id === id);
     if (!current) {
@@ -227,7 +224,6 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
   );
 }
 
-/** Runs a confirmed finance action. Personal and TBO payloads never reach here. */
 export async function executeFinancePayload(
   payload: FinancePayload,
   sourceFingerprint: string | null,
@@ -253,8 +249,6 @@ export async function executeFinancePayload(
       await discardCategory(payload.id);
       return { id: payload.id, name: payload.name, removed: true };
     default: {
-      // A new action type must be routed above; falling through would mark it
-      // completed without writing anything.
       const unrouted: never = payload;
       throw new AgentActionError(`No executor for ${(unrouted as { actionType: string }).actionType}`, 500);
     }
@@ -290,9 +284,6 @@ async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: s
     throw new AgentActionError('The ledger changed after this proposal. Ask the assistant to try again.', 409);
   }
 
-  // The tool arguments are replayed over the payload on the MCP surface, and
-  // they name a category rather than identifying one. Translating here covers
-  // add and update alike; without it an update quietly kept its old category.
   const categoryList = await listCategories();
   const withCategory = (entry: object) => {
     const fields = entry as Record<string, unknown>;
@@ -329,7 +320,6 @@ async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: s
   return ledgerWriteResult(payload, saved);
 }
 
-/** What changed, not the whole month: the serial is what the caller needs to refer to an entry next. */
 function ledgerWriteResult(payload: LedgerPayload, saved: MonthlyLedger) {
   const { month } = saved;
   switch (payload.actionType) {
@@ -350,14 +340,6 @@ function ledgerWriteResult(payload: LedgerPayload, saved: MonthlyLedger) {
   }
 }
 
-/**
- * Turns the assistant's category **name** into an id.
- *
- * Absent means "leave it alone", `null` means "clear it", and a name that
- * matches nothing is an error rather than a silent drop — writing an
- * uncategorised entry and saying nothing is the worst of the three outcomes,
- * because on MCP there is no form for anyone to notice it in.
- */
 function resolveCategoryArg(categoryList: LedgerCategory[], value: unknown): string | null | undefined {
   if (value === undefined) return undefined;
   if (value === null) return null;

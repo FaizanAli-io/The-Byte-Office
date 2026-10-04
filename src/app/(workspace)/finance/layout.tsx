@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 
-// `noindex` is set once for the whole workspace group; this layout only adds
-// the finance-specific title and the dark workspace chrome.
 export const metadata: Metadata = {
   title: 'Finance Tools',
 };

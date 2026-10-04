@@ -12,11 +12,6 @@ import {
 } from './repository';
 import type { AgentActionPayload } from './types';
 
-/**
- * The confirmation lifecycle every module shares: claim the row atomically,
- * hand the payload to its module, then record the outcome. Modules only ever
- * propose and execute; they never see this file.
- */
 export async function executeAgentAction(id: string, entryOverride?: unknown) {
   const action = await claimAgentAction(id);
   if (!action) {

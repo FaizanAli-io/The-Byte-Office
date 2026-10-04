@@ -1,16 +1,3 @@
-/**
- * Writes a full dump of the application's schemas to ./backups.
- *
- *   npm run db:backup
- *
- * Plain SQL rather than pg_dump's custom format: it restores with psql alone,
- * it can be read and grepped when something has gone wrong, and at this size
- * there is nothing to gain from compression. Ownership and privileges are
- * left out so the dump can be loaded as whatever role is at hand.
- *
- * The dump contains every figure in the workspace, so ./backups is ignored by
- * git. Do not commit one.
- */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, statSync } from 'node:fs';
 import { connection, SCHEMAS } from './db-connection.mjs';

@@ -7,20 +7,6 @@ import type { CategoryKind, LedgerCategory, MonthlyLedger, MonthlyLedgerPayload 
 import type { AgentConversation, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
 import type { heldFunds } from './ledger';
 
-/**
- * Every server endpoint the browser calls, as a typed function.
- *
- * Components used to hold the URLs themselves — a path string, a method and a
- * response generic at each call site, with the same generic written out twice
- * in two files and three places dropping to raw `fetch` and re-implementing
- * the error handling. Renaming a route meant grepping for a string.
- *
- * This module owns the URL, the method and the response type; `client-api.ts`
- * underneath still owns the transport, the JSON and the error. Nothing here
- * holds state or touches React, so a caller can use it from anywhere on the
- * client.
- */
-
 export type ToolLog = {
   id: string;
   requestId: string;
@@ -42,7 +28,6 @@ export const financeApi = {
 };
 
 export const ledgerApi = {
-  /** Resolves to `null` for a month with no ledger, which is not an error. */
   load: (month: string) => apiFetchOrNull<MonthlyLedger>(`/api/ledger?month=${encodeURIComponent(month)}`),
   create: (month: string) => apiFetch<MonthlyLedger>('/api/ledger', { body: { month } }),
   save: (payload: MonthlyLedgerPayload) => apiFetch<MonthlyLedger>('/api/ledger', { method: 'PUT', body: payload }),
@@ -94,11 +79,6 @@ export const agentApi = {
     }),
   logs: (limit = 200) => apiFetch<{ logs?: ToolLog[] }>(`/api/finance-agent/logs?limit=${limit}`),
 
-  /**
-   * The one call that stays raw: the reply is a stream, and `apiFetch` exists
-   * to read a JSON body to completion. The caller drives the reader, so it
-   * gets the `Response` and the URL stays here with the rest.
-   */
   streamChat: (chatId: string | null, messages: unknown[]) =>
     fetch('/api/finance-agent/chat', {
       method: 'POST',
@@ -108,18 +88,12 @@ export const agentApi = {
 };
 
 export const authApi = {
-  /** `next` is where to land after verifying; the link always goes to the one configured address. */
   login: (next: string | null) =>
     apiFetch<{ emailed?: boolean; loginLink?: string }>('/api/finance-auth/login', { body: { next } }),
   verify: (token: string) => apiFetch('/api/finance-auth/verify', { body: { token } }),
   logout: () => apiFetch('/api/finance-auth/logout', { body: {} }),
 };
 
-/**
- * Not one of the application's own endpoints: `/oauth/register` is RFC 7591
- * dynamic client registration, which the docs page uses to enrol itself. It
- * lives here so no browser code has to hand-roll a `fetch`.
- */
 export const oauthApi = {
   register: (body: {
     client_name: string;

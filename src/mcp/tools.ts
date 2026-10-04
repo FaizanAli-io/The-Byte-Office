@@ -8,17 +8,11 @@ function annotationsFor(tool: AgentToolDefinition) {
   return {
     readOnlyHint: !tool.write,
     destructiveHint: Boolean(tool.destructive),
-    // Reads and removals are repeatable; creating and editing are not.
     idempotentHint: !tool.write || Boolean(tool.destructive) || tool.name.endsWith('_update'),
     openWorldHint: false,
   } as const;
 }
 
-/**
- * Registers only the tools the token's scopes allow, so a client sees exactly
- * what it can use. Refusing the call afterwards would work, but a tool the
- * model cannot use is a tool it should not be shown.
- */
 export function registerTools(server: McpServer, scopes: string[]) {
   for (const tool of mcpToolRegistry) {
     if (!scopes.includes(scopeForTool(tool))) continue;
@@ -30,9 +24,7 @@ export function registerTools(server: McpServer, scopes: string[]) {
     };
     const invoke = (args: unknown) => runTool(() => invokeAgentTool(tool.name, args ?? {}));
 
-    // A tool registered without an inputSchema receives the request "extra" as
-    // its first callback argument rather than parsed arguments, so the two
-    // cases have to be registered separately.
+    // Without an inputSchema the callback receives `extra` as its first argument.
     if (Object.keys(tool.schema.shape).length === 0) {
       server.registerTool(tool.name, config, async () => invoke({}));
       continue;

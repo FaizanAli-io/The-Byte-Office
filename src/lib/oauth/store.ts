@@ -7,22 +7,11 @@ import { oauthAuthorizationCodes, oauthClients, oauthRefreshTokens } from '@/lib
 import { randomToken, sha256Hex } from '@/lib/hmac';
 import { OAUTH_CODE_MAX_AGE, OAUTH_REFRESH_TOKEN_MAX_AGE } from './tokens';
 
-/**
- * The database half of the authorization server. Codes and refresh tokens are
- * claimed with conditional statements rather than read-then-write, so two
- * concurrent redemptions of the same value cannot both succeed — the same
- * pattern as `finance-magic-link.ts`.
- */
-
 export async function registerClient(clientName: string, redirectUris: string[]) {
   const [client] = await getDb().insert(oauthClients).values({ clientName, redirectUris }).returning();
   return client;
 }
 
-/**
- * Registration is unauthenticated by design — it hands out identifiers, not
- * access — but it is still an unbounded insert, so it is capped per hour.
- */
 export async function recentClientCount() {
   const [row] = await getDb()
     .select({ value: count() })
@@ -54,12 +43,10 @@ export async function createAuthorizationCode(input: {
     .values({ ...input, expiresAt: new Date(Date.now() + OAUTH_CODE_MAX_AGE * 1000) })
     .returning({ code: oauthAuthorizationCodes.code });
 
-  // Opportunistic cleanup; codes are worthless a minute after they are issued.
   await db.delete(oauthAuthorizationCodes).where(lt(oauthAuthorizationCodes.expiresAt, hoursAgo(24)));
   return row.code;
 }
 
-/** Claims a code. Returns null if it is unknown, expired or already used. */
 export async function consumeAuthorizationCode(code: string) {
   if (!isUuid(code)) return null;
   const [row] = await getDb()
@@ -88,14 +75,6 @@ export async function issueRefreshToken(clientId: string, scopes: string[], fami
 
 export type RotatedRefreshToken = { clientId: string; scopes: string[]; refreshToken: string };
 
-/**
- * Redeems a refresh token and issues its replacement.
- *
- * The claim is a conditional update, so a token can only be spent once. A
- * token presented after it was already spent means the value leaked and is
- * being replayed, so the entire rotation chain is revoked — the legitimate
- * client is forced to authorize again, which is the point.
- */
 export async function rotateRefreshToken(presented: string): Promise<RotatedRefreshToken | null> {
   const db = getDb();
   const tokenHash = await sha256Hex(presented);
@@ -106,6 +85,7 @@ export async function rotateRefreshToken(presented: string): Promise<RotatedRefr
     .where(and(eq(oauthRefreshTokens.tokenHash, tokenHash), isNull(oauthRefreshTokens.revokedAt)))
     .returning();
 
+  // A spent refresh token presented again has leaked: revoke its whole chain.
   if (!claimed) {
     const [replayed] = await db
       .select({ familyId: oauthRefreshTokens.familyId })
@@ -122,19 +102,10 @@ export async function rotateRefreshToken(presented: string): Promise<RotatedRefr
   return {
     clientId: claimed.clientId,
     scopes: claimed.scopes,
-    // A fresh expiry on every rotation: the window measures inactivity, not
-    // time since the user authorized.
     refreshToken: await issueRefreshToken(claimed.clientId, claimed.scopes, claimed.familyId),
   };
 }
 
-/**
- * Rotation is the only thing that grows this table, so it is also where the
- * old rows are swept. A cron would be tidier, but there is nothing to run one
- * and a table that grows forever is worse than one extra DELETE every six
- * hours. Awaited rather than fired and forgotten: a floating promise in a
- * serverless function is a promise that may never run.
- */
 async function pruneRefreshTokens() {
   await getDb()
     .delete(oauthRefreshTokens)
@@ -148,7 +119,6 @@ async function revokeFamily(familyId: string) {
     .where(and(eq(oauthRefreshTokens.familyId, familyId), isNull(oauthRefreshTokens.revokedAt)));
 }
 
-/** Revokes the presented token's whole chain. Silent for an unknown token. */
 export async function revokeRefreshToken(presented: string) {
   const [row] = await getDb()
     .select({ familyId: oauthRefreshTokens.familyId })

@@ -1,4 +1,3 @@
-// @next/env is CommonJS, so it has to come in through the default export.
 import nextEnv from '@next/env';
 import { fileURLToPath } from 'node:url';
 
@@ -20,13 +19,9 @@ async function json(path, init) {
   let body = text;
   try {
     body = text ? JSON.parse(text) : null;
-  } catch {
-    /* leave as text */
-  }
+  } catch {}
   return { response, body };
 }
-
-// --- discovery, which needs no credentials -----------------------------------
 
 const unauthorized = await fetch(`${baseUrl}/api/mcp`, {
   method: 'POST',
@@ -45,8 +40,6 @@ const asm = await json('/.well-known/oauth-authorization-server');
 check('authorization server metadata is served', asm.response.ok && Boolean(asm.body?.token_endpoint));
 check('PKCE S256 is advertised', asm.body?.code_challenge_methods_supported?.includes('S256') === true);
 check('no API key auth is advertised', !JSON.stringify(asm.body ?? {}).includes('bearerAuth'));
-
-// --- authenticated calls, when a refresh token is available ------------------
 
 if (!refreshToken) {
   console.log('\nSet MCP_SMOKE_REFRESH_TOKEN to also exercise the authenticated path.');

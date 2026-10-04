@@ -1,11 +1,5 @@
 import type { FinanceDoc, FinanceFund } from '@/types/finance';
 
-/**
- * Totals are computed over flat holding rows, which both callers can produce:
- * the editor and snapshots hold a grouped `FinanceDoc`, while the assistant's
- * `portfolio_get` serves the rows straight from `loadHoldings`. Previously each
- * had its own copy of the arithmetic.
- */
 export type HoldingRows = {
   localBanks: { amountPkr: number }[];
   remoteBanks: { amountUsd: number; exchangeRate: number }[];
@@ -14,15 +8,6 @@ export type HoldingRows = {
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
-/**
- * Every total is in PKR; remote banks are converted at their own rate.
- *
- * `grandTotal` is gross: what the accounts actually hold, which is the number
- * reconciliation has to agree with. `net` subtracts money being held for
- * someone else, which is the number that is actually yours. `held` comes from
- * the ledger's hold entries and is passed in, so this stays a pure function
- * over holdings.
- */
 export function holdingTotals(rows: HoldingRows, held = 0) {
   const local = sum(rows.localBanks.map((bank) => bank.amountPkr));
   const remote = sum(rows.remoteBanks.map((bank) => bank.amountUsd * bank.exchangeRate));
@@ -31,7 +16,6 @@ export function holdingTotals(rows: HoldingRows, held = 0) {
   return { local, remote, mutual, grandTotal, held, net: grandTotal - held };
 }
 
-/** `mutualFunds` is an array of single-key `{ [bank]: funds }` objects. */
 function fundGroups(data: Pick<FinanceDoc, 'mutualFunds'>): { bank: string; funds: FinanceFund[] }[] {
   return data.mutualFunds.map((group) => {
     const bank = Object.keys(group)[0];
@@ -67,7 +51,6 @@ export function individualFundAllocations(data: Pick<FinanceDoc, 'mutualFunds'>)
 
 type SnapshotData = Pick<FinanceDoc, 'localBanks' | 'remoteBanks' | 'mutualFunds'>;
 
-/** PKR values keyed by kind and name; a repeated name adds up rather than overwriting. */
 function keyedValues() {
   const values = new Map<string, { kind: string; name: string; value: number }>();
   const add = (kind: string, name: string, value: number) => {
@@ -77,7 +60,6 @@ function keyedValues() {
   return { values, add };
 }
 
-/** Every holding as one PKR value. */
 function snapshotLines(data: SnapshotData) {
   const { values, add } = keyedValues();
   data.localBanks.forEach((bank) => add('Local bank', bank.name, bank.amountPkr));
@@ -86,11 +68,6 @@ function snapshotLines(data: SnapshotData) {
   return values;
 }
 
-/**
- * Everything worth graphing in one snapshot, at every grain: the total, each
- * class, each bank account, each fund institution and each fund. `kind` is the
- * group a picker shows it under.
- */
 export function snapshotSeries(data: SnapshotData) {
   const { values, add } = keyedValues();
   const totals = portfolioTotals(data);
@@ -109,11 +86,6 @@ const change = (before: number | null, after: number | null) => ({
   delta: (after ?? 0) - (before ?? 0),
 });
 
-/**
- * What moved between two snapshots, in PKR. Snapshots store no row ids, so
- * holdings match by name: a rename reads as one removed line and one added
- * (`before` or `after` is `null`). Unchanged lines are left out.
- */
 export function snapshotDiff(older: SnapshotData, newer: SnapshotData) {
   const [a, b] = [portfolioTotals(older), portfolioTotals(newer)];
   const classes = (

@@ -1,12 +1,6 @@
 import { z } from 'zod/v4';
 import { NAMAAZ_VALUES } from '@/lib/db/schema';
 
-/**
- * One definition of the prayer and health rules, shared by the REST routes and
- * the assistant's tools. Both write to the same tables, so both get the same
- * rules — previously each had its own hand-rolled copy.
- */
-
 const namaazSchema = z.enum(NAMAAZ_VALUES, {
   error: `Namaaz must be one of: ${NAMAAZ_VALUES.join(', ')}`,
 });
@@ -18,7 +12,6 @@ const metric = z.string({ error: 'Metric is required' }).trim().min(1, 'Metric i
 const reading = z.number({ error: 'Value must be a number' }).finite('Value must be a number');
 const createdAt = z.coerce.date({ error: 'createdAt must be a valid date' });
 
-/** An update with every field omitted is a no-op, not a valid request. */
 const hasAnyField = (value: object) => Object.values(value).some((field) => field !== undefined);
 
 export const prayerInputSchema = z.object({ namaaz: namaazSchema, missed: missed.optional() });

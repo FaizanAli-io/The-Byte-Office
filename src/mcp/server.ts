@@ -16,7 +16,6 @@ const INSTRUCTIONS = [
   'Write tools apply immediately after the host confirms the tool call. tbo_send_inquiry really does send an email.',
 ].join(' ');
 
-/** `scopes` comes from the verified access token and decides which tools exist. */
 export function createMcpServer(scopes: string[]) {
   const server = new McpServer({ name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION }, { instructions: INSTRUCTIONS });
 

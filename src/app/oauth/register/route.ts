@@ -7,14 +7,7 @@ const MAX_REGISTRATIONS_PER_HOUR = 20;
 const MAX_REDIRECT_URIS = 10;
 const MAX_NAME_LENGTH = 200;
 
-/**
- * RFC 7591 Dynamic Client Registration.
- *
- * Clients such as ChatGPT cannot be pre-registered — there is no way to know
- * their redirect URI in advance — so they register themselves here. This
- * endpoint is deliberately open: a `client_id` grants nothing until a human
- * approves a specific authorization request at `/oauth/authorize`.
- */
+// Open by design: a client_id grants nothing until a person approves at /oauth/authorize.
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
   try {
@@ -39,7 +32,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Public clients only: there is no secret to authenticate with.
   const authMethod = body.token_endpoint_auth_method;
   if (authMethod !== undefined && authMethod !== 'none') {
     return oauthError('invalid_client_metadata', 'Only token_endpoint_auth_method "none" is supported');

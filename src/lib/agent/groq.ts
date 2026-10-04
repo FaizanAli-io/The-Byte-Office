@@ -32,7 +32,6 @@ export type GroqAssistantMessage = {
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 export const PRIMARY_MODEL = 'openai/gpt-oss-120b';
-// Degraded but working service when the primary model is rate limited.
 const FALLBACK_MODEL = 'openai/gpt-oss-20b';
 
 export class GroqError extends Error {
@@ -214,7 +213,6 @@ async function requestModel(input: {
         if (!current.function.name) {
           current.function.name = namePart;
         } else if (current.function.name === namePart) {
-          // Exact duplicate name from provider chunk
         } else if (namePart.startsWith(current.function.name)) {
           current.function.name = namePart;
         } else {
@@ -231,9 +229,7 @@ async function requestModel(input: {
         if (!current.function.arguments) {
           current.function.arguments = rawArgs;
         } else if (current.function.arguments === rawArgs) {
-          // Exact duplicate arguments chunk
         } else if (rawArgs.startsWith(current.function.arguments)) {
-          // Cumulative arguments snapshot
           current.function.arguments = rawArgs;
         } else {
           current.function.arguments += rawArgs;

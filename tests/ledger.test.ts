@@ -16,8 +16,6 @@ import {
 } from '@/lib/ledger';
 import type { LedgerAccount, LedgerEntry } from '@/types/ledger';
 
-// Every amount below is in rupees, the unit the whole application uses.
-
 const bank = (over: Partial<LedgerAccount> = {}): LedgerAccount => ({
   id: 'bank',
   name: 'HBL',
@@ -264,9 +262,6 @@ describe('ledgerSummary', () => {
 
 describe('decimal amounts', () => {
   it('treats an accumulated rounding error as the zero it was meant to be', () => {
-    // A thousand one-paisa expenses against ten rupees. Summing decimals in
-    // binary floating point leaves a residue far below what is ever displayed,
-    // so reconciliation has to read it as balanced rather than as a variance.
     const entries = Array.from({ length: 1000 }, (_, index) =>
       entry({ id: `e${index}`, type: 'expense', amount: 0.01 })
     );
