@@ -2,12 +2,12 @@
 
 import { categoriesApi, ledgerApi, type CategoryInput } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
-import { currentMonth, entryUsesAccount } from '@/lib/ledger';
+import { currentMonth, entryUsesAccount, nextMonth } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useLedger() {
-  const [month, setMonth] = useState(currentMonth);
+  const [month, setMonth] = useState('');
   const [ledger, setLedger] = useState<MonthlyLedger | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,7 +52,14 @@ export function useLedger() {
   );
 
   useEffect(() => {
-    load(month);
+    ledgerApi
+      .list()
+      .then(([newest]) => setMonth(newest?.month ?? currentMonth()))
+      .catch(() => setMonth(currentMonth()));
+  }, []);
+
+  useEffect(() => {
+    if (month) load(month);
   }, [load, month]);
 
   async function run(action: () => Promise<unknown>, successNotice: string, failure: string) {
@@ -125,7 +132,7 @@ export function useLedger() {
     await persist(
       next,
       status === 'finalized'
-        ? 'Month finalized and locked.'
+        ? `Month finalized and locked; ${nextMonth(next.month)} is open.`
         : ledger.status === 'finalized'
           ? 'Month reopened for editing.'
           : 'Ledger saved.'
@@ -212,7 +219,14 @@ export function useLedger() {
     const month = ledgerRef.current?.month;
     if (!month) return;
     setLedger((current) => (current ? { ...current, entries: update(current.entries) } : current));
-    void enqueue(month, () => write(month), notice);
+    void enqueue(
+      month,
+      async () => {
+        const saved = await write(month);
+        return { ...saved, accounts: ledgerRef.current?.accounts ?? saved.accounts };
+      },
+      notice
+    );
   }
 
   function addEntry(entry: LedgerEntry) {

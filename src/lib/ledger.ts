@@ -180,25 +180,32 @@ export function ledgerSummary(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'
   return { income, expenses, netCashFlow: income - expenses, fundFlow, heldMovement };
 }
 
+export function categoryTotals(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'>) {
+  const totals = new Map<string, { income: number; expense: number }>();
+  for (const entry of ledger.entries) {
+    if (entry.type !== 'income' && entry.type !== 'expense') continue;
+    const key = entry.categoryId ?? '';
+    const current = totals.get(key) ?? { income: 0, expense: 0 };
+    current[entry.type] += toPkr(entry.amount, entry.accountId, ledger.accounts, entry.exchangeRate);
+    totals.set(key, current);
+  }
+  return totals;
+}
+
 export function ledgerCategoryTotals(
   ledger: Pick<MonthlyLedger, 'accounts' | 'entries'>,
   categories: LedgerCategory[]
 ) {
-  const totals = (type: 'income' | 'expense') => {
-    const byName = new Map<string, number>();
-    for (const entry of ledger.entries) {
-      if (entry.type !== type) continue;
-      const name = categoryName(categories, entry.categoryId) || 'Uncategorised';
-      byName.set(
-        name,
-        (byName.get(name) ?? 0) + toPkr(entry.amount, entry.accountId, ledger.accounts, entry.exchangeRate)
-      );
-    }
-    return [...byName]
-      .map(([category, amountPkr]) => ({ category, amountPkr }))
+  const rows = [...categoryTotals(ledger)].map(([id, totals]) => ({
+    category: categoryName(categories, id || undefined) || 'Uncategorised',
+    ...totals,
+  }));
+  const list = (type: 'income' | 'expense') =>
+    rows
+      .filter((row) => row[type])
+      .map((row) => ({ category: row.category, amountPkr: row[type] }))
       .sort((a, b) => b.amountPkr - a.amountPkr);
-  };
-  return { income: totals('income'), expenses: totals('expense') };
+  return { income: list('income'), expenses: list('expense') };
 }
 
 export const UNATTRIBUTED_HOLD = 'Unattributed';

@@ -29,6 +29,7 @@ export const financeApi = {
 };
 
 export const ledgerApi = {
+  list: () => apiFetch<Pick<MonthlyLedger, 'month' | 'status'>[]>('/api/ledger'),
   load: (month: string) => apiFetchOrNull<MonthlyLedger>(`/api/ledger?month=${encodeURIComponent(month)}`),
   create: (month: string) => apiFetch<MonthlyLedger>('/api/ledger', { body: { month } }),
   save: (payload: MonthlyLedgerPayload) => apiFetch<MonthlyLedger>('/api/ledger', { method: 'PUT', body: payload }),

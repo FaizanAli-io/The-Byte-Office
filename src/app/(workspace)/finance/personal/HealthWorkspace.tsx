@@ -4,7 +4,7 @@ import { healthApi, healthMetricsApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import type { HealthMetric, HealthTracking } from '@/types/personal';
 import { useCallback, useState } from 'react';
-import { FinanceCard, Field, StatCard, financeStyles } from '../components/FinanceUI';
+import { FinanceCard, Field, StatCard, financeStyles, openPicker } from '../components/FinanceUI';
 import { HealthChart } from './HealthChart';
 import { HealthMetrics } from './HealthMetrics';
 import { PersonalShell, usePersonalData } from './PersonalShell';
@@ -123,6 +123,7 @@ export function HealthWorkspace() {
             <input
               className={financeStyles.input}
               type="datetime-local"
+              onClick={openPicker}
               value={form.createdAt}
               onChange={(event) => setForm({ ...form, createdAt: event.target.value })}
             />

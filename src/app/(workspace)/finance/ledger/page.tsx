@@ -1,8 +1,8 @@
 'use client';
 
-import { formatMoney, ledgerSummary } from '@/lib/ledger';
+import { categoryTotals, formatMoney, ledgerSummary } from '@/lib/ledger';
 import type { ReactNode } from 'react';
-import { FinancePageShell, StatCard, financeStyles } from '../components/FinanceUI';
+import { FinancePageShell, StatCard, financeStyles, openPicker } from '../components/FinanceUI';
 import { LedgerAccounts } from './LedgerAccounts';
 import { LedgerCategories } from './LedgerCategories';
 import { LedgerEntries } from './LedgerEntries';
@@ -46,6 +46,7 @@ export default function LedgerPage() {
             <span className="sr-only">Ledger month</span>
             <input
               type="month"
+              onClick={openPicker}
               className={`${financeStyles.input} min-w-44`}
               value={month}
               onChange={(event) => setMonth(event.target.value)}
@@ -141,11 +142,15 @@ export default function LedgerPage() {
             onAdd={addAccount}
             onChange={updateAccount}
             onRemove={removeAccount}
-            onAddEntry={addEntry}
+            onAddEntry={(entry) => {
+              addEntry(entry);
+              if (accountsDirty) void saveAccounts();
+            }}
             onSave={saveAccounts}
           />
           <LedgerCategories
             categories={categories}
+            totals={categoryTotals(ledger)}
             saving={saving}
             readOnly={isFinalized}
             onSave={saveCategory}

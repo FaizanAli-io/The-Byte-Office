@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { CategoryInput } from '@/lib/api-client';
+import { formatMoney } from '@/lib/ledger';
 import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory } from '@/types/ledger';
 import { CollapseToggle, FinanceCard, financeStyles } from '../components/FinanceUI';
 
@@ -11,14 +12,20 @@ const KIND_LABELS: Record<CategoryKind, string> = {
   both: 'Either',
 };
 
+type Totals = Map<string, { income: number; expense: number }>;
+
+const th = `${financeStyles.th} sticky top-0 z-10 bg-slate-950`;
+
 export function LedgerCategories({
   categories,
+  totals,
   saving,
   readOnly,
   onSave,
   onRemove,
 }: {
   categories: LedgerCategory[];
+  totals: Totals;
   saving: boolean;
   readOnly: boolean;
   onSave: (input: CategoryInput) => void;
@@ -32,8 +39,10 @@ export function LedgerCategories({
   const active = categories.filter((category) => !category.archivedAt);
   const archived = categories.filter((category) => category.archivedAt);
 
-  const byUsage = (list: LedgerCategory[]) => [...list].sort((a, b) => b.entryCount - a.entryCount);
-  const ordered = [...byUsage(active), ...byUsage(archived)];
+  const volume = (id: string) => (totals.get(id)?.income ?? 0) + (totals.get(id)?.expense ?? 0);
+  const byTotal = (list: LedgerCategory[]) =>
+    [...list].sort((a, b) => volume(b.id) - volume(a.id) || b.entryCount - a.entryCount);
+  const ordered = [...byTotal(active), ...byTotal(archived)];
 
   function add() {
     if (!name.trim()) return;
@@ -53,15 +62,16 @@ export function LedgerCategories({
         />
         {open ? (
           <div className="border-t border-white/6 p-4">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-sm">
+            <div className="max-h-[28rem] overflow-auto">
+              <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-sm">
                 <thead>
                   <tr className={financeStyles.tableHead}>
-                    <th className={financeStyles.th}>Name</th>
-                    <th className={financeStyles.th}>Applies to</th>
-                    <th className={financeStyles.th}>Status</th>
-                    <th className={`${financeStyles.th} w-px text-center`}>Used</th>
-                    <th className={`${financeStyles.th} text-right`} />
+                    <th className={th}>Name</th>
+                    <th className={th}>Applies to</th>
+                    <th className={th}>Status</th>
+                    <th className={`${th} text-right`}>This month</th>
+                    <th className={`${th} w-px text-center`}>Used</th>
+                    <th className={`${th} text-right`} />
                   </tr>
                 </thead>
                 <tbody>
@@ -83,6 +93,7 @@ export function LedgerCategories({
                         <KindSelect value={kind} disabled={saving} onChange={setKind} />
                       </td>
                       <td className={`${financeStyles.td} text-xs text-slate-600`}>New</td>
+                      <td className={financeStyles.td} />
                       <td className={`${financeStyles.td} w-px`} />
                       <td className={`${financeStyles.td} text-right`}>
                         <button
@@ -101,6 +112,7 @@ export function LedgerCategories({
                     <CategoryRow
                       key={category.id}
                       category={category}
+                      totals={totals.get(category.id)}
                       saving={saving}
                       readOnly={readOnly}
                       confirmingDelete={pendingDelete === category.id}
@@ -128,6 +140,7 @@ export function LedgerCategories({
 
 function CategoryRow({
   category,
+  totals,
   saving,
   readOnly,
   confirmingDelete,
@@ -135,6 +148,7 @@ function CategoryRow({
   onDelete,
 }: {
   category: LedgerCategory;
+  totals?: { income: number; expense: number };
   saving: boolean;
   readOnly: boolean;
   confirmingDelete: boolean;
@@ -173,6 +187,11 @@ function CategoryRow({
         <span className={`text-xs font-semibold ${archived ? 'text-slate-500' : 'text-emerald-300'}`}>
           {archived ? 'Archived' : 'Active'}
         </span>
+      </td>
+      <td className={`${financeStyles.td} text-right text-xs font-semibold tabular-nums`}>
+        {totals?.income ? <p className="text-emerald-300">+{formatMoney(totals.income, 'PKR')}</p> : null}
+        {totals?.expense ? <p className="text-rose-300">−{formatMoney(totals.expense, 'PKR')}</p> : null}
+        {!totals?.income && !totals?.expense ? <span className="text-slate-600">—</span> : null}
       </td>
       <td className={`${financeStyles.td} w-px text-center`}>
         <span

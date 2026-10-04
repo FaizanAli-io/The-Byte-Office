@@ -2,7 +2,7 @@
 
 import { categoryName, ENTRY_LABELS } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
-import { CollapseToggle, Field, financeStyles } from '../components/FinanceUI';
+import { CollapseToggle, Field, financeStyles, openPicker } from '../components/FinanceUI';
 import { entryDetail } from './EntryRows';
 
 const ENTRY_SORT_KEYS = ['date', 'amount', 'type', 'account', 'category'] as const;
@@ -236,6 +236,7 @@ export function EntryFiltersPanel({
               <input
                 className={financeStyles.input}
                 type="date"
+                onClick={openPicker}
                 min={bounds.min}
                 max={bounds.max}
                 value={filters[key]}

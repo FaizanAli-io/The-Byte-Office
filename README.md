@@ -10,7 +10,7 @@ Built with Next.js 15, React, Tailwind CSS, and Neon Postgres.
 - Protected finance workspace at `/finance`
   - Portfolio editor for banks and mutual funds, valued from the newest ledger month
   - Portfolio snapshots with allocation charts, a balance-over-time chart and a comparison of any two
-  - Monthly ledger with accounts, transactions and reconciliation; finalizing a month snapshots the portfolio
+  - Monthly ledger with accounts, transactions and reconciliation; finalizing a month snapshots the portfolio and opens the next
   - AI finance assistant with tool calling, confirmation cards, and in-chat ledger forms
   - Assistant tool-call logs for debugging
   - Personal tracker: missed prayers with history, health metrics and readings

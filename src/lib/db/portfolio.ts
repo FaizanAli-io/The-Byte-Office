@@ -173,6 +173,10 @@ export async function saveLedgerSynced(existing: MonthlyLedger, body: MonthlyLed
   if (existing.status === 'draft' && saved.status === 'finalized') {
     const holdings = await loadPortfolioHoldings();
     await createSnapshot(holdings, portfolioTotals(holdings).grandTotal);
+    const month = nextMonth(saved.month);
+    if (!(await loadLedger(month))) {
+      await createLedger({ month, accounts: accountsForNewMonth(await loadHoldingIdentities(), saved) });
+    }
   }
   return plan.rename.length ? loadLedger(body.month) : saved;
 }

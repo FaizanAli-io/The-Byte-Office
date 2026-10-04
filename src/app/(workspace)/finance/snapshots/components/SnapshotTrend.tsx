@@ -114,7 +114,7 @@ export function SnapshotTrend({ snapshots }: { snapshots: FinanceSnapshot[] }) {
                   labelStyle={{ color: '#94a3b8' }}
                 />
                 <Line
-                  type="linear"
+                  type="monotone"
                   dataKey="value"
                   stroke={LINE}
                   strokeWidth={2}

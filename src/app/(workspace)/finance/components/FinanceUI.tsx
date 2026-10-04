@@ -2,14 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { FinanceLogoutButton } from './FinanceLogoutButton';
+
+export function openPicker(event: MouseEvent<HTMLInputElement>) {
+  try {
+    event.currentTarget.showPicker();
+  } catch {}
+}
 
 export const financeStyles = {
   card: 'rounded-2xl border border-white/8 bg-slate-900/70 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-xl',
   inset: 'rounded-xl border border-white/7 bg-slate-950/45',
   input:
-    'min-h-11 w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-cyan-400/55 focus:ring-2 focus:ring-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-60',
+    'min-h-11 w-full rounded-lg [color-scheme:dark] border border-white/10 bg-slate-950/70 px-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-cyan-400/55 focus:ring-2 focus:ring-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-60',
   label: 'mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500',
   primary:
     'inline-flex min-h-10 items-center justify-center rounded-lg bg-cyan-300 px-4 text-sm font-bold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50',

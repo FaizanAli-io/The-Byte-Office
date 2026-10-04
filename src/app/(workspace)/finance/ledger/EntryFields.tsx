@@ -2,7 +2,7 @@
 
 import { ENTRY_LABELS, eligibleAccounts, isHoldType, pickableCategories } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType } from '@/types/ledger';
-import { Field, financeStyles } from '../components/FinanceUI';
+import { Field, financeStyles, openPicker } from '../components/FinanceUI';
 
 export type EntryAccount = Pick<LedgerAccount, 'id' | 'name' | 'currency' | 'type' | 'exchangeRate'>;
 
@@ -60,6 +60,7 @@ function conversionTarget(draft: EntryDraft, accounts: EntryAccount[]) {
 
 export function draftIncomplete(draft: EntryDraft, accounts: EntryAccount[]) {
   return (
+    !draft.date ||
     !draft.accountId ||
     !draft.amount ||
     (draft.type === 'transfer' && !draft.destinationAccountId) ||
@@ -121,6 +122,7 @@ export function EntryFields({
         <input
           className={financeStyles.input}
           type="date"
+          onClick={openPicker}
           min={bounds.min}
           max={bounds.max}
           value={draft.date}
