@@ -57,24 +57,26 @@ What is still not ideal:
 A true account entity — holdings as balances _of_ an account, ledger rows as monthly records _for_ it — would remove the
 syncing altogether. Worth it only if the sync starts needing special cases.
 
-## 2. One holding is three tables
+## 2. One holding was three tables — storage merged, API not yet
 
-`local_banks` (PKR), `remote_banks` (USD plus a rate) and `mutual_funds` (bank plus fund name) differ by two columns
-and a currency. Splitting them by kind means every layer carries the same three-way branch:
+`local_banks`, `remote_banks` and `mutual_funds` differed only by currency and whether a holding sits under a bank.
+They are now one `holdings` table (`kind`, `name`, `group_name` for a fund's bank, `amount` in the kind's currency, and
+`exchange_rate` for remote banks), and [`db/holdings.ts`](../src/lib/db/holdings.ts) is the only code that touches it.
+Fund grouping is by bank name, so the `floor(sort_order / 1000)` stride is gone. The old tables stay until the copy has
+been verified with `npm run db:verify-holdings`; a later migration drops them and makes `ledger_accounts.holding_id` a
+foreign key.
 
-| Layer                                                             | What the split costs                                                     |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [`registry.ts`](../src/lib/agent/registry.ts)                     | `itemType` enum plus a flat union of every field any kind needs          |
-| [`action-parsing.ts`](../src/lib/finance-agent/action-parsing.ts) | `HOLDING_FIELDS`, one validator list per kind                            |
-| [`portfolio.ts`](../src/lib/finance-agent/portfolio.ts)           | `HOLDING_TABLES` and a `holdingTable()` lookup on all four CRUD paths    |
-| [`finance.ts`](../src/lib/finance.ts)                             | `HoldingRows` with three arrays and three separate sums                  |
-| [`queries.ts`](../src/lib/db/queries.ts)                          | `flattenMutualFunds` / `groupMutualFunds` and `MUTUAL_FUND_GROUP_STRIDE` |
+What is left is the shape crossing the wire. The API still speaks in three kinds:
 
-One `holdings` table with `kind`, `currency`, `amount`, `exchange_rate` and an optional `group` collapses all of it.
-The API shape is the harder half, because `mutualFunds` is exposed as `Record<bank, Fund[]>[]` — an array of
-single-key objects that forces `Object.keys(group)[0]` at six call sites and encodes grouping as
-`floor(sort_order / 1000)`, which breaks past a thousand funds in one bank and cannot represent two groups with the
-same name. The table underneath is already flat; only the shape crossing the wire is not.
+| Layer                                                             | What the three kinds still cost                                 |
+| ----------------------------------------------------------------- | --------------------------------------------------------------- |
+| [`registry.ts`](../src/lib/agent/registry.ts)                     | `itemType` enum plus a flat union of every field any kind needs |
+| [`action-parsing.ts`](../src/lib/finance-agent/action-parsing.ts) | `HOLDING_FIELDS`, one validator list per kind                   |
+| [`finance.ts`](../src/lib/finance.ts)                             | `HoldingRows` with three arrays and three separate sums         |
+
+and `mutualFunds` is still `Record<bank, Fund[]>[]`, an array of single-key objects that forces `Object.keys(group)[0]`
+at several call sites. Exposing holdings as one flat list is the remaining half, and it changes the MCP tools, so it
+deserves its own pass.
 
 ## 3. The ledger is edited as a document, not as rows
 
@@ -121,7 +123,7 @@ Worth stating, so a future pass does not "fix" these:
 
 ## If these were tackled, in this order
 
-1. **2 — collapse the three holdings tables.** Self-contained, removes the most repeated branch in the code, and lets
-   `holding_id` become a real foreign key.
+1. **2 — finish the holdings merge.** Drop the old tables and add the `holding_id` foreign key once verified, then
+   flatten the API shape.
 2. **3 — row-level ledger entry endpoints.** Only once whole-month saves start to hurt.
 3. **1 — a shared account entity.** Only if the sync starts needing special cases.

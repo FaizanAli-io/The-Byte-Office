@@ -25,9 +25,8 @@ import {
  * assistant's conversations and pending actions; `personal` holds prayers and
  * health tracking.
  *
- * Holdings are one row per item rather than a single document, and array order
- * is kept in `sort_order`. Mutual fund rows encode their group as
- * `floor(sort_order / 1000)`.
+ * Holdings are one row per item in `holdings`, ordered by `sort_order` within
+ * each kind; a mutual fund's bank is its `group_name`.
  */
 
 /**
@@ -60,6 +59,38 @@ export const financeAgentActionStatusEnum = finance.enum('finance_agent_action_s
   'cancelled',
   'failed',
 ]);
+
+export const holdingKindEnum = finance.enum('holding_kind', ['local_bank', 'remote_bank', 'mutual_fund']);
+
+/**
+ * Every portfolio holding, one row each. `amount` is in the kind's currency —
+ * PKR, except USD for a remote bank, which also carries its rate. A mutual
+ * fund's `name` is the fund and `group_name` the bank it sits under; banks
+ * have no group. Currency is not stored because the kind decides it.
+ *
+ * This replaces `local_banks`, `remote_banks` and `mutual_funds`, which stay
+ * until the copy has been verified and are then dropped.
+ */
+export const holdings = finance.table(
+  'holdings',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    kind: holdingKindEnum('kind').notNull(),
+    name: text('name').notNull(),
+    groupName: text('group_name'),
+    amount: money('amount').notNull().default(0),
+    exchangeRate: rate('exchange_rate').notNull().default(1),
+    sortOrder: sortOrder(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index('holdings_kind_sort_idx').on(table.kind, table.sortOrder),
+    check('holdings_group_only_for_funds', sql`(${table.kind} = 'mutual_fund') = (${table.groupName} IS NOT NULL)`),
+    check('holdings_rate_only_for_remote', sql`${table.kind} = 'remote_bank' OR ${table.exchangeRate} = 1`),
+    check('holdings_amount_non_negative', sql`${table.amount} >= 0`),
+  ]
+);
 
 export const localBanks = finance.table('local_banks', {
   id: uuid('id').defaultRandom().primaryKey(),

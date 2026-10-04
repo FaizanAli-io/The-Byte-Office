@@ -7,7 +7,7 @@ import {
   snapshotDiff,
   snapshotSeries,
 } from '@/lib/finance';
-import { flattenMutualFunds, groupMutualFunds } from '@/lib/db/holdings';
+import { docToRows, rowsToDoc } from '@/lib/db/holdings';
 import type { FinanceDoc } from '@/types/finance';
 
 const doc: FinanceDoc = {
@@ -55,7 +55,9 @@ describe('portfolioTotals', () => {
   it('agrees with holdingTotals over the same holdings', () => {
     // The editor holds grouped funds and the assistant holds flat rows; both
     // must report the same number.
-    const flat = flattenMutualFunds(doc.mutualFunds).map(({ value }) => ({ value }));
+    const flat = docToRows(doc)
+      .filter((row) => row.kind === 'mutual_fund')
+      .map((row) => ({ value: row.amount }));
     expect(holdingTotals({ localBanks: doc.localBanks, remoteBanks: doc.remoteBanks, mutualFunds: flat })).toEqual(
       portfolioTotals(doc)
     );
@@ -79,21 +81,37 @@ describe('allocations', () => {
   });
 });
 
-describe('mutual fund grouping', () => {
-  it('round-trips through the flat row shape', () => {
-    expect(groupMutualFunds(flattenMutualFunds(doc.mutualFunds))).toEqual(doc.mutualFunds);
+describe('holding rows', () => {
+  it('round-trips the editor document through the single table', () => {
+    expect(rowsToDoc(docToRows(doc))).toEqual(doc);
   });
 
-  it('keeps row ids so the assistant can target a fund', () => {
-    expect(flattenMutualFunds(doc.mutualFunds).map((row) => row.id)).toEqual(['f1', 'f2', 'f3']);
+  it('keeps row ids, so the assistant and ledger links still find each holding', () => {
+    expect(docToRows(doc).map((row) => row.id)).toEqual(['l1', 'l2', 'r1', 'f1', 'f2', 'f3']);
   });
 
-  it('separates groups by the sort-order stride', () => {
-    expect(flattenMutualFunds(doc.mutualFunds).map((row) => row.sortOrder)).toEqual([0, 1, 1000]);
+  it('stores a fund under its bank, and only a remote bank carries a rate', () => {
+    expect(docToRows(doc).map((row) => [row.kind, row.groupName, row.exchangeRate])).toEqual([
+      ['local_bank', null, 1],
+      ['local_bank', null, 1],
+      ['remote_bank', null, 280],
+      ['mutual_fund', 'Meezan', 1],
+      ['mutual_fund', 'Meezan', 1],
+      ['mutual_fund', 'HBL', 1],
+    ]);
+  });
+
+  it('groups funds by bank name, in the order each bank first appears', () => {
+    const rows = docToRows(doc).map((row) => (row.id === 'f3' ? { ...row, sortOrder: -1 } : row));
+    expect(rowsToDoc(rows).mutualFunds.map((group) => Object.keys(group)[0])).toEqual(['HBL', 'Meezan']);
   });
 
   it('leaves a newly added fund without an id so it is inserted', () => {
-    const [row] = flattenMutualFunds([{ Meezan: [{ fund: 'New', value: 1 }] }]);
+    const [row] = docToRows({
+      localBanks: [],
+      remoteBanks: [],
+      mutualFunds: [{ Meezan: [{ fund: 'New', value: 1 }] }],
+    });
     expect(row.id).toBeUndefined();
   });
 });
