@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { idEq } from './ids';
 import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { FinanceDoc, FinanceFund, FinanceSnapshot } from '@/types/finance';
 import type {
@@ -417,7 +418,7 @@ export async function updateCategory(
       ...(changes.sortOrder === undefined ? {} : { sortOrder: changes.sortOrder }),
       ...(changes.archived === undefined ? {} : { archivedAt: changes.archived ? new Date() : null }),
     })
-    .where(eq(categories.id, id))
+    .where(idEq(categories.id, id))
     .returning();
   return row ? toCategory(row) : null;
 }
@@ -432,7 +433,7 @@ export async function countCategoryUses(id: string) {
 }
 
 export async function deleteCategory(id: string) {
-  const deleted = await getDb().delete(categories).where(eq(categories.id, id)).returning({ id: categories.id });
+  const deleted = await getDb().delete(categories).where(idEq(categories.id, id)).returning({ id: categories.id });
   return deleted.length > 0;
 }
 
@@ -497,7 +498,7 @@ export async function listSnapshotSummaries() {
 }
 
 export async function getSnapshot(id: string) {
-  const [row] = await getDb().select().from(financeSnapshots).where(eq(financeSnapshots.id, id)).limit(1);
+  const [row] = await getDb().select().from(financeSnapshots).where(idEq(financeSnapshots.id, id)).limit(1);
   if (!row) return null;
   return {
     id: row.id,
@@ -518,7 +519,7 @@ export async function createSnapshot(doc: Parameters<typeof toSnapshotHoldings>[
 export async function deleteSnapshot(id: string) {
   const deleted = await getDb()
     .delete(financeSnapshots)
-    .where(eq(financeSnapshots.id, id))
+    .where(idEq(financeSnapshots.id, id))
     .returning({ id: financeSnapshots.id });
   return deleted.length > 0;
 }

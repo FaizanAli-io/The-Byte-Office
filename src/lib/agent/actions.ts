@@ -66,7 +66,6 @@ export async function cancelPendingAgentAction(id: string) {
 async function executePayload(payload: AgentActionPayload, sourceFingerprint: string | null, entryOverride: unknown) {
   switch (payload.actionType) {
     case 'prayer_set':
-    case 'prayer_remove':
     case 'health_add':
     case 'health_update':
     case 'health_remove':

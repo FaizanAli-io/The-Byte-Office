@@ -1,11 +1,5 @@
 import { randomUUID } from 'crypto';
-import {
-  formatGroqErrorForUser,
-  GroqError,
-  PRIMARY_MODEL,
-  requestGroq,
-  type GroqMessage,
-} from '@/lib/agent/groq';
+import { formatGroqErrorForUser, GroqError, PRIMARY_MODEL, requestGroq, type GroqMessage } from '@/lib/agent/groq';
 import { getAgentRuntime } from '@/lib/agent/runtime';
 import type { AgentResponse, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
 import { getConversation, logAgentToolCall, saveAgentMessage } from '@/lib/agent/repository';

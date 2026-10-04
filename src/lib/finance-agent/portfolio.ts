@@ -1,4 +1,5 @@
-import { eq, max } from 'drizzle-orm';
+import { max } from 'drizzle-orm';
+import { idEq } from '@/lib/db/ids';
 import { getDb } from '@/lib/db';
 import { localBanks, mutualFunds, remoteBanks } from '@/lib/db/schema';
 import type { PortfolioItemInput, PortfolioItemType } from '@/lib/agent/types';
@@ -24,7 +25,7 @@ function holdingTable(itemType: PortfolioItemType): HoldingTable {
 
 export async function getPortfolioItem(itemType: PortfolioItemType, id: string) {
   const table = holdingTable(itemType);
-  const row = (await getDb().select().from(table).where(eq(table.id, id)).limit(1))[0];
+  const row = (await getDb().select().from(table).where(idEq(table.id, id)).limit(1))[0];
   return row ?? null;
 }
 
@@ -45,12 +46,12 @@ export async function updatePortfolioItem(itemType: PortfolioItemType, id: strin
   const [row] = await getDb()
     .update(table)
     .set({ ...changes, updatedAt: new Date() } as never)
-    .where(eq(table.id, id))
+    .where(idEq(table.id, id))
     .returning();
   return row ?? null;
 }
 
 export async function removePortfolioItem(itemType: PortfolioItemType, id: string) {
   const table = holdingTable(itemType);
-  return getDb().delete(table).where(eq(table.id, id)).returning({ id: table.id });
+  return getDb().delete(table).where(idEq(table.id, id)).returning({ id: table.id });
 }

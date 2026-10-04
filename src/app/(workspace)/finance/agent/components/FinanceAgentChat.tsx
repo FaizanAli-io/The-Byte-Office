@@ -1,12 +1,7 @@
 'use client';
 
 import { FormEvent, Fragment, useEffect, useRef, useState } from 'react';
-import type {
-  AgentConversation,
-  AgentResponse,
-  AgentChatMessage,
-  PendingAgentAction,
-} from '@/lib/agent/types';
+import type { AgentConversation, AgentResponse, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
 import { agentApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import { FinanceToast, type FinanceToastState } from '../../components/FinanceToast';

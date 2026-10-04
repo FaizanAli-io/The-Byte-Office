@@ -1,4 +1,5 @@
 import 'server-only';
+import { isUuid } from '@/lib/db/ids';
 import { randomUUID } from 'crypto';
 import { and, count, eq, gt, isNull, lt, or } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
@@ -159,8 +160,4 @@ export async function revokeRefreshToken(presented: string) {
 
 function hoursAgo(hours: number) {
   return new Date(Date.now() - hours * 3_600_000);
-}
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }

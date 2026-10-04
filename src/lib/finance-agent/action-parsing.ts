@@ -66,12 +66,9 @@ export function optionalString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-export function assertLedgerWithEntries(
-  ledger: MonthlyLedger,
-  entries: LedgerEntry[],
-  categoryIds: ReadonlySet<string>
-) {
-  const error = validateLedger({ ...ledger, entries }, categoryIds);
+/** Validates a ledger as it would be saved, after a proposed change. */
+export function assertLedger(next: MonthlyLedger, categoryIds: ReadonlySet<string>) {
+  const error = validateLedger(next, categoryIds);
   if (error) throw new AgentActionError(error);
 }
 

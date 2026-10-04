@@ -1,4 +1,5 @@
 import { asc, desc, eq } from 'drizzle-orm';
+import { idEq } from './ids';
 import type { HealthTrackingInput, HealthTrackingUpdate, PrayerInput, PrayerUpdate } from '@/types/personal';
 import { getDb } from './index';
 import { healthTracking, prayers } from './schema';
@@ -16,7 +17,7 @@ export async function listPrayers() {
 }
 
 export async function getPrayer(id: string) {
-  const [row] = await getDb().select().from(prayers).where(eq(prayers.id, id)).limit(1);
+  const [row] = await getDb().select().from(prayers).where(idEq(prayers.id, id)).limit(1);
   return row ?? null;
 }
 
@@ -40,13 +41,13 @@ export async function updatePrayer(id: string, input: PrayerUpdate) {
   const [row] = await getDb()
     .update(prayers)
     .set({ ...defined(input), updatedAt: new Date() })
-    .where(eq(prayers.id, id))
+    .where(idEq(prayers.id, id))
     .returning();
   return row ?? null;
 }
 
 export async function deletePrayer(id: string) {
-  const deleted = await getDb().delete(prayers).where(eq(prayers.id, id)).returning({ id: prayers.id });
+  const deleted = await getDb().delete(prayers).where(idEq(prayers.id, id)).returning({ id: prayers.id });
   return deleted.length > 0;
 }
 
@@ -59,7 +60,7 @@ export async function listHealthTracking(metric?: string) {
 }
 
 export async function getHealthTracking(id: string) {
-  const [row] = await getDb().select().from(healthTracking).where(eq(healthTracking.id, id)).limit(1);
+  const [row] = await getDb().select().from(healthTracking).where(idEq(healthTracking.id, id)).limit(1);
   return row ?? null;
 }
 
@@ -69,14 +70,14 @@ export async function createHealthTracking(input: HealthTrackingInput) {
 }
 
 export async function updateHealthTracking(id: string, input: HealthTrackingUpdate) {
-  const [row] = await getDb().update(healthTracking).set(defined(input)).where(eq(healthTracking.id, id)).returning();
+  const [row] = await getDb().update(healthTracking).set(defined(input)).where(idEq(healthTracking.id, id)).returning();
   return row ?? null;
 }
 
 export async function deleteHealthTracking(id: string) {
   const deleted = await getDb()
     .delete(healthTracking)
-    .where(eq(healthTracking.id, id))
+    .where(idEq(healthTracking.id, id))
     .returning({ id: healthTracking.id });
   return deleted.length > 0;
 }

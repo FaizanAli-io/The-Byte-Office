@@ -72,21 +72,13 @@ Not needed today — the workspace has one user. If that changes, the shape of t
 - holdings, ledgers, prayers and health all need an owner column and every query needs scoping
 - the session becomes a real identity rather than a signed timestamp (see improvements item 2)
 - OAuth clients gain an owner, so a token names a person as well as a client
-- the per-instance throttles become a shared store (improvements item 5)
+- the per-instance throttles become a shared store (improvements item 4)
 
 Worth doing in that order, and not before there is a second person.
 
 ---
 
-## 4. Snapshot diffing
-
-Snapshots record the portfolio at a point in time but can only be viewed one at a time. Comparing two — what moved,
-by how much, which fund drove it — is the obvious next step, and `holdingTotals` plus the stored JSONB already have
-everything needed.
-
----
-
-## 5. Ledger import
+## 4. Ledger import
 
 Entering transactions by hand is the slowest part of the monthly close. A CSV import mapped onto existing accounts,
 with a preview before commit, would reuse the ledger validation that already exists. Bank statement formats vary, so
@@ -94,7 +86,7 @@ the mapping step is the real work.
 
 ---
 
-## 6. Scheduled portfolio snapshots
+## 5. Scheduled portfolio snapshots
 
 Snapshots are taken manually, so the history has gaps. A scheduled job that snapshots on the first of each month would
 make the allocation history continuous and give the assistant something to reason about over time.

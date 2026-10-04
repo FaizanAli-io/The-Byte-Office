@@ -3,14 +3,15 @@ import { AgentActionError, toPublicAction } from '@/lib/agent/action-utils';
 import { listCategories, loadLedger, saveLedger } from '@/lib/db/queries';
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { resolveCategoryId } from '@/lib/ledger';
-import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory, type LedgerEntry } from '@/types/ledger';
+import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory, type MonthlyLedger } from '@/types/ledger';
 import { createAgentAction, fingerprint } from '@/lib/agent/repository';
 import type { AgentActionPayload, AgentActionType, PortfolioItemType } from '@/lib/agent/types';
+import { applyAccountAction, isAccountAction, planAccountAction } from './ledger-accounts';
 import { addPortfolioItem, getPortfolioItem, removePortfolioItem, updatePortfolioItem } from './portfolio';
 import {
   applyEntryOverride,
   assertLedgerStructure,
-  assertLedgerWithEntries,
+  assertLedger,
   defaultEntryDate,
   firstAccountId,
   isEntryType,
@@ -33,9 +34,9 @@ import {
 
 type FinancePayload = Exclude<
   AgentActionPayload,
-  { actionType: 'prayer_set' | 'prayer_remove' | 'health_add' | 'health_update' | 'health_remove' | 'tbo_send_inquiry' }
+  { actionType: 'prayer_set' | 'health_add' | 'health_update' | 'health_remove' | 'tbo_send_inquiry' }
 >;
-type LedgerPayload = Extract<FinancePayload, { actionType: `ledger_entry_${string}` }>;
+type LedgerPayload = Extract<FinancePayload, { actionType: `ledger_${string}` }>;
 
 export async function proposeFinanceAction(actionType: AgentActionType, rawArgs: unknown) {
   const args = requireRecord(rawArgs);
@@ -141,6 +142,13 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
   const [ledger, categoryList] = await Promise.all([requireEditableLedger(month), listCategories()]);
   const sourceFingerprint =
     actionType === 'ledger_entry_add' ? ledgerStructureFingerprint(ledger) : ledgerFingerprint(ledger);
+  const categoryIds = new Set(categoryList.map((category) => category.id));
+
+  if (isAccountAction(actionType)) {
+    const { payload, preview } = planAccountAction(actionType, args, ledger);
+    assertLedger({ ...ledger, accounts: applyAccountAction(payload, ledger) }, categoryIds);
+    return toPublicAction(await createAgentAction({ actionType, payload, preview, sourceFingerprint }));
+  }
 
   if (actionType === 'ledger_entry_add') {
     const date = defaultEntryDate(month, typeof args.date === 'string' ? args.date : undefined);
@@ -182,11 +190,7 @@ export async function proposeFinanceAction(actionType: AgentActionType, rawArgs:
   if (!current) throw new AgentActionError('Ledger entry not found', 404);
 
   if (actionType === 'ledger_entry_remove') {
-    assertLedgerWithEntries(
-      ledger,
-      ledger.entries.filter((entry) => entry.id !== entryId),
-      new Set(categoryList.map((category) => category.id))
-    );
+    assertLedger({ ...ledger, entries: ledger.entries.filter((entry) => entry.id !== entryId) }, categoryIds);
     return toPublicAction(
       await createAgentAction({
         actionType,
@@ -246,6 +250,9 @@ export async function executeFinancePayload(
     case 'ledger_entry_add':
     case 'ledger_entry_update':
     case 'ledger_entry_remove':
+    case 'ledger_account_add':
+    case 'ledger_account_update':
+    case 'ledger_account_remove':
       return executeLedgerPayload(applyEntryOverride(payload, entryOverride) as LedgerPayload, sourceFingerprint);
     case 'category_add':
       return addCategory({ name: payload.name, kind: payload.kind });
@@ -254,6 +261,12 @@ export async function executeFinancePayload(
     case 'category_remove':
       await discardCategory(payload.id);
       return { id: payload.id, name: payload.name, removed: true };
+    default: {
+      // A new action type must be routed above; falling through would mark it
+      // completed without writing anything.
+      const unrouted: never = payload;
+      throw new AgentActionError(`No executor for ${(unrouted as { actionType: string }).actionType}`, 500);
+    }
   }
 }
 
@@ -276,7 +289,7 @@ async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: s
     return { ...rest, categoryId: resolveCategoryArg(categoryList, category) };
   };
 
-  let entries: LedgerEntry[];
+  let { accounts, entries } = ledger;
   if (payload.actionType === 'ledger_entry_add') {
     const entry = parseLedgerEntry(withCategory(payload.entry), { id: payload.entry.id });
     if (ledger.entries.some((item) => item.id === entry.id)) {
@@ -289,17 +302,40 @@ async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: s
     }
     const entry = parseLedgerEntry(withCategory(payload.entry), { id: payload.entryId });
     entries = ledger.entries.map((item) => (item.id === payload.entryId ? entry : item));
-  } else {
+  } else if (payload.actionType === 'ledger_entry_remove') {
     if (!ledger.entries.some((entry) => entry.id === payload.entryId)) {
       throw new AgentActionError('Ledger entry no longer exists', 409);
     }
     entries = ledger.entries.filter((entry) => entry.id !== payload.entryId);
+  } else {
+    accounts = applyAccountAction(payload, ledger);
   }
 
-  assertLedgerWithEntries(ledger, entries, new Set(categoryList.map((category) => category.id)));
-  const saved = await saveLedger(ledger, { ...ledger, entries });
+  assertLedger({ ...ledger, accounts, entries }, new Set(categoryList.map((category) => category.id)));
+  const saved = await saveLedger(ledger, { ...ledger, accounts, entries });
   if (!saved) throw new AgentActionError('The ledger changed while saving. Ask the assistant to try again.', 409);
-  return saved;
+  return ledgerWriteResult(payload, saved);
+}
+
+/** What changed, not the whole month: the serial is what the caller needs to refer to an entry next. */
+function ledgerWriteResult(payload: LedgerPayload, saved: MonthlyLedger) {
+  const { month } = saved;
+  switch (payload.actionType) {
+    case 'ledger_entry_remove':
+      return { month, entryId: payload.entryId, removed: true };
+    case 'ledger_account_remove':
+      return { month, accountId: payload.accountId, removed: true };
+    case 'ledger_entry_add':
+    case 'ledger_entry_update': {
+      const id = payload.actionType === 'ledger_entry_add' ? payload.entry.id : payload.entryId;
+      const index = saved.entries.findIndex((entry) => entry.id === id);
+      return { month, entry: { ...saved.entries[index], serial: String(index + 1).padStart(4, '0') } };
+    }
+    default: {
+      const id = payload.actionType === 'ledger_account_add' ? payload.account.id : payload.accountId;
+      return { month, account: saved.accounts.find((account) => account.id === id) };
+    }
+  }
 }
 
 /**

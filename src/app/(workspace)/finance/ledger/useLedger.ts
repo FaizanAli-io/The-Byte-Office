@@ -2,7 +2,7 @@
 
 import { categoriesApi, ledgerApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
-import { currentMonth } from '@/lib/ledger';
+import { currentMonth, entryUsesAccount } from '@/lib/ledger';
 import type {
   CategoryKind,
   LedgerAccount,
@@ -254,8 +254,4 @@ export function useLedger() {
     saveCategory,
     removeCategory,
   };
-}
-
-function entryUsesAccount(entry: LedgerEntry, id: string) {
-  return entry.accountId === id || entry.destinationAccountId === id;
 }

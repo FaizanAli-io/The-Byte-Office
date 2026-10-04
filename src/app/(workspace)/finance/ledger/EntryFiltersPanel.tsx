@@ -44,7 +44,7 @@ export const emptyFilters: EntryFilters = {
   dateFrom: '',
   dateTo: '',
   sortBy: 'date',
-  sortDir: 'asc',
+  sortDir: 'desc',
 };
 
 /**
@@ -62,7 +62,8 @@ export const emptyFilters: EntryFilters = {
  * the way back in. A private window, blocked site data or a hand-edited entry
  * should cost the remembered filters, never the ledger.
  */
-const FILTERS_KEY = 'ledger.filters';
+// Versioned: v1 saved the old oldest-first default, which would otherwise outlive the change.
+const FILTERS_KEY = 'ledger.filters.v2';
 
 export function rememberedFilters(): EntryFilters {
   try {

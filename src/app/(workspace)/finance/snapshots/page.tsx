@@ -8,13 +8,15 @@ import type { FinanceSnapshot } from '@/types/finance';
 import { useEffect, useState } from 'react';
 import { FinancePageShell, financeStyles } from '../components/FinanceUI';
 import { FinanceToast, type FinanceToastState } from '../components/FinanceToast';
-import { AllocationChart, TextSummary } from './components';
+import { AllocationChart, SnapshotDiff, SnapshotTrend, TextSummary, formatSnapshotTime } from './components';
 
 export default function SnapshotsPage() {
   const [snapshots, setSnapshots] = useState<FinanceSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<string[]>([]);
+  // Up to two snapshots to compare; picking a third drops the earliest pick.
+  const [selected, setSelected] = useState<string[]>([]);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [toast, setToast] = useState<FinanceToastState>(null);
 
@@ -51,9 +53,18 @@ export default function SnapshotsPage() {
     }
     setSnapshots((items) => items.filter((snapshot) => snapshot._id !== id));
     setExpanded((items) => items.filter((item) => item !== id));
+    setSelected((items) => items.filter((item) => item !== id));
     setPendingDelete(null);
     setToast({ message: 'Snapshot deleted.', tone: 'success' });
   }
+
+  function toggleSelected(id: string) {
+    setSelected((items) => (items.includes(id) ? items.filter((item) => item !== id) : [...items, id].slice(-2)));
+  }
+
+  const pair = selected
+    .map((id) => snapshots.find((snapshot) => snapshot._id === id))
+    .filter(Boolean) as FinanceSnapshot[];
 
   return (
     <FinancePageShell
@@ -74,6 +85,16 @@ export default function SnapshotsPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {snapshots.length > 1 ? <SnapshotTrend snapshots={snapshots} /> : null}
+          {pair.length === 2 ? (
+            <SnapshotDiff pair={[pair[0], pair[1]]} onClear={() => setSelected([])} />
+          ) : snapshots.length > 1 ? (
+            <p className="text-sm text-slate-500">
+              {pair.length === 1
+                ? 'Select one more snapshot to compare.'
+                : 'Tick Compare on any two snapshots to see what moved.'}
+            </p>
+          ) : null}
           {snapshots.map((snapshot) => {
             const id = String(snapshot._id);
             const isExpanded = expanded.includes(id);
@@ -88,18 +109,19 @@ export default function SnapshotsPage() {
                       setExpanded((items) => (isExpanded ? items.filter((item) => item !== id) : [...items, id]))
                     }
                   >
-                    <p className="text-sm font-semibold text-slate-400">
-                      {new Date(snapshot.timestamp).toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
+                    <p className="text-sm font-semibold text-slate-400">{formatSnapshotTime(snapshot.timestamp)}</p>
                     <p className="mt-2 text-2xl font-bold text-cyan-300">{formatMoney(snapshot.grandTotal, 'PKR')}</p>
                   </button>
                   <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">
+                    <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-400">
+                      <input
+                        type="checkbox"
+                        className="size-4 accent-cyan-300"
+                        checked={selected.includes(id)}
+                        onChange={() => toggleSelected(id)}
+                      />
+                      Compare
+                    </label>
                     <span className="text-xs font-semibold text-slate-600">
                       {isExpanded ? 'Hide details' : 'View details'}
                     </span>

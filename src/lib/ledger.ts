@@ -211,6 +211,28 @@ export function ledgerSummary(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'
   return { income, expenses, netCashFlow: income - expenses, fundFlow, heldMovement };
 }
 
+/** Income and expenses per category in PKR, largest first. Uncategorised entries group under "Uncategorised". */
+export function ledgerCategoryTotals(
+  ledger: Pick<MonthlyLedger, 'accounts' | 'entries'>,
+  categories: LedgerCategory[]
+) {
+  const totals = (type: 'income' | 'expense') => {
+    const byName = new Map<string, number>();
+    for (const entry of ledger.entries) {
+      if (entry.type !== type) continue;
+      const name = categoryName(categories, entry.categoryId) || 'Uncategorised';
+      byName.set(
+        name,
+        (byName.get(name) ?? 0) + toPkr(entry.amount, entry.accountId, ledger.accounts, entry.exchangeRate)
+      );
+    }
+    return [...byName]
+      .map(([category, amountPkr]) => ({ category, amountPkr }))
+      .sort((a, b) => b.amountPkr - a.amountPkr);
+  };
+  return { income: totals('income'), expenses: totals('expense') };
+}
+
 export const UNATTRIBUTED_HOLD = 'Unattributed';
 
 export type HoldMovement = {
@@ -264,4 +286,9 @@ export function heldFunds(movements: HoldMovement[]) {
 function toPkr(amount: number, accountId: string, accounts: LedgerAccount[], exchangeRate?: number) {
   const account = accounts.find((item) => item.id === accountId);
   return account?.currency === 'USD' ? amount * (exchangeRate ?? account.exchangeRate) : amount;
+}
+
+/** Whether an entry moves money in or out of the account, which blocks removing it. */
+export function entryUsesAccount(entry: LedgerEntry, id: string) {
+  return entry.accountId === id || entry.destinationAccountId === id;
 }

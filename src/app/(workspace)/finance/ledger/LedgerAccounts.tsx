@@ -154,7 +154,7 @@ export function LedgerAccounts({
       {accounts.length === 0 ? (
         <Empty message="No accounts yet. Import the portfolio or add one manually." />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3">
           {accounts.map((account) => {
             const stats = accountStats(account, entries);
             const variance = variancePct(stats.difference, stats.expected);
@@ -164,7 +164,7 @@ export function LedgerAccounts({
               stats.difference !== undefined &&
               Math.abs(stats.difference) >= 0.01;
             return (
-              <div key={account.id} className={`${financeStyles.inset} p-4`}>
+              <div key={account.id} className={`${financeStyles.inset} w-[min(34rem,85%)] shrink-0 snap-start p-5`}>
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-bold text-slate-100">{account.name}</h3>

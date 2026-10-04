@@ -1,9 +1,7 @@
 import {
   createHealthTracking,
   deleteHealthTracking,
-  deletePrayer,
   getHealthTracking,
-  getPrayer,
   getPrayerByNamaaz,
   listHealthTracking,
   listPrayers,
@@ -31,20 +29,14 @@ export async function executePersonalTool(
     const metric = typeof args.metric === 'string' && args.metric.trim() ? args.metric.trim() : undefined;
     return { output: await listHealthTracking(metric) };
   }
-  if (
-    name === 'prayer_set' ||
-    name === 'prayer_remove' ||
-    name === 'health_add' ||
-    name === 'health_update' ||
-    name === 'health_remove'
-  ) {
+  if (name === 'prayer_set' || name === 'health_add' || name === 'health_update' || name === 'health_remove') {
     return pendingResult(await proposePersonalAction(name, args));
   }
   throw new Error(`Unknown personal tool: ${name}`);
 }
 
 async function proposePersonalAction(
-  actionType: 'prayer_set' | 'prayer_remove' | 'health_add' | 'health_update' | 'health_remove',
+  actionType: 'prayer_set' | 'health_add' | 'health_update' | 'health_remove',
   args: Record<string, unknown>
 ) {
   if (actionType === 'prayer_set') {
@@ -60,20 +52,6 @@ async function proposePersonalAction(
           after: { namaaz, missed },
         },
         sourceFingerprint: current ? fingerprint(current) : null,
-      })
-    );
-  }
-
-  if (actionType === 'prayer_remove') {
-    const id = requireId(args.id);
-    const current = await getPrayer(id);
-    if (!current) throw new AgentActionError('Prayer not found', 404);
-    return toPublicAction(
-      await createAgentAction({
-        actionType,
-        payload: { actionType, id },
-        preview: { title: `Remove ${current.namaaz} prayer row`, before: current },
-        sourceFingerprint: fingerprint(current),
       })
     );
   }
@@ -120,10 +98,7 @@ async function proposePersonalAction(
 }
 
 export async function executePersonalPayload(
-  payload: Extract<
-    AgentActionPayload,
-    { actionType: 'prayer_set' | 'prayer_remove' | 'health_add' | 'health_update' | 'health_remove' }
-  >,
+  payload: Extract<AgentActionPayload, { actionType: 'prayer_set' | 'health_add' | 'health_update' | 'health_remove' }>,
   sourceFingerprint: string | null
 ) {
   if (payload.actionType === 'prayer_set') {
@@ -133,16 +108,6 @@ export async function executePersonalPayload(
     }
     if (current) return updatePrayer(current.id, { missed: payload.missed });
     return createPrayer({ namaaz: payload.namaaz, missed: payload.missed });
-  }
-
-  if (payload.actionType === 'prayer_remove') {
-    const current = await getPrayer(payload.id);
-    if (!current) throw new AgentActionError('Prayer no longer exists', 409);
-    if (sourceFingerprint && fingerprint(current) !== sourceFingerprint) {
-      throw new AgentActionError('That prayer row changed. Ask the assistant to try again.', 409);
-    }
-    await deletePrayer(payload.id);
-    return { id: payload.id, removed: true };
   }
 
   if (payload.actionType === 'health_add') {

@@ -9,11 +9,13 @@ export type AgentActionType =
   | 'ledger_entry_add'
   | 'ledger_entry_update'
   | 'ledger_entry_remove'
+  | 'ledger_account_add'
+  | 'ledger_account_update'
+  | 'ledger_account_remove'
   | 'category_add'
   | 'category_update'
   | 'category_remove'
   | 'prayer_set'
-  | 'prayer_remove'
   | 'health_add'
   | 'health_update'
   | 'health_remove'
@@ -37,6 +39,15 @@ export type PortfolioItemInput =
       fundName: string;
       value: number;
     };
+
+/** What an account update may touch. `null` clears an optional balance. */
+export type LedgerAccountChanges = {
+  name?: string;
+  openingBalance?: number;
+  exchangeRate?: number;
+  actualClosingBalance?: number | null;
+  openingCostBasis?: number | null;
+};
 
 export type AgentActionPayload =
   | {
@@ -71,6 +82,22 @@ export type AgentActionPayload =
       entryId: string;
     }
   | {
+      actionType: 'ledger_account_add';
+      month: string;
+      account: LedgerAccount;
+    }
+  | {
+      actionType: 'ledger_account_update';
+      month: string;
+      accountId: string;
+      changes: LedgerAccountChanges;
+    }
+  | {
+      actionType: 'ledger_account_remove';
+      month: string;
+      accountId: string;
+    }
+  | {
       actionType: 'category_add';
       name: string;
       kind: CategoryKind;
@@ -89,10 +116,6 @@ export type AgentActionPayload =
       actionType: 'prayer_set';
       namaaz: 'fajr' | 'zuhr' | 'asar' | 'maghreb' | 'isha';
       missed: number;
-    }
-  | {
-      actionType: 'prayer_remove';
-      id: string;
     }
   | {
       actionType: 'health_add';

@@ -106,6 +106,34 @@ const entryRef = {
   entryId: z.string().min(1).optional().describe('Internal entry UUID'),
 };
 
+const accountFields = {
+  name: z.string().min(1).optional().describe('Account name'),
+  openingBalance: z
+    .number()
+    .nonnegative()
+    .optional()
+    .describe("Balance at the start of the month, in the account's currency"),
+  actualClosingBalance: z
+    .number()
+    .nonnegative()
+    .nullable()
+    .optional()
+    .describe('Statement balance at month end (current market value for funds); null clears it'),
+  openingCostBasis: z
+    .number()
+    .nonnegative()
+    .nullable()
+    .optional()
+    .describe('Funds only: cash invested at month start, not the market value; null clears it'),
+  exchangeRate: z.number().positive().optional().describe('PKR per 1 USD. USD accounts only'),
+};
+
+const accountRef = {
+  month,
+  accountId: z.string().min(1).optional().describe('Account id from ledger_accounts_list'),
+  accountName: z.string().min(1).optional().describe('Account name or shorthand, when it matches exactly one account'),
+};
+
 export const agentToolRegistry: AgentToolDefinition[] = [
   // ---------------------------------------------------------------- finance
   {
@@ -270,6 +298,66 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     mcp: true,
     destructive: true,
   },
+  {
+    name: 'ledger_summary',
+    title: 'Summarise ledger',
+    module: 'finance',
+    description:
+      'Summarise one monthly ledger in PKR: income, expenses, net cash flow, fund cash flow and held-funds movement (the ledger page tiles), income and expenses by category, and how many accounts are reconciled.',
+    schema: z.object({ month }),
+    mcp: true,
+  },
+  {
+    name: 'ledger_accounts_list',
+    title: 'List ledger accounts and balances',
+    module: 'finance',
+    description:
+      "List a monthly ledger's accounts with opening, expected closing and actual closing balances and the reconciliation difference; funds also report net invested and gain/loss. Balances are in each account's own currency.",
+    schema: z.object({ month }),
+    mcp: true,
+  },
+  {
+    name: 'ledger_account_add',
+    title: 'Add ledger account',
+    module: 'finance',
+    description:
+      'Add an account to a draft ledger immediately. Type defaults to bank, currency to PKR and opening balance to 0. USD accounts need exchangeRate.',
+    chatDescription:
+      'Create a confirmation proposal to add an account to a draft ledger. Type defaults to bank, currency to PKR and opening balance to 0. USD accounts need exchangeRate. Never claim it was added before confirmation.',
+    schema: z.object({
+      month,
+      ...accountFields,
+      name: z.string().min(1).describe('Account name'),
+      type: z.enum(['bank', 'fund']).optional(),
+      currency: z.enum(['PKR', 'USD']).optional(),
+    }),
+    write: true,
+    mcp: true,
+  },
+  {
+    name: 'ledger_account_update',
+    title: 'Update ledger account',
+    module: 'finance',
+    description:
+      "Update a draft ledger account's name or balances immediately, such as entering the actual closing balance from a statement. Include only changed fields.",
+    chatDescription:
+      "Create a confirmation proposal to update a draft ledger account's name or balances. Include only changed fields. Never claim it was saved before confirmation.",
+    schema: z.object({ ...accountRef, ...accountFields }),
+    write: true,
+    mcp: true,
+  },
+  {
+    name: 'ledger_account_remove',
+    title: 'Remove ledger account',
+    module: 'finance',
+    description: 'Remove an account from a draft ledger. Refused while any entry uses the account.',
+    chatDescription:
+      'Create a confirmation proposal to remove an account from a draft ledger. Refused while any entry uses the account.',
+    schema: z.object(accountRef),
+    write: true,
+    mcp: true,
+    destructive: true,
+  },
 
   // --------------------------------------------------------------- personal
   {
@@ -293,17 +381,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     }),
     write: true,
     mcp: true,
-  },
-  {
-    name: 'prayer_remove',
-    title: 'Remove prayer row',
-    module: 'personal',
-    description: 'Delete one prayer row by id.',
-    chatDescription: 'Create a confirmation proposal to delete one prayer row by id.',
-    schema: z.object({ id: z.string().min(1) }),
-    write: true,
-    mcp: true,
-    destructive: true,
   },
   {
     name: 'health_list',

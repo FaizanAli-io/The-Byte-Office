@@ -133,7 +133,7 @@ export function LedgerEntries({
     categories: ['all', ...usedCategories.map((category) => category.id)],
   };
 
-  const showRunning = filters.accountId !== 'all' && filters.sortBy === 'date' && filters.sortDir === 'asc';
+  const showRunning = filters.accountId !== 'all' && filters.sortBy === 'date';
   const sourceAccount = accounts.find((account) => account.id === draft.accountId);
 
   /**
@@ -147,19 +147,23 @@ export function LedgerEntries({
   const rows = useMemo<EntryRow[]>(() => {
     const byId = new Map(accounts.map((account) => [account.id, account]));
     const filtered = byId.get(filters.accountId);
-    let balance = filtered?.openingBalance ?? 0;
+    // A balance only runs forwards in time. The date sort breaks ties by id,
+    // so newest-first is exactly oldest-first reversed.
+    const balances = new Map<string, number>();
+    if (filtered && showRunning) {
+      let balance = filtered.openingBalance;
+      const chronological = filters.sortDir === 'asc' ? visibleEntries : [...visibleEntries].reverse();
+      for (const entry of chronological) balances.set(entry.id, (balance += accountMovement(filtered.id, entry)));
+    }
 
-    return visibleEntries.map((entry) => {
-      if (filtered) balance += accountMovement(filtered.id, entry);
-      return {
-        entry,
-        account: byId.get(entry.accountId),
-        destination: entry.destinationAccountId ? byId.get(entry.destinationAccountId) : undefined,
-        detail: entryDetail(entry, categories),
-        running: showRunning ? balance : undefined,
-      };
-    });
-  }, [visibleEntries, accounts, categories, filters.accountId, showRunning]);
+    return visibleEntries.map((entry) => ({
+      entry,
+      account: byId.get(entry.accountId),
+      destination: entry.destinationAccountId ? byId.get(entry.destinationAccountId) : undefined,
+      detail: entryDetail(entry, categories),
+      running: balances.get(entry.id),
+    }));
+  }, [visibleEntries, accounts, categories, filters.accountId, filters.sortDir, showRunning]);
 
   const runningCurrency = accounts.find((account) => account.id === filters.accountId)?.currency ?? 'PKR';
 

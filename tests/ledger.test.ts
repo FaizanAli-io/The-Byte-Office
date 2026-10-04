@@ -7,6 +7,7 @@ import {
   formatVariancePct,
   heldFunds,
   isMonth,
+  ledgerCategoryTotals,
   ledgerSummary,
   monthBounds,
   reconcileDate,
@@ -465,6 +466,34 @@ describe('categories', () => {
 
     it('keeps a held category even when its kind does not suit the type', () => {
       expect(ids('expense', 'salary')).toContain('salary');
+    });
+  });
+});
+
+describe('ledgerCategoryTotals', () => {
+  it('totals income and expenses per category in PKR, largest first', () => {
+    const accounts: LedgerAccount[] = [
+      { id: 'pkr', name: 'HBL', type: 'bank', currency: 'PKR', openingBalance: 0, exchangeRate: 1 },
+      { id: 'usd', name: 'Wise', type: 'bank', currency: 'USD', openingBalance: 0, exchangeRate: 280 },
+    ];
+    const categories = [
+      { id: 'food', name: 'Food', kind: 'expense', sortOrder: 0, archivedAt: null, entryCount: 0 },
+      { id: 'pay', name: 'Salary', kind: 'income', sortOrder: 1, archivedAt: null, entryCount: 0 },
+    ] as LedgerCategory[];
+    const entries = [
+      { id: '1', date: '2026-03-01', type: 'expense', accountId: 'pkr', amount: 500, categoryId: 'food' },
+      { id: '2', date: '2026-03-02', type: 'expense', accountId: 'usd', amount: 10, categoryId: 'food' },
+      { id: '3', date: '2026-03-03', type: 'expense', accountId: 'pkr', amount: 4000 },
+      { id: '4', date: '2026-03-04', type: 'income', accountId: 'usd', amount: 100, categoryId: 'pay' },
+      { id: '5', date: '2026-03-05', type: 'transfer', accountId: 'pkr', destinationAccountId: 'usd', amount: 50 },
+    ] as LedgerEntry[];
+
+    expect(ledgerCategoryTotals({ accounts, entries }, categories)).toEqual({
+      income: [{ category: 'Salary', amountPkr: 28_000 }],
+      expenses: [
+        { category: 'Uncategorised', amountPkr: 4000 },
+        { category: 'Food', amountPkr: 3300 },
+      ],
     });
   });
 });

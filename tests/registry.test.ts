@@ -121,6 +121,8 @@ describe('scope filtering', () => {
       'categories_list',
       'ledgers_list',
       'ledger_get',
+      'ledger_summary',
+      'ledger_accounts_list',
     ]);
   });
 
@@ -136,8 +138,8 @@ describe('scope filtering', () => {
 
   it('exposes every MCP tool when every scope is granted', () => {
     expect(visibleWith([...OAUTH_SCOPES])).toHaveLength(mcpToolRegistry.length);
-    expect(agentToolRegistry).toHaveLength(24);
-    expect(mcpToolRegistry).toHaveLength(23);
+    expect(agentToolRegistry).toHaveLength(28);
+    expect(mcpToolRegistry).toHaveLength(27);
   });
 
   it('offers no scope that would grant nothing', () => {

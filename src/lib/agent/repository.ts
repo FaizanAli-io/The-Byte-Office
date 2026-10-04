@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { idEq } from '@/lib/db/ids';
 import { and, asc, desc, eq, gt, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { agentConversations, financeAgentActions, financeAgentMessages, financeAgentToolLogs } from '@/lib/db/schema';
@@ -67,7 +68,7 @@ export async function createAgentAction(input: {
 }
 
 export async function getAgentAction(id: string) {
-  return (await getDb().select().from(financeAgentActions).where(eq(financeAgentActions.id, id)).limit(1))[0] ?? null;
+  return (await getDb().select().from(financeAgentActions).where(idEq(financeAgentActions.id, id)).limit(1))[0] ?? null;
 }
 
 /** Status transitions are all "update if the row is still in the expected state". */
@@ -76,7 +77,7 @@ async function setActionStatus(
   status: 'executing' | 'cancelled' | 'completed' | 'failed',
   options: { from?: 'pending' | 'executing'; notExpired?: boolean; error?: string | null; executed?: boolean } = {}
 ) {
-  const conditions = [eq(financeAgentActions.id, id)];
+  const conditions = [idEq(financeAgentActions.id, id)];
   if (options.from) conditions.push(eq(financeAgentActions.status, options.from));
   if (options.notExpired) conditions.push(gt(financeAgentActions.expiresAt, new Date()));
 
@@ -121,7 +122,7 @@ export async function listConversations(workspace?: AgentWorkspace): Promise<Age
 }
 
 export async function getConversation(id: string): Promise<AgentConversation | null> {
-  const [row] = await getDb().select().from(agentConversations).where(eq(agentConversations.id, id)).limit(1);
+  const [row] = await getDb().select().from(agentConversations).where(idEq(agentConversations.id, id)).limit(1);
   return row ? toConversation(row) : null;
 }
 
@@ -137,7 +138,7 @@ export async function renameConversation(id: string, title: string) {
   const [row] = await getDb()
     .update(agentConversations)
     .set({ title, updatedAt: new Date() })
-    .where(eq(agentConversations.id, id))
+    .where(idEq(agentConversations.id, id))
     .returning();
   return row ? toConversation(row) : null;
 }
@@ -145,7 +146,7 @@ export async function renameConversation(id: string, title: string) {
 export async function deleteConversation(id: string) {
   const deleted = await getDb()
     .delete(agentConversations)
-    .where(eq(agentConversations.id, id))
+    .where(idEq(agentConversations.id, id))
     .returning({ id: agentConversations.id });
   return deleted.length > 0;
 }
@@ -157,7 +158,7 @@ async function touchConversation(id: string, title?: string) {
       updatedAt: new Date(),
       ...(title ? { title } : {}),
     })
-    .where(eq(agentConversations.id, id));
+    .where(idEq(agentConversations.id, id));
 }
 
 function toConversation(row: typeof agentConversations.$inferSelect): AgentConversation {

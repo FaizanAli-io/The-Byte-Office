@@ -9,9 +9,10 @@ import {
   loadLedger,
 } from '@/lib/db/queries';
 import { holdingTotals } from '@/lib/finance';
-import { categoryName, heldFunds } from '@/lib/ledger';
+import { categoryName, heldFunds, ledgerCategoryTotals, ledgerSummary } from '@/lib/ledger';
 import { agentToolRegistry } from '@/lib/agent/registry';
 import { proposeFinanceAction } from './actions';
+import { accountBalances } from './ledger-accounts';
 import type { AgentActionType, PendingAgentAction } from '@/lib/agent/types';
 
 export async function executeFinanceTool(
@@ -64,6 +65,43 @@ export async function executeFinanceTool(
           category: categoryName(categoryList, entry.categoryId) || undefined,
           serial: String(index + 1).padStart(4, '0'),
         })),
+      },
+    };
+  }
+
+  if (name === 'ledger_accounts_list') {
+    const ledger = await loadLedger(requireArg(input, 'month'));
+    if (!ledger) throw new Error('Ledger not found');
+    return { output: { month: ledger.month, status: ledger.status, accounts: accountBalances(ledger) } };
+  }
+
+  if (name === 'ledger_summary') {
+    const month = requireArg(input, 'month');
+    const [ledger, categoryList] = await Promise.all([loadLedger(month), listCategories()]);
+    if (!ledger) throw new Error('Ledger not found');
+    const totals = ledgerSummary(ledger);
+    const balances = accountBalances(ledger);
+    // The same figures as the tiles on the ledger page, plus where the money went.
+    return {
+      output: {
+        month: ledger.month,
+        status: ledger.status,
+        entryCount: ledger.entries.length,
+        totalsPkr: {
+          income: totals.income,
+          expenses: totals.expenses,
+          netCashFlow: totals.netCashFlow,
+          fundCashFlow: totals.fundFlow,
+          heldFundsMovement: totals.heldMovement,
+        },
+        byCategoryPkr: ledgerCategoryTotals(ledger, categoryList),
+        reconciliation: {
+          accounts: balances.length,
+          withClosingBalance: balances.filter((account) => account.difference !== undefined).length,
+          balanced: balances.filter(
+            (account) => account.difference !== undefined && Math.abs(account.difference) < 0.01
+          ).length,
+        },
       },
     };
   }
