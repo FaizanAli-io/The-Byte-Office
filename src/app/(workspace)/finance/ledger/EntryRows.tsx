@@ -1,7 +1,7 @@
 'use client';
 
-import { ENTRY_LABELS, categoryName, formatMoney, isHoldType } from '@/lib/ledger';
-import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType } from '@/types/ledger';
+import { ENTRY_LABELS, formatMoney } from '@/lib/ledger';
+import type { LedgerAccount, LedgerEntry, LedgerEntryType } from '@/types/ledger';
 import { financeStyles } from '../components/FinanceUI';
 
 export type EntryRow = {
@@ -23,11 +23,6 @@ const CELL = 'border-b border-white/5 px-3 py-4';
 
 const entryDate = (date: string, options: Intl.DateTimeFormatOptions = {}) =>
   new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...options });
-
-export function entryDetail(entry: LedgerEntry, categoryList: LedgerCategory[]) {
-  if (!isHoldType(entry.type)) return categoryName(categoryList, entry.categoryId);
-  return entry.counterparty ? `for ${entry.counterparty}` : '';
-}
 
 export function EntryCards({ rows, readOnly, runningCurrency, onEdit, onRemove }: RowActions & { rows: EntryRow[] }) {
   return (

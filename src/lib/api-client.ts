@@ -5,7 +5,8 @@ import type { FinanceSnapshot, Holding } from '@/types/finance';
 import type { HealthMetric, HealthTracking, Prayer } from '@/types/personal';
 import type { CategoryKind, LedgerCategory, LedgerEntry, MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 import type { AgentConversation, AgentChatMessage, PendingAgentAction } from '@/lib/agent/types';
-import type { heldFunds } from './ledger';
+import { emptyFilters, type EntryFilters, type heldFunds } from './ledger';
+import type { loadHoldMovements } from './db/queries';
 
 export type ToolLog = {
   type: 'internal' | 'external';
@@ -31,6 +32,17 @@ export const financeApi = {
 export const ledgerApi = {
   list: () => apiFetch<Pick<MonthlyLedger, 'month' | 'status'>[]>('/api/ledger'),
   load: (month: string) => apiFetchOrNull<MonthlyLedger>(`/api/ledger?month=${encodeURIComponent(month)}`),
+  // Only filters that differ from the defaults go on the URL; the server filters and sorts.
+  entries: (month: string, filters: EntryFilters) => {
+    const params = new URLSearchParams({ month });
+    for (const [key, value] of Object.entries(filters)) {
+      const text = value.trim();
+      if (text && text !== 'all' && value !== emptyFilters[key as keyof EntryFilters]) {
+        params.set(key === 'category' ? 'categoryId' : key, text);
+      }
+    }
+    return apiFetch<MonthlyLedger>(`/api/ledger?${params}`).then((ledger) => ledger.entries);
+  },
   create: (month: string) => apiFetch<MonthlyLedger>('/api/ledger', { body: { month } }),
   save: (payload: MonthlyLedgerPayload) => apiFetch<MonthlyLedger>('/api/ledger', { method: 'PUT', body: payload }),
   addEntry: (month: string, entry: LedgerEntry) =>
@@ -50,7 +62,10 @@ export const categoriesApi = {
 };
 
 export const heldFundsApi = {
-  load: () => apiFetch<ReturnType<typeof heldFunds>>('/api/held-funds'),
+  load: () =>
+    apiFetch<ReturnType<typeof heldFunds> & { movements: Awaited<ReturnType<typeof loadHoldMovements>> }>(
+      '/api/held-funds'
+    ),
 };
 
 export const snapshotsApi = {

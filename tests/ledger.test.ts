@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   accountMovement,
   accountStats,
+  applyEntryFilters,
+  emptyFilters,
   eligibleAccounts,
   expectedBalance,
   formatVariancePct,
@@ -375,5 +377,31 @@ describe('held funds in a monthly summary', () => {
   it('is zero in a month with no holds', () => {
     const summary = ledgerSummary({ accounts, entries: [entry({ id: 'e', accountId: 'pkr', amount: 10 })] });
     expect(summary.heldMovement).toBe(0);
+  });
+});
+
+describe('applyEntryFilters', () => {
+  const accounts = [bank(), fund()];
+  const entries = [
+    entry({ id: 'a', date: '2026-03-02', note: 'Groceries' }),
+    entry({ id: 'b', date: '2026-03-20', type: 'income', amount: 500 }),
+    entry({ id: 'c', date: '2026-03-15', type: 'transfer', destinationAccountId: 'fund', amount: 300 }),
+  ];
+  const ids = (filters: Partial<typeof emptyFilters>) =>
+    applyEntryFilters(entries, { ...emptyFilters, ...filters }, accounts, []).map((item) => item.id);
+
+  it('matches the account as source or transfer destination', () => {
+    expect(ids({ accountId: 'fund' })).toEqual(['c']);
+  });
+
+  it('filters by type, text and inclusive date range', () => {
+    expect(ids({ type: 'income' })).toEqual(['b']);
+    expect(ids({ query: 'grocer' })).toEqual(['a']);
+    expect(ids({ dateFrom: '2026-03-02', dateTo: '2026-03-15', sortDir: 'asc' })).toEqual(['a', 'c']);
+  });
+
+  it('sorts newest first by default and by amount on request', () => {
+    expect(ids({})).toEqual(['b', 'c', 'a']);
+    expect(ids({ sortBy: 'amount', sortDir: 'asc' })).toEqual(['a', 'c', 'b']);
   });
 });

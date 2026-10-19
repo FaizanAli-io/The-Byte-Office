@@ -1,9 +1,9 @@
 import { ApiError } from '@/lib/api';
 import { randomUUID } from 'crypto';
 import type { ActionPreview, AgentActionPayload, AgentActionType, LedgerAccountChanges } from '@/lib/agent/types';
-import { accountStats, entryUsesAccount } from '@/lib/ledger';
+import { accountStats, entryUsesAccount, resolveAccountId, variancePct } from '@/lib/ledger';
 import type { LedgerAccount, MonthlyLedger } from '@/types/ledger';
-import { definedFields, resolveAccountId } from './action-parsing';
+import { definedFields } from './action-parsing';
 
 type AccountActionType = 'ledger_account_add' | 'ledger_account_update' | 'ledger_account_remove';
 type AccountPayload = Extract<AgentActionPayload, { actionType: AccountActionType }>;
@@ -21,7 +21,12 @@ export function accountBalances(ledger: MonthlyLedger) {
       ...account,
       expectedClosingBalance: stats.expected,
       difference: stats.difference,
-      ...(account.type === 'fund' ? { netInvested: stats.netInvested, gainLoss: stats.gainLoss } : {}),
+      ...(account.type === 'fund'
+        ? { netInvested: stats.netInvested, gainLoss: stats.gainLoss }
+        : {
+            variancePct: variancePct(stats.difference, stats.expected),
+            reconciled: stats.difference !== undefined && Math.abs(stats.difference) < 0.01,
+          }),
     };
   });
 }

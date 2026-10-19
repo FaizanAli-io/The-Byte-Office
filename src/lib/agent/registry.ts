@@ -13,6 +13,7 @@ import {
   categoryKind,
   holdingFields,
   ledgerEntryFields,
+  entryFilterFields,
   entryRef,
   accountFields,
   accountRef,
@@ -121,8 +122,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Get ledger',
     module: 'finance',
     description:
-      'Get one monthly ledger. Each entry includes a zero-padded serial (for example, 0001) that can be used to select it for editing or removal.',
-    schema: z.object({ month }),
+      'Get one monthly ledger. Entries can be filtered by account, type, category, text and date range, and sorted, like the ledger page; totalEntries counts them all. Each entry keeps its zero-padded serial (for example, 0001) for editing or removal.',
+    schema: z.object({ month, ...entryFilterFields }),
     mcp: true,
   },
   {
@@ -215,7 +216,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'List ledger accounts and balances',
     module: 'finance',
     description:
-      "List a monthly ledger's accounts with opening, expected closing and actual closing balances and the reconciliation difference; funds also report net invested and gain/loss. Balances are in each account's own currency.",
+      "List a monthly ledger's accounts as the ledger page shows them: opening, expected closing and actual closing balances, exchange rate and the reconciliation difference. Banks also report variance percent and whether they are reconciled; funds report opening cost basis, net invested and gain/loss. Balances are in each account's own currency.",
     schema: z.object({ month }),
     mcp: true,
   },

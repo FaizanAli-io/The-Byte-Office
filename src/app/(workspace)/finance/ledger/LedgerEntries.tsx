@@ -1,22 +1,16 @@
 'use client';
 
-import { accountMovement, monthBounds } from '@/lib/ledger';
+import { ledgerApi } from '@/lib/api-client';
+import { accountMovement, emptyFilters, entryDetail, monthBounds, type EntryFilters } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinanceCard, financeStyles } from '../components/FinanceUI';
 import { draftFromEntry, draftIncomplete, emptyDraft, EntryFields } from './EntryFields';
 import { Modal } from '../components/Modal';
 import { HeldFundsModal } from './HeldFundsModal';
-import { EntryCards, entryDetail, EntryTable, type EntryRow } from './EntryRows';
+import { EntryCards, EntryTable, type EntryRow } from './EntryRows';
 import { PAGE_SIZES, Pagination } from './Pagination';
-import {
-  applyEntryFilters,
-  emptyFilters,
-  EntryFiltersPanel,
-  rememberFilters,
-  rememberedFilters,
-  type EntryFilters,
-} from './EntryFiltersPanel';
+import { EntryFiltersPanel, rememberFilters, rememberedFilters } from './EntryFiltersPanel';
 
 export function LedgerEntries({
   month,
@@ -74,10 +68,21 @@ export function LedgerEntries({
     [categories, entries]
   );
 
-  const visibleEntries = useMemo(
-    () => applyEntryFilters(entries, filters, accounts, categories),
-    [accounts, categories, entries, filters]
-  );
+  // Filtering happens server-side; refetch whenever the filters or the month's entries change.
+  const [visibleEntries, setVisibleEntries] = useState(entries);
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      ledgerApi
+        .entries(month, filters)
+        .then((next) => !cancelled && setVisibleEntries(next))
+        .catch((cause) => console.error('Failed to filter ledger entries:', cause));
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [month, filters, entries]);
   optionsRef.current = {
     accounts: ['all', ...accounts.map((account) => account.id)],
     categories: ['all', ...usedCategories.map((category) => category.id)],

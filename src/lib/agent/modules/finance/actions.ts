@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { assertUnchanged, fingerprint } from '@/lib/agent/action-utils';
 import { listCategories } from '@/lib/db/queries';
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
-import { resolveCategoryId } from '@/lib/ledger';
+import { resolveAccountId, resolveCategoryId } from '@/lib/ledger';
 import { type CategoryKind, type LedgerCategory, type MonthlyLedger } from '@/types/ledger';
 import type { AgentActionPayload, AgentActionType, AgentProposal, PersonalActionType } from '@/lib/agent/types';
 import { applyAccountAction, isAccountAction, planAccountAction } from './ledger-accounts';
@@ -24,7 +24,6 @@ import {
   parseLedgerEntry,
   holdingLabel,
   requireString,
-  resolveAccountId,
   resolveEntryId,
   serialFor,
 } from './action-parsing';

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { applyAccountAction, accountBalances, planAccountAction } from '@/lib/agent/modules/finance/ledger-accounts';
 import { parseHolding } from '@/lib/agent/modules/finance/action-parsing';
-import type { MonthlyLedger } from '@/types/ledger';
+import { filterLedgerEntries } from '@/lib/ledger-entries';
+import type { LedgerCategory, MonthlyLedger } from '@/types/ledger';
 
 const ledger: MonthlyLedger = {
   id: 'ledger-1',
@@ -56,7 +57,12 @@ describe('ledger account actions', () => {
       ...ledger,
       accounts: run('ledger_account_update', { accountId: 'a', actualClosingBalance: 880 }),
     });
-    expect(hbl).toMatchObject({ expectedClosingBalance: 900, difference: -20 });
+    expect(hbl).toMatchObject({
+      expectedClosingBalance: 900,
+      difference: -20,
+      variancePct: (-20 / 900) * 100,
+      reconciled: false,
+    });
   });
 });
 
@@ -80,5 +86,34 @@ describe('parseHolding', () => {
   it('fills an update from the current holding and never changes its kind', () => {
     const current = { kind: 'remote_bank' as const, name: 'Wise', group: null, amount: 100, exchangeRate: 280 };
     expect(parseHolding({ amount: 120, kind: 'local_bank' }, current)).toEqual({ ...current, amount: 120 });
+  });
+});
+
+describe('filterLedgerEntries', () => {
+  const withEntries: MonthlyLedger = {
+    ...ledger,
+    entries: [
+      { id: 'e1', date: '2026-03-05', type: 'expense', accountId: 'a', amount: 100, categoryId: 'food' },
+      { id: 'e2', date: '2026-03-09', type: 'income', accountId: 'b', amount: 5 },
+    ],
+  };
+  const categories = [{ id: 'food', name: 'Food', kind: 'expense' }] as LedgerCategory[];
+  const ids = (params: Record<string, unknown>) =>
+    filterLedgerEntries(withEntries, categories, params).map((entry) => entry.id);
+
+  it('sorts newest first unless asked otherwise', () => {
+    expect(ids({})).toEqual(['e2', 'e1']);
+    expect(ids({ sortDir: 'asc' })).toEqual(['e1', 'e2']);
+  });
+
+  it('resolves account and category names, and rejects ones that match nothing', () => {
+    expect(ids({ accountName: 'wise' })).toEqual(['e2']);
+    expect(ids({ category: 'food' })).toEqual(['e1']);
+    expect(() => ids({ accountName: 'nope' })).toThrow('accountName');
+    expect(() => ids({ category: 'rent' })).toThrow('category');
+  });
+
+  it('rejects an unknown sort key from query params', () => {
+    expect(() => ids({ sortBy: 'colour' })).toThrow();
   });
 });

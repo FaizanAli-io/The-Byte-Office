@@ -28,22 +28,6 @@ export function definedFields<K extends string>(args: Record<string, unknown>, k
   >;
 }
 
-export function resolveAccountId(accounts: LedgerAccount[], accountName: unknown) {
-  if (typeof accountName !== 'string' || !accountName.trim()) return undefined;
-  const requested = accountName.trim().toLowerCase();
-  const matches = accounts.filter((account) => {
-    const name = account.name.toLowerCase();
-    if (name.includes(requested) || requested.includes(name)) return true;
-    const initials = name
-      .split(/[^a-z0-9]+/)
-      .filter(Boolean)
-      .map((word) => word[0])
-      .join('');
-    return initials.includes(requested);
-  });
-  return matches.length === 1 ? matches[0].id : undefined;
-}
-
 export function assertLedger(next: MonthlyLedger, categoryIds: ReadonlySet<string>) {
   const error = validateLedger(next, categoryIds);
   if (error) throw new ApiError(error);

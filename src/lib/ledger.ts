@@ -49,6 +49,22 @@ export function resolveCategoryId(categoryList: LedgerCategory[], name: unknown)
   return partial.length === 1 ? partial[0].id : undefined;
 }
 
+export function resolveAccountId(accounts: LedgerAccount[], accountName: unknown) {
+  if (typeof accountName !== 'string' || !accountName.trim()) return undefined;
+  const requested = accountName.trim().toLowerCase();
+  const matches = accounts.filter((account) => {
+    const name = account.name.toLowerCase();
+    if (name.includes(requested) || requested.includes(name)) return true;
+    const initials = name
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+      .map((word) => word[0])
+      .join('');
+    return initials.includes(requested);
+  });
+  return matches.length === 1 ? matches[0].id : undefined;
+}
+
 export function isMonth(value: string) {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
 }
@@ -249,4 +265,85 @@ function toPkr(amount: number, accountId: string, accounts: LedgerAccount[], exc
 
 export function entryUsesAccount(entry: LedgerEntry, id: string) {
   return entry.accountId === id || entry.destinationAccountId === id;
+}
+
+export function entryDetail(entry: LedgerEntry, categoryList: LedgerCategory[]) {
+  if (!isHoldType(entry.type)) return categoryName(categoryList, entry.categoryId);
+  return entry.counterparty ? `for ${entry.counterparty}` : '';
+}
+
+export const ENTRY_SORT_KEYS = ['date', 'amount', 'type', 'account', 'category'] as const;
+export const ENTRY_SORT_DIRS = ['asc', 'desc'] as const;
+
+export type EntrySortKey = (typeof ENTRY_SORT_KEYS)[number];
+export type EntrySortDir = (typeof ENTRY_SORT_DIRS)[number];
+
+export type EntryFilters = {
+  accountId: string;
+  type: string;
+  category: string;
+  query: string;
+  dateFrom: string;
+  dateTo: string;
+  sortBy: EntrySortKey;
+  sortDir: EntrySortDir;
+};
+
+export const emptyFilters: EntryFilters = {
+  accountId: 'all',
+  type: 'all',
+  category: 'all',
+  query: '',
+  dateFrom: '',
+  dateTo: '',
+  sortBy: 'date',
+  sortDir: 'desc',
+};
+
+export function applyEntryFilters<T extends LedgerEntry>(
+  entries: T[],
+  filters: EntryFilters,
+  accounts: LedgerAccount[],
+  categories: LedgerCategory[]
+) {
+  const query = filters.query.trim().toLowerCase();
+  const accountName = (id?: string) => accounts.find((account) => account.id === id)?.name ?? '';
+  const filtered = entries.filter((entry) => {
+    if (
+      filters.accountId !== 'all' &&
+      entry.accountId !== filters.accountId &&
+      entry.destinationAccountId !== filters.accountId
+    ) {
+      return false;
+    }
+    if (filters.type !== 'all' && entry.type !== filters.type) return false;
+    if (filters.category !== 'all' && (entry.categoryId ?? '') !== filters.category) return false;
+    if (filters.dateFrom && entry.date < filters.dateFrom) return false;
+    if (filters.dateTo && entry.date > filters.dateTo) return false;
+    if (!query) return true;
+    return [
+      entryDetail(entry, categories),
+      entry.note,
+      accountName(entry.accountId),
+      accountName(entry.destinationAccountId),
+    ]
+      .join(' ')
+      .toLowerCase()
+      .includes(query);
+  });
+
+  const direction = filters.sortDir === 'asc' ? 1 : -1;
+  return filtered.sort((a, b) => {
+    const compare =
+      filters.sortBy === 'amount'
+        ? a.amount - b.amount
+        : filters.sortBy === 'type'
+          ? ENTRY_LABELS[a.type].localeCompare(ENTRY_LABELS[b.type])
+          : filters.sortBy === 'account'
+            ? accountName(a.accountId).localeCompare(accountName(b.accountId))
+            : filters.sortBy === 'category'
+              ? categoryName(categories, a.categoryId).localeCompare(categoryName(categories, b.categoryId))
+              : a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
+    return compare * direction;
+  });
 }

@@ -10,6 +10,7 @@ import {
 import { loadPortfolioHoldings } from '@/lib/db/portfolio';
 import { portfolioTotals, valuePkr } from '@/lib/finance';
 import { categoryName, heldFunds, ledgerCategoryTotals, ledgerSummary } from '@/lib/ledger';
+import { filterLedgerEntries } from '@/lib/ledger-entries';
 import { serialFor } from './action-parsing';
 import { accountBalances } from './ledger-accounts';
 
@@ -40,12 +41,14 @@ export async function readFinanceTool(name: string, args: Record<string, unknown
       return listLedgerSummaries();
     case 'ledger_get': {
       const [ledger, categoryList] = await Promise.all([requireLedger(args.month), listCategories()]);
+      const serials = new Map(ledger.entries.map((entry, index) => [entry.id, serialFor(index)]));
       return {
         ...ledger,
-        entries: ledger.entries.map((entry, index) => ({
+        totalEntries: ledger.entries.length,
+        entries: filterLedgerEntries(ledger, categoryList, args).map((entry) => ({
           ...entry,
           category: categoryName(categoryList, entry.categoryId) || undefined,
-          serial: serialFor(index),
+          serial: serials.get(entry.id),
         })),
       };
     }

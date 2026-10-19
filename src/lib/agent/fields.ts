@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import { CATEGORY_KINDS, LEDGER_ENTRY_TYPES } from '@/types/ledger';
+import { ENTRY_SORT_DIRS, ENTRY_SORT_KEYS } from '@/lib/ledger';
 import { HOLDING_KINDS } from '@/types/finance';
 
 export const empty = z.object({});
@@ -59,6 +60,22 @@ export const ledgerEntryFields = {
     .optional()
     .describe('Whose money this is. Only for hold_received and hold_returned'),
   note: text.nullable().optional(),
+};
+
+// The same filters and sort as the ledger page's entry panel.
+export const entryFilterFields = {
+  accountId: text.optional().describe('Only entries touching this account id, as source or transfer destination'),
+  accountName: text.optional().describe('Account name or shorthand, when it matches exactly one account'),
+  type: entryTypeSchema.optional(),
+  category: categoryName.optional(),
+  categoryId: categoryId.optional(),
+  query: text
+    .optional()
+    .describe('Case-insensitive text matched against category, counterparty, note and account names'),
+  dateFrom: isoDate.optional().describe('Earliest entry date, YYYY-MM-DD, inclusive'),
+  dateTo: isoDate.optional().describe('Latest entry date, YYYY-MM-DD, inclusive'),
+  sortBy: z.enum(ENTRY_SORT_KEYS).optional().describe('Defaults to date'),
+  sortDir: z.enum(ENTRY_SORT_DIRS).optional().describe('Defaults to desc, newest first'),
 };
 
 export const entryRef = {

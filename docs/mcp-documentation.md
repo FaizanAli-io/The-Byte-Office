@@ -63,6 +63,12 @@ chat calls as `internal`, MCP and REST as `external` with the client's name.
 - **Entries name their category.** `ledger_entry_add` and `ledger_entry_update` take `category` as a name: an exact
   match wins, a single unambiguous partial match is accepted, anything else is an error listing the near misses, and
   `null` clears it. Archived categories are skipped.
+- **`ledger_get` filters entries server-side, as the ledger page and `GET /api/ledger?month=` do**: `accountId` or `accountName` (source or transfer
+  destination), `type`, `category` (a name, archived ones included) or `categoryId`, `query`, `dateFrom`/`dateTo` and
+  `sortBy`/`sortDir` (default date, newest first). Serials stay those of the full ledger, and `totalEntries` counts
+  every entry.
+- **`ledger_accounts_list` returns what each account card shows**: balances, exchange rate and difference; banks add
+  `variancePct` and `reconciled`, funds add `openingCostBasis`, `netInvested` and `gainLoss`.
 - **Managing a category uses its id** from `categories_list`. Names are unique case-insensitively, and
   `category_remove` is refused while entries use it — archive instead.
 - **Finalized months are read-only**, and nothing can finalize a month except the ledger page.

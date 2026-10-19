@@ -3,13 +3,20 @@ import { createLedger, listCategories, loadLedger, loadPreviousLedger, listLedge
 import { ApiError, apiRoute, created, found, jsonBody, searchParam } from '@/lib/api';
 import { loadHoldingIdentities, saveLedgerSynced } from '@/lib/db/portfolio';
 import { accountsForNewMonth } from '@/lib/accounts';
-import { requireMonth } from '@/lib/ledger-entries';
+import { filterLedgerEntries, requireMonth } from '@/lib/ledger-entries';
 import type { MonthlyLedgerPayload } from '@/types/ledger';
 
 export const GET = apiRoute('GET /api/ledger', 'Failed to load ledger', async (req: Request) => {
   const month = searchParam(req, 'month');
   if (!month) return listLedgerSummaries();
-  return found(await loadLedger(requireMonth(month)), 'Ledger not found');
+  const [ledger, categoryList] = await Promise.all([loadLedger(requireMonth(month)), listCategories()]);
+  const { entries, ...rest } = found(ledger, 'Ledger not found');
+  const params = Object.fromEntries(new URL(req.url).searchParams);
+  return {
+    ...rest,
+    totalEntries: entries.length,
+    entries: filterLedgerEntries({ ...rest, entries }, categoryList, params),
+  };
 });
 
 export const POST = apiRoute('POST /api/ledger', 'Failed to create ledger', async (req: Request) => {
