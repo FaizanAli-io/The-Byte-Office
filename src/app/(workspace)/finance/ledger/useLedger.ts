@@ -62,7 +62,12 @@ export function useLedger() {
     if (month) load(month);
   }, [load, month]);
 
-  async function run(action: () => Promise<unknown>, successNotice: string, failure: string) {
+  async function run(
+    action: () => Promise<unknown>,
+    successNotice: string,
+    failure: string,
+    recover?: () => Promise<void>
+  ) {
     setSaving(true);
     setError('');
     setNotice('');
@@ -71,6 +76,7 @@ export function useLedger() {
       setNotice(successNotice);
     } catch (cause) {
       setError(errorMessage(cause, failure));
+      await recover?.();
     } finally {
       setSaving(false);
     }
@@ -99,20 +105,14 @@ export function useLedger() {
   async function enqueue(month: string, write: () => Promise<MonthlyLedger>, successNotice: string) {
     persistChain.current = persistChain.current
       .catch(() => undefined)
-      .then(async () => {
-        setSaving(true);
-        setError('');
-        setNotice('');
-        try {
-          adopt(await write());
-          setNotice(successNotice);
-        } catch (cause) {
-          setError(errorMessage(cause, 'Could not save ledger'));
-          adopt(await ledgerApi.load(month).catch(() => ledgerRef.current));
-        } finally {
-          setSaving(false);
-        }
-      });
+      .then(() =>
+        run(
+          async () => adopt(await write()),
+          successNotice,
+          'Could not save ledger',
+          async () => adopt(await ledgerApi.load(month).catch(() => ledgerRef.current))
+        )
+      );
     await persistChain.current;
   }
 

@@ -117,7 +117,7 @@ export async function readEntryBody(req: Request) {
 
 const entryFilterSchema = z.object(entryFilterFields);
 
-// Server-side filter and sort for the ledger page, GET /api/ledger and ledger_get; newest first by default.
+// The filter and sort behind ledger_get, matching the ledger page's; newest first by default.
 export function filterLedgerEntries(ledger: MonthlyLedger, categoryList: LedgerCategory[], params: unknown) {
   const { accountId, accountName, category, categoryId, ...rest } = parseWith(entryFilterSchema, params);
   const account = accountId ?? resolveAccountId(ledger.accounts, accountName);

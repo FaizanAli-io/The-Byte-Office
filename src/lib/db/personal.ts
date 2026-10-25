@@ -1,14 +1,10 @@
 import { ApiError } from '@/lib/api';
 import { asc, desc, eq, sql } from 'drizzle-orm';
-import { idEq } from './ids';
-import type { HealthTrackingInput, HealthTrackingUpdate, PrayerInput, PrayerUpdate } from '@/lib/personal-validation';
+import { deleteById, idEq } from './ids';
+import type { HealthTrackingInput, HealthTrackingUpdate, PrayerSet } from '@/lib/personal-validation';
 import { getDb } from './index';
 import { NAMAAZ_VALUES, type Namaaz } from '@/types/personal';
 import { healthMetrics, healthTracking, prayerHistory, prayers } from './schema';
-
-function defined<T extends object>(input: T) {
-  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as T;
-}
 
 export async function loadPrayerTracker() {
   const [rows, [latest]] = await Promise.all([
@@ -32,38 +28,20 @@ async function recordPrayerHistory(test?: boolean) {
   await db.insert(prayerHistory).values({ counts });
 }
 
-export async function getPrayer(id: string) {
-  const [row] = await getDb().select().from(prayers).where(idEq(prayers.id, id)).limit(1);
-  return row ?? null;
-}
-
-export async function getPrayerByNamaaz(namaaz: PrayerInput['namaaz']) {
+export async function getPrayerByNamaaz(namaaz: Namaaz) {
   const [row] = await getDb().select().from(prayers).where(eq(prayers.namaaz, namaaz)).limit(1);
   return row ?? null;
 }
 
-export async function createPrayer({ test, ...input }: PrayerInput) {
+// One row per namaaz, so setting a count is an upsert on its unique index.
+export async function setPrayer({ namaaz, missed, test }: PrayerSet) {
   const [row] = await getDb()
     .insert(prayers)
-    .values({
-      namaaz: input.namaaz,
-      missed: input.missed ?? 0,
-    })
+    .values({ namaaz, missed })
+    .onConflictDoUpdate({ target: prayers.namaaz, set: { missed } })
     .returning();
   await recordPrayerHistory(test);
   return row;
-}
-
-export async function updatePrayer(id: string, { test, ...input }: PrayerUpdate) {
-  const [row] = await getDb().update(prayers).set(defined(input)).where(idEq(prayers.id, id)).returning();
-  if (row) await recordPrayerHistory(test);
-  return row ?? null;
-}
-
-export async function deletePrayer(id: string, test?: boolean) {
-  const deleted = await getDb().delete(prayers).where(idEq(prayers.id, id)).returning({ id: prayers.id });
-  if (deleted.length) await recordPrayerHistory(test);
-  return deleted.length > 0;
 }
 
 const readingColumns = {
@@ -178,23 +156,10 @@ export async function updateHealthTracking(id: string, input: HealthTrackingUpda
   await assertMetricExists(input.metricId);
   const [row] = await getDb()
     .update(healthTracking)
-    .set(defined(input))
+    .set(input)
     .where(idEq(healthTracking.id, id))
     .returning({ id: healthTracking.id });
   return row ? getHealthTracking(row.id) : null;
 }
 
-export async function deleteHealthTracking(id: string) {
-  const deleted = await getDb()
-    .delete(healthTracking)
-    .where(idEq(healthTracking.id, id))
-    .returning({ id: healthTracking.id });
-  return deleted.length > 0;
-}
-
-export function isUniqueViolation(error: unknown) {
-  if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {
-    return true;
-  }
-  return String(error).includes('prayers_namaaz_uidx') || String(error).includes('duplicate key');
-}
+export const deleteHealthTracking = (id: string) => deleteById(healthTracking, id);

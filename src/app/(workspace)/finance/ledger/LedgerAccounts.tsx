@@ -10,7 +10,7 @@ import {
 } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 import { useState } from 'react';
-import { FinanceCard, Field, financeStyles } from '../components/FinanceUI';
+import { FinanceCard, Field, SelectField, financeStyles } from '../components/FinanceUI';
 import { pkrQuote } from '../components/ExchangeRates';
 
 export function LedgerAccounts({
@@ -108,22 +108,21 @@ export function LedgerAccounts({
               placeholder="e.g. Main bank"
             />
           </Field>
-          <Field label="Type">
-            <select
-              className={financeStyles.input}
-              value={draft.type}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  type: event.target.value as LedgerAccount['type'],
-                  currency: event.target.value === 'fund' ? 'PKR' : draft.currency,
-                })
-              }
-            >
-              <option value="bank">Bank account</option>
-              <option value="fund">Mutual fund</option>
-            </select>
-          </Field>
+          <SelectField
+            label="Type"
+            value={draft.type}
+            onChange={(type) =>
+              setDraft({
+                ...draft,
+                type: type as LedgerAccount['type'],
+                currency: type === 'fund' ? 'PKR' : draft.currency,
+              })
+            }
+            options={[
+              ['bank', 'Bank account'],
+              ['fund', 'Mutual fund'],
+            ]}
+          />
           <Field label="Currency" hint={supported ? undefined : 'Not a supported currency'}>
             <input
               className={financeStyles.input}

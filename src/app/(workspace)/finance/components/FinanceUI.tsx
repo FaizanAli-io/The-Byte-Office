@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { MouseEvent, ReactNode } from 'react';
+import { useState, type MouseEvent, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { FinanceLogoutButton } from './FinanceLogoutButton';
 
 export function openPicker(event: MouseEvent<HTMLInputElement>) {
@@ -198,6 +198,48 @@ export function Field({
       {children}
       {hint ? <span className="mt-1 block text-[11px] leading-4 text-slate-600">{hint}</span> : null}
     </label>
+  );
+}
+
+// Delete on the second click: `confirm(id)` arms the first time and returns true only when the same id is clicked again.
+export function useConfirmDelete() {
+  const [pending, setPending] = useState<string | null>(null);
+  const confirm = (id: string) => {
+    setPending(pending === id ? null : id);
+    return pending === id;
+  };
+  return { pending, confirm, reset: () => setPending(null) };
+}
+
+export const pairs = (items: { id: string; name: string }[]) =>
+  items.map((item): [string, string] => [item.id, item.name]);
+
+// A labelled select. `options` are [value, label] pairs, shown after any children such as a placeholder option.
+export function SelectField({
+  label,
+  hint,
+  className,
+  options = [],
+  onChange,
+  children,
+  ...select
+}: Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> & {
+  label: string;
+  hint?: string;
+  options?: [string, string][];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Field label={label} hint={hint} className={className}>
+      <select {...select} className={financeStyles.input} onChange={(event) => onChange(event.target.value)}>
+        {children}
+        {options.map(([value, text]) => (
+          <option key={value} value={value}>
+            {text}
+          </option>
+        ))}
+      </select>
+    </Field>
   );
 }
 

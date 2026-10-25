@@ -10,7 +10,7 @@ describe('agent tool registry', () => {
   });
 
   it('exposes every tool over MCP except sending mail', () => {
-    const withheld = agentToolRegistry.filter((tool) => !tool.mcp).map((tool) => tool.name);
+    const withheld = agentToolRegistry.filter((tool) => tool.mcp === false).map((tool) => tool.name);
     expect(withheld).toEqual(['tbo_send_inquiry']);
   });
 

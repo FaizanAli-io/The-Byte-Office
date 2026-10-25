@@ -1,6 +1,6 @@
 import BackgroundEffect from '@/components/site/BackgroundEffect';
 import SectionHeading from '@/components/site/SectionHeading';
-import { CTAButton } from '@/components/site/CTAButtons';
+import { CTAPanel } from '@/components/site/CTAButtons';
 import { company, ordinal, processSteps, services, whyChooseUs } from '@/content/site';
 import { createMetadata, jsonLd } from '@/lib/seo';
 
@@ -115,21 +115,11 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="container-page section-tight">
-        <div className="surface-card grid gap-6 p-8 sm:p-10 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <h2 className="heading-lg">Want to talk through a build?</h2>
-            <p className="body-copy mt-3">
-              Share what you are trying to automate, launch, rebuild, or connect. The first step is a clear
-              conversation.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <CTAButton href="/contact" label="Start a Project" />
-            <CTAButton href="/projects" label="View Work" variant="secondary" />
-          </div>
-        </div>
-      </section>
+      <CTAPanel
+        title="Want to talk through a build?"
+        text="Share what you are trying to automate, launch, rebuild, or connect. The first step is a clear conversation."
+        secondary={{ href: '/projects', label: 'View Work' }}
+      />
     </div>
   );
 }

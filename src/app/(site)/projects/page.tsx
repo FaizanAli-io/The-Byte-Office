@@ -1,5 +1,5 @@
 import BackgroundEffect from '@/components/site/BackgroundEffect';
-import { CTAButton } from '@/components/site/CTAButtons';
+import { CTAPanel } from '@/components/site/CTAButtons';
 import { caseStudyFields, company, ordinal, projects, siteUrl } from '@/content/site';
 import { createMetadata, jsonLd } from '@/lib/seo';
 
@@ -98,23 +98,12 @@ export default function ProjectsPage() {
         </div>
       </section>
 
-      <section className="container-page section-tight">
-        <div className="dark-panel grid gap-6 p-8 sm:p-10 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <h2 className="text-3xl font-extrabold leading-tight text-white md:text-4xl">
-              Have a project that needs this level of ownership?
-            </h2>
-            <p className="mt-4 max-w-2xl text-slate-300">
-              Bring the idea, workflow, product brief, or legacy system. The goal is to turn it into a clear technical
-              path.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <CTAButton href="/contact" label="Start a Project" />
-            <CTAButton href="/services" label="Explore Services" variant="secondary" />
-          </div>
-        </div>
-      </section>
+      <CTAPanel
+        dark
+        title="Have a project that needs this level of ownership?"
+        text="Bring the idea, workflow, product brief, or legacy system. The goal is to turn it into a clear technical path."
+        secondary={{ href: '/services', label: 'Explore Services' }}
+      />
     </div>
   );
 }

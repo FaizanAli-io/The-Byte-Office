@@ -1,6 +1,6 @@
 'use client';
 
-import { financeStyles } from '../components/FinanceUI';
+import { financeStyles } from './FinanceUI';
 
 export const PAGE_SIZES = [10, 25, 50, 100];
 

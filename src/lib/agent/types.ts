@@ -11,14 +11,7 @@ export type LedgerAccountChanges = {
   openingCostBasis?: number | null;
 };
 
-export type PersonalActionType =
-  | 'prayer_set'
-  | 'health_add'
-  | 'health_update'
-  | 'health_remove'
-  | 'health_metric_add'
-  | 'health_metric_update'
-  | 'health_metric_remove';
+export type PersonalActionType = Extract<AgentActionType, 'prayer_set' | `health_${string}`>;
 
 export type AgentActionPayload =
   | { actionType: 'portfolio_item_add'; item: HoldingInput }

@@ -1,7 +1,6 @@
 import { ApiError } from '@/lib/api';
 import { z } from 'zod/v4';
-import { NAMAAZ_VALUES } from '@/types/personal';
-import { prayerTestFlag } from '@/lib/personal-validation';
+import { prayerSetSchema } from '@/lib/personal-validation';
 import {
   empty,
   text,
@@ -9,9 +8,10 @@ import {
   holdingKindSchema,
   holdingId,
   metricId,
-  categoryName,
   categoryId,
-  categoryKind,
+  categoryInputSchema,
+  categoryChangesSchema,
+  inquirySchema,
   holdingFields,
   ledgerEntryFields,
   entryFilterFields,
@@ -31,7 +31,8 @@ export type AgentToolDefinition = {
   chatDescription?: string;
   schema: z.ZodObject;
   write?: boolean;
-  mcp?: boolean;
+  // Every tool is on MCP unless it opts out.
+  mcp?: false;
   destructive?: boolean;
 };
 
@@ -43,7 +44,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       "Get the live portfolio as one list of holdings (id, kind, name, group for a fund's bank, currency, amount in that currency, the live exchangeRate in PKR per unit, valuePkr), with a gross PKR total, the amount held for other people, and the net total that is actually yours.",
     schema: empty,
-    mcp: true,
   },
   {
     name: 'exchange_rates_get',
@@ -52,7 +52,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       'Get the live exchange-rate table every PKR conversion uses: PKR per one unit of each supported currency, when it was last refreshed, and stale when the latest refresh failed.',
     schema: empty,
-    mcp: true,
   },
   {
     name: 'exchange_rates_refresh',
@@ -64,7 +63,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Create a confirmation proposal to fetch the latest exchange rates from the provider now and store them. Never claim the rates were refreshed before confirmation.',
     schema: empty,
     write: true,
-    mcp: true,
   },
   {
     name: 'snapshots_list',
@@ -72,7 +70,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'finance',
     description: 'List up to 50 saved portfolio snapshots, newest first.',
     schema: empty,
-    mcp: true,
   },
   {
     name: 'snapshot_get',
@@ -80,7 +77,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'finance',
     description: 'Get one saved portfolio snapshot by its stable ID.',
     schema: z.object({ id: text.describe('Stable snapshot ID') }),
-    mcp: true,
   },
   {
     name: 'categories_list',
@@ -89,7 +85,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       'List every ledger category with its id, name and whether it suits income, expense or both. Archived categories are included and marked; do not propose one for a new entry.',
     schema: empty,
-    mcp: true,
   },
   {
     name: 'category_add',
@@ -98,9 +93,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description: 'Create a ledger category immediately. Names are unique regardless of case.',
     chatDescription:
       'Create a confirmation proposal to add a ledger category. This never writes before user confirmation.',
-    schema: z.object({ name: categoryName, kind: categoryKind.default('both') }),
+    schema: categoryInputSchema,
     write: true,
-    mcp: true,
   },
   {
     name: 'category_update',
@@ -110,14 +104,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Rename a category, change which entry types it suits, or archive and restore it. Identify it by id from categories_list. Archiving keeps it on existing entries while removing it from the picker.',
     chatDescription:
       'Create a confirmation proposal to rename, re-kind, archive or restore a ledger category, identified by id from categories_list. This never writes before confirmation.',
-    schema: z.object({
-      id: categoryId,
-      name: text.optional().describe('New name'),
-      kind: categoryKind.optional(),
-      archived: z.boolean().optional().describe('True to archive, false to restore'),
-    }),
+    schema: categoryChangesSchema,
     write: true,
-    mcp: true,
   },
   {
     name: 'category_remove',
@@ -130,7 +118,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     schema: z.object({ id: categoryId }),
     write: true,
     destructive: true,
-    mcp: true,
   },
   {
     name: 'ledgers_list',
@@ -138,7 +125,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'finance',
     description: 'List monthly ledgers with their status and last update time.',
     schema: empty,
-    mcp: true,
   },
   {
     name: 'ledger_get',
@@ -147,7 +133,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       'Get one monthly ledger. Entries can be filtered by account, type, category, text and date range, and sorted, like the ledger page; totalEntries counts them all. Each entry keeps its zero-padded serial (for example, 0001) for editing or removal.',
     schema: z.object({ month, ...entryFilterFields }),
-    mcp: true,
   },
   {
     name: 'portfolio_item_add',
@@ -163,7 +148,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       currency: currencyCode.optional().describe('Remote banks only, and required for them: ISO code such as USD'),
     }),
     write: true,
-    mcp: true,
   },
   {
     name: 'portfolio_item_update',
@@ -178,7 +162,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       ...z.object(holdingFields).partial().shape,
     }),
     write: true,
-    mcp: true,
   },
   {
     name: 'portfolio_item_remove',
@@ -190,7 +173,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Create a confirmation proposal to remove one portfolio item by stable ID. This never writes before confirmation.',
     schema: z.object({ id: holdingId }),
     write: true,
-    mcp: true,
     destructive: true,
   },
   {
@@ -203,7 +185,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Immediately open the add-entry form for a draft ledger. Call this as soon as the user wants to add an entry. Do not ask for type, account, amount, date, or notes — the form collects them. Type defaults to expense, account to the first account, and date to today. Only month is required. The user submits the form to save; do not claim the entry was saved.',
     schema: z.object({ month, ...ledgerEntryFields }),
     write: true,
-    mcp: true,
   },
   {
     name: 'ledger_entry_update',
@@ -215,7 +196,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Immediately open an edit form prefilled with an existing draft ledger entry. Use entrySerial from ledger_get (for example, 0001); entryId is only for internal compatibility. Do not ask the user to retype fields. The user submits the form to save. Do not claim the entry was updated.',
     schema: z.object({ ...entryRef, ...ledgerEntryFields }),
     write: true,
-    mcp: true,
   },
   {
     name: 'ledger_entry_remove',
@@ -226,7 +206,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Create a confirmation proposal to remove an entry from a draft ledger. Use entrySerial from ledger_get (for example, 0001); entryId is only for internal compatibility.',
     schema: z.object(entryRef),
     write: true,
-    mcp: true,
     destructive: true,
   },
   {
@@ -236,7 +215,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       'Summarise one monthly ledger in PKR: income, expenses, net cash flow, fund cash flow and held-funds movement (the ledger page tiles), income and expenses by category, and how many accounts are reconciled.',
     schema: z.object({ month }),
-    mcp: true,
   },
   {
     name: 'ledger_accounts_list',
@@ -245,7 +223,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       "List a monthly ledger's accounts as the ledger page shows them: opening, expected closing and actual closing balances, exchange rate (live for a draft, frozen once finalized) and the reconciliation difference. Banks also report variance percent and whether they are reconciled; funds report opening cost basis, net invested and gain/loss. Balances are in each account's own currency.",
     schema: z.object({ month }),
-    mcp: true,
   },
   {
     name: 'ledger_account_add',
@@ -263,7 +240,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       currency: currencyCode.optional(),
     }),
     write: true,
-    mcp: true,
   },
   {
     name: 'ledger_account_update',
@@ -275,7 +251,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       "Create a confirmation proposal to update a draft ledger account's name or balances. Include only changed fields. Never claim it was saved before confirmation.",
     schema: z.object({ ...accountRef, ...accountFields }),
     write: true,
-    mcp: true,
   },
   {
     name: 'ledger_account_remove',
@@ -287,7 +262,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Create a confirmation proposal to remove an account from a draft ledger. Refused while any entry uses the account.',
     schema: z.object(accountRef),
     write: true,
-    mcp: true,
     destructive: true,
   },
 
@@ -298,7 +272,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       'List missed-prayer counts for fajr, zuhr, asar, maghreb, and isha, and when the counts were last changed.',
     schema: empty,
-    mcp: true,
   },
   {
     name: 'prayer_set',
@@ -308,9 +281,8 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Set the missed count for one namaaz immediately. Pass test: true when testing or checking the tool, so the change is kept out of the prayer history.',
     chatDescription:
       'Create a confirmation proposal to set the missed count for one namaaz. Never claim the change was saved.',
-    schema: z.object({ namaaz: z.enum(NAMAAZ_VALUES), missed: z.int().min(0), test: prayerTestFlag }),
+    schema: prayerSetSchema,
     write: true,
-    mcp: true,
   },
   {
     name: 'health_list',
@@ -319,7 +291,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     description:
       'List health tracking entries, newest first. Optionally filter by a metric name from health_metrics_list.',
     schema: z.object({ metric: text.optional() }),
-    mcp: true,
   },
   {
     name: 'health_add',
@@ -331,7 +302,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       'Create a confirmation proposal to add a health reading. metric must name an existing metric from health_metrics_list. createdAt is optional.',
     schema: z.object({ metric: text, value: z.number(), createdAt: z.string().optional() }),
     write: true,
-    mcp: true,
   },
   {
     name: 'health_update',
@@ -347,7 +317,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       createdAt: z.string().optional(),
     }),
     write: true,
-    mcp: true,
   },
   {
     name: 'health_remove',
@@ -357,7 +326,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     chatDescription: 'Create a confirmation proposal to delete one health tracking entry by id.',
     schema: z.object({ id: text }),
     write: true,
-    mcp: true,
     destructive: true,
   },
   {
@@ -366,7 +334,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'personal',
     description: 'List the health metrics readings can use, with their ids and how many readings each has.',
     schema: empty,
-    mcp: true,
   },
   {
     name: 'health_metric_add',
@@ -378,7 +345,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       name: text.describe('Metric name, including its unit, such as Weight (KG)'),
     }),
     write: true,
-    mcp: true,
   },
   {
     name: 'health_metric_update',
@@ -391,7 +357,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
       name: text,
     }),
     write: true,
-    mcp: true,
   },
   {
     name: 'health_metric_remove',
@@ -401,7 +366,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     chatDescription: 'Create a confirmation proposal to delete a health metric by id. Refused while readings use it.',
     schema: z.object({ id: metricId }),
     write: true,
-    mcp: true,
     destructive: true,
   },
 
@@ -414,7 +378,6 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     schema: z.object({
       topic: z.enum(['overview', 'services', 'projects', 'process', 'faqs', 'contact', 'all']),
     }),
-    mcp: true,
   },
   {
     name: 'tbo_send_inquiry',
@@ -422,14 +385,9 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     module: 'tbo',
     description:
       'Create a confirmation proposal to email The Byte Office with a visitor or user query. Never claim the email was sent until the user confirms.',
-    schema: z.object({
-      name: text,
-      email: text,
-      company: text.optional(),
-      service: text.optional(),
-      message: text,
-    }),
+    schema: inquirySchema,
     write: true,
+    mcp: false,
   },
 ];
 
@@ -444,7 +402,7 @@ export function parseToolArgs(name: string, args: unknown): Record<string, unkno
   return parsed.data as Record<string, unknown>;
 }
 
-export const mcpToolRegistry = agentToolRegistry.filter((tool) => tool.mcp);
+export const mcpToolRegistry = agentToolRegistry.filter((tool) => tool.mcp !== false);
 export const mcpToolByName = new Map(mcpToolRegistry.map((tool) => [tool.name, tool]));
 
 export const groqTools = agentToolRegistry.map((tool) => {

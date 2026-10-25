@@ -49,20 +49,21 @@ export async function cancelPendingAgentAction(id: string) {
   throw new ApiError(`This action is already ${existing.status}`, 409);
 }
 
+type PayloadOf<F extends (payload: never, ...rest: never[]) => unknown> = Parameters<F>[0];
+
+// Routed by the tool's module, as proposals are.
 async function executePayload(payload: AgentActionPayload, sourceFingerprint: string | null, entryOverride: unknown) {
-  switch (payload.actionType) {
-    case 'prayer_set':
-    case 'health_add':
-    case 'health_update':
-    case 'health_remove':
-    case 'health_metric_add':
-    case 'health_metric_update':
-    case 'health_metric_remove':
-      return executePersonalPayload(payload, sourceFingerprint);
-    case 'tbo_send_inquiry':
-      return executeTboInquiry(payload);
+  switch (agentToolByName.get(payload.actionType)?.module) {
+    case 'personal':
+      return executePersonalPayload(payload as PayloadOf<typeof executePersonalPayload>, sourceFingerprint);
+    case 'tbo':
+      return executeTboInquiry(payload as PayloadOf<typeof executeTboInquiry>);
     default:
-      return executeFinancePayload(payload, sourceFingerprint, entryOverride);
+      return executeFinancePayload(
+        payload as PayloadOf<typeof executeFinancePayload>,
+        sourceFingerprint,
+        entryOverride
+      );
   }
 }
 

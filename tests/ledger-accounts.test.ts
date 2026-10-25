@@ -76,8 +76,8 @@ describe('parseHolding', () => {
       currency: 'PKR',
       amount: 5,
     });
-    expect(() => parseHolding({ kind: 'mutual_fund', name: 'Cash', amount: 5 })).toThrow(/group/);
-    expect(() => parseHolding({ kind: 'remote_bank', name: 'Wise', amount: 5 })).toThrow(/foreign currency/);
+    expect(() => parseHolding({ kind: 'mutual_fund', name: 'Cash', amount: 5 })).toThrow(/needs its bank/);
+    expect(() => parseHolding({ kind: 'remote_bank', name: 'Wise', amount: 5 })).toThrow(/currency code/);
     expect(() => parseHolding({ kind: 'remote_bank', name: 'Wise', amount: 5, currency: 'PKR' })).toThrow(/foreign/);
     expect(() => parseHolding({ kind: 'local_bank', name: 'HBL', amount: 5, currency: 'USD' })).toThrow(/remote/);
     expect(parseHolding({ kind: 'local_bank', name: 'HBL', group: 'x', amount: 1 })).toMatchObject({

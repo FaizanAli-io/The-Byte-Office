@@ -1,59 +1,38 @@
 'use client';
 
 import { snapshotsApi } from '@/lib/api-client';
-import { errorMessage } from '@/lib/client-api';
 import { bankFundAllocations, individualFundAllocations, portfolioAllocations } from '@/lib/finance';
 import { formatMoney } from '@/lib/ledger';
 import type { FinanceSnapshot } from '@/types/finance';
-import { useEffect, useState } from 'react';
-import { FinancePageShell, MessageCard, financeStyles } from '../components/FinanceUI';
+import { useState } from 'react';
+import { FinancePageShell, MessageCard, financeStyles, useConfirmDelete } from '../components/FinanceUI';
 import { FinanceToast, type FinanceToastState } from '../components/FinanceToast';
+import { useLoad } from '../components/useLoad';
 import { AllocationChart, SnapshotDiff, SnapshotTrend, TextSummary, formatSnapshotTime } from './components';
 
 export default function SnapshotsPage() {
-  const [snapshots, setSnapshots] = useState<FinanceSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data, setData: setSnapshots, loading, error } = useLoad(snapshotsApi.list, [], 'Could not load snapshots');
+  const snapshots = data ?? [];
   const [expanded, setExpanded] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const { pending: pendingDelete, confirm } = useConfirmDelete();
   const [toast, setToast] = useState<FinanceToastState>(null);
 
-  useEffect(() => {
-    snapshotsApi
-      .list()
-      .then((loaded) => {
-        setSnapshots(loaded);
-        setError('');
-      })
-      .catch((cause) => {
-        console.error('Error fetching snapshots:', cause);
-        setError(errorMessage(cause, 'Could not load snapshots'));
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
   async function deleteSnapshot(id: string) {
-    if (pendingDelete !== id) {
-      setPendingDelete(id);
-      setToast({
-        message: 'Click “Confirm delete” to remove this snapshot.',
-        tone: 'info',
-      });
+    if (!confirm(id)) {
+      setToast({ message: 'Click “Confirm delete” to remove this snapshot.', tone: 'info' });
       return;
     }
 
     try {
       await snapshotsApi.remove(id);
     } catch {
-      setPendingDelete(null);
       setToast({ message: 'Failed to delete snapshot.', tone: 'error' });
       return;
     }
-    setSnapshots((items) => items.filter((snapshot) => snapshot.id !== id));
+    setSnapshots((items) => items && items.filter((snapshot) => snapshot.id !== id));
     setExpanded((items) => items.filter((item) => item !== id));
     setSelected((items) => items.filter((item) => item !== id));
-    setPendingDelete(null);
     setToast({ message: 'Snapshot deleted.', tone: 'success' });
   }
 

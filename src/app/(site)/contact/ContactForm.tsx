@@ -8,7 +8,7 @@ import { company } from '@/content/site';
 type FormData = {
   name: string;
   email: string;
-  companyName: string;
+  company: string;
   service: string;
   message: string;
   website: string;
@@ -22,7 +22,7 @@ const fieldClass =
 const initialForm: FormData = {
   name: '',
   email: '',
-  companyName: '',
+  company: '',
   service: '',
   message: '',
   website: '',
@@ -39,7 +39,7 @@ export default function ContactForm() {
       [
         `Name: ${formData.name}`,
         `Email: ${formData.email}`,
-        `Company: ${formData.companyName || 'Not provided'}`,
+        `Company: ${formData.company || 'Not provided'}`,
         `Service: ${formData.service || 'Not selected'}`,
         '',
         'Project details:',
@@ -68,14 +68,7 @@ export default function ContactForm() {
     setStatus('sending');
     setError('');
     try {
-      await contactApi.send({
-        name: formData.name,
-        email: formData.email,
-        company: formData.companyName,
-        service: formData.service,
-        message: formData.message,
-        website: formData.website,
-      });
+      await contactApi.send(formData);
       setStatus('success');
       setFormData(initialForm);
     } catch (cause) {
@@ -109,8 +102,8 @@ export default function ContactForm() {
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
           label="Company or organization"
-          name="companyName"
-          value={formData.companyName}
+          name="company"
+          value={formData.company}
           onChange={updateField}
           autoComplete="organization"
         />

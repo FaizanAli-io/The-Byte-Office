@@ -29,14 +29,14 @@ export function PrayersWorkspace() {
 
   const rows = NAMAAZ_VALUES.map((namaaz) => {
     const row = prayers.find((prayer) => prayer.namaaz === namaaz);
-    return { namaaz, missed: row?.missed ?? 0, id: row?.id };
+    return { namaaz, missed: row?.missed ?? 0 };
   });
   const totalMissed = rows.reduce((sum, row) => sum + row.missed, 0);
 
-  async function savePrayer({ namaaz, missed, id }: (typeof rows)[number], step: number) {
+  async function savePrayer({ namaaz, missed }: (typeof rows)[number], step: number) {
     const next = Math.max(0, missed + step);
     try {
-      await (id ? prayersApi.update(id, next) : prayersApi.create(namaaz, next));
+      await prayersApi.set(namaaz, next);
       await refresh();
       setToast({ tone: 'success', message: `${NAMAAZ_LABELS[namaaz]} updated.` });
     } catch (cause) {

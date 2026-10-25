@@ -66,18 +66,24 @@ export function resolveAccountId(accounts: LedgerAccount[], accountName: unknown
   return matches.length === 1 ? matches[0].id : undefined;
 }
 
-export function isMonth(value: string) {
-  return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+export const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+export const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const isMonth = (value: string) => MONTH_PATTERN.test(value);
+
+const pad2 = (value: number) => String(value).padStart(2, '0');
+
+// Local time, as YYYY-MM-DD.
+export function today() {
+  const date = new Date();
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
-export function currentMonth() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
+export const currentMonth = () => today().slice(0, 7);
 
 export function nextMonth(month: string) {
   const [year, monthNumber] = month.split('-').map(Number);
-  return monthNumber === 12 ? `${year + 1}-01` : `${year}-${String(monthNumber + 1).padStart(2, '0')}`;
+  return monthNumber === 12 ? `${year + 1}-01` : `${year}-${pad2(monthNumber + 1)}`;
 }
 
 export function monthBounds(month: string) {
@@ -85,7 +91,7 @@ export function monthBounds(month: string) {
   const lastDay = new Date(year, monthNumber, 0).getDate();
   return {
     min: `${month}-01`,
-    max: `${month}-${String(lastDay).padStart(2, '0')}`,
+    max: `${month}-${pad2(lastDay)}`,
   };
 }
 
@@ -120,12 +126,13 @@ export function expectedBalance(account: LedgerAccount, entries: LedgerEntry[]) 
   );
 }
 
-export function reconcileDate(month: string) {
-  const today = new Date();
-  const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+// The requested date if it falls in the month, else today if that does, else the month's first or last day.
+export function dateInMonth(month: string, fallback: 'min' | 'max', requested?: string) {
   const bounds = monthBounds(month);
-  return iso >= bounds.min && iso <= bounds.max ? iso : bounds.max;
+  return [requested, today()].find((date) => date && date >= bounds.min && date <= bounds.max) ?? bounds[fallback];
 }
+
+export const reconcileDate = (month: string) => dateInMonth(month, 'max');
 
 export function variancePct(difference: number | undefined, expected: number) {
   if (difference === undefined) return undefined;

@@ -1,6 +1,6 @@
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
 import { listCategories } from '@/lib/db/queries';
-import { categoryInputSchema, categoryUpdateSchema } from '@/lib/finance-validation';
+import { categoryChangesSchema, categoryInputSchema } from '@/lib/agent/fields';
 import { apiRoute, bodyId, created, jsonBody, parseWith } from '@/lib/api';
 
 export const GET = apiRoute('GET /api/categories', 'Failed to load categories', () => listCategories());
@@ -10,7 +10,7 @@ export const POST = apiRoute('POST /api/categories', 'Failed to create category'
 );
 
 export const PUT = apiRoute('PUT /api/categories', 'Failed to update category', async (req: Request) => {
-  const { id, ...changes } = parseWith(categoryUpdateSchema, await jsonBody(req));
+  const { id, ...changes } = parseWith(categoryChangesSchema, await jsonBody(req));
   return editCategory(id, changes);
 });
 

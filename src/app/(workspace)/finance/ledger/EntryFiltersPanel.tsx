@@ -10,7 +10,7 @@ import {
   type EntrySortKey,
 } from '@/lib/ledger';
 import type { LedgerAccount } from '@/types/ledger';
-import { CollapseToggle, Field, financeStyles, openPicker } from '../components/FinanceUI';
+import { CollapseToggle, Field, SelectField, financeStyles, openPicker, pairs } from '../components/FinanceUI';
 
 const SORT_LABELS: Record<EntrySortKey, string> = {
   date: 'Date',
@@ -107,48 +107,24 @@ export function EntryFiltersPanel({
       />
       {open ? (
         <div className="grid gap-3 border-t border-white/6 p-4 md:grid-cols-2 xl:grid-cols-4">
-          <Field label="Account">
-            <select
-              className={financeStyles.input}
-              value={filters.accountId}
-              onChange={(event) => set({ accountId: event.target.value })}
-            >
-              <option value="all">All accounts</option>
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Type">
-            <select
-              className={financeStyles.input}
-              value={filters.type}
-              onChange={(event) => set({ type: event.target.value })}
-            >
-              <option value="all">All types</option>
-              {Object.entries(ENTRY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Category">
-            <select
-              className={financeStyles.input}
-              value={filters.category}
-              onChange={(event) => set({ category: event.target.value })}
-            >
-              <option value="all">All categories</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <SelectField
+            label="Account"
+            value={filters.accountId}
+            onChange={(accountId) => set({ accountId })}
+            options={[['all', 'All accounts'], ...pairs(accounts)]}
+          />
+          <SelectField
+            label="Type"
+            value={filters.type}
+            onChange={(type) => set({ type })}
+            options={[['all', 'All types'], ...Object.entries(ENTRY_LABELS)]}
+          />
+          <SelectField
+            label="Category"
+            value={filters.category}
+            onChange={(category) => set({ category })}
+            options={[['all', 'All categories'], ...pairs(categories)]}
+          />
           <Field label="Search">
             <input
               className={financeStyles.input}
@@ -175,29 +151,18 @@ export function EntryFiltersPanel({
               />
             </Field>
           ))}
-          <Field label="Sort by">
-            <select
-              className={financeStyles.input}
-              value={filters.sortBy}
-              onChange={(event) => set({ sortBy: event.target.value as EntrySortKey })}
-            >
-              {ENTRY_SORT_KEYS.map((key) => (
-                <option key={key} value={key}>
-                  {SORT_LABELS[key]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Order">
-            <select
-              className={financeStyles.input}
-              value={filters.sortDir}
-              onChange={(event) => set({ sortDir: event.target.value as EntrySortDir })}
-            >
-              <option value="asc">{sortOrderLabel(filters.sortBy, 'asc')}</option>
-              <option value="desc">{sortOrderLabel(filters.sortBy, 'desc')}</option>
-            </select>
-          </Field>
+          <SelectField
+            label="Sort by"
+            value={filters.sortBy}
+            onChange={(sortBy) => set({ sortBy: sortBy as EntrySortKey })}
+            options={Object.entries(SORT_LABELS)}
+          />
+          <SelectField
+            label="Order"
+            value={filters.sortDir}
+            onChange={(sortDir) => set({ sortDir: sortDir as EntrySortDir })}
+            options={ENTRY_SORT_DIRS.map((dir): [string, string] => [dir, sortOrderLabel(filters.sortBy, dir)])}
+          />
         </div>
       ) : null}
     </div>

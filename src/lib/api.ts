@@ -81,38 +81,3 @@ export function found<T>(value: T | null | undefined, message: string, status = 
   if (value === null || value === undefined) throw new ApiError(message, status);
   return value;
 }
-
-export function idResource<Row, Update>(config: {
-  path: string;
-  notFound: string;
-  noun: string;
-  get: (id: string) => Promise<Row | null>;
-  update: (id: string, data: Update) => Promise<Row | null>;
-  remove: (id: string, request: Request) => Promise<boolean>;
-  schema: z.ZodType<Update>;
-  mapError?: (cause: unknown) => ApiError | null;
-}) {
-  const rethrow = (cause: unknown): never => {
-    throw config.mapError?.(cause) ?? cause;
-  };
-
-  return {
-    GET: apiRoute(`GET ${config.path}`, `Failed to load ${config.noun}`, async (_req: Request, ctx: IdContext) =>
-      found(await config.get((await ctx.params).id), config.notFound)
-    ),
-    PUT: apiRoute(`PUT ${config.path}`, `Failed to update ${config.noun}`, async (req: Request, ctx: IdContext) => {
-      const { id } = await ctx.params;
-      const data = parseWith(config.schema, await jsonBody(req));
-      const row = await config.update(id, data).catch(rethrow);
-      return found(row, config.notFound);
-    }),
-    DELETE: apiRoute(
-      `DELETE ${config.path}`,
-      `Failed to delete ${config.noun}`,
-      async (req: Request, ctx: IdContext) => {
-        found((await config.remove((await ctx.params).id, req)) || null, config.notFound);
-        return { success: true };
-      }
-    ),
-  };
-}

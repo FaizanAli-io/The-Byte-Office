@@ -24,3 +24,35 @@ export function CTAButton({
     </Link>
   );
 }
+
+// The closing "start a project" panel at the foot of the site pages.
+export function CTAPanel({
+  title,
+  text,
+  secondary,
+  dark = false,
+}: {
+  title: string;
+  text: string;
+  secondary: { href: string; label: string };
+  dark?: boolean;
+}) {
+  return (
+    <section className="container-page section-tight">
+      <div
+        className={`${dark ? 'dark-panel' : 'surface-card'} grid gap-6 p-8 sm:p-10 lg:grid-cols-[1fr_auto] lg:items-center`}
+      >
+        <div>
+          <h2 className={dark ? 'text-3xl font-extrabold leading-tight text-white md:text-4xl' : 'heading-lg'}>
+            {title}
+          </h2>
+          <p className={dark ? 'mt-4 max-w-2xl text-slate-300' : 'body-copy mt-3'}>{text}</p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <CTAButton href="/contact" label="Start a Project" />
+          <CTAButton {...secondary} variant="secondary" />
+        </div>
+      </div>
+    </section>
+  );
+}

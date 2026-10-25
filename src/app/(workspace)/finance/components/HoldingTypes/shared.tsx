@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
-import { financeStyles } from '../FinanceUI';
+import { FinanceCard, Field as LabelledField, financeStyles } from '../FinanceUI';
 
-export const addButtonClass =
-  'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-bold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08] sm:min-h-10 sm:w-auto';
+export const addButtonClass = `${financeStyles.secondary} w-full sm:w-auto`;
 
 const numberOrZero = (value: string) => Number(value) || 0;
 
@@ -25,8 +24,7 @@ export function Field({
 }) {
   const isNumber = numeric || money;
   return (
-    <div>
-      <label className={financeStyles.label}>{label}</label>
+    <LabelledField label={label}>
       <input
         className={financeStyles.input}
         type={isNumber ? 'number' : undefined}
@@ -37,7 +35,7 @@ export function Field({
         disabled={disabled}
         onChange={(event) => onChange(isNumber ? numberOrZero(event.target.value) : event.target.value)}
       />
-    </div>
+    </LabelledField>
   );
 }
 
@@ -86,15 +84,16 @@ export function SectionCard({
   footer: ReactNode;
 }) {
   return (
-    <section className={`${financeStyles.card} p-5 sm:p-6`}>
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-bold text-white">{title}</h2>
+    <FinanceCard
+      title={title}
+      action={
         <button onClick={onAdd} className={addButtonClass}>
           {addLabel}
         </button>
-      </div>
+      }
+    >
       {children}
       <div className="mt-5 flex items-center justify-end border-t border-white/6 pt-5">{footer}</div>
-    </section>
+    </FinanceCard>
   );
 }

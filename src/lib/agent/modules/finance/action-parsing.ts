@@ -1,9 +1,9 @@
 import { ApiError } from '@/lib/api';
 import { fingerprint } from '@/lib/agent/action-utils';
 import { entryTypeSchema } from '@/lib/agent/fields';
-import { isRecord, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
-import { PKR } from '@/lib/fx';
-import { eligibleAccounts, monthBounds } from '@/lib/ledger';
+import { holdingError, isRecord, normalHolding, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
+import { HOLDING_LABELS } from '@/lib/finance';
+import { eligibleAccounts } from '@/lib/ledger';
 import type { HoldingKind } from '@/types/finance';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger } from '@/types/ledger';
 import type { AgentActionPayload, LedgerEntryFormState, HoldingInput } from '@/lib/agent/types';
@@ -50,28 +50,14 @@ export function ledgerStructureFingerprint(ledger: MonthlyLedger) {
   });
 }
 
-export const holdingLabel = (kind: HoldingKind) => kind.replace('_', ' ');
+export const holdingLabel = (kind: HoldingKind) => HOLDING_LABELS[kind].toLowerCase();
 
-// Field types and ranges are checked by the tool schema; only the rules between fields live here.
+// An update fills in from the current holding, whose kind never changes.
 export function parseHolding(args: Record<string, unknown>, current?: HoldingInput): HoldingInput {
-  const merged = { ...current, ...args } as Partial<HoldingInput>;
-  const kind = current?.kind ?? merged.kind!;
-  const label = merged.name ? `${merged.name}: ` : '';
-  if (kind === 'mutual_fund' && !merged.group) throw new ApiError(`${label}group is required for a mutual fund`);
-  const remote = kind === 'remote_bank';
-  if (remote && (!merged.currency || merged.currency === PKR)) {
-    throw new ApiError(`${label}a remote bank needs a foreign currency, such as USD`);
-  }
-  if (!remote && merged.currency !== undefined && merged.currency !== PKR) {
-    throw new ApiError(`${label}only remote banks hold a foreign currency`);
-  }
-  return {
-    kind,
-    name: merged.name!,
-    group: kind === 'mutual_fund' ? merged.group! : null,
-    currency: remote ? merged.currency! : PKR,
-    amount: merged.amount!,
-  };
+  const merged = { ...current, ...args, kind: current?.kind ?? args.kind };
+  const error = holdingError(merged);
+  if (error) throw new ApiError(error);
+  return normalHolding(merged as HoldingInput);
 }
 
 export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
@@ -143,16 +129,6 @@ export function ledgerForm(
     categories: categoriesList,
     entry,
   };
-}
-
-export function defaultEntryDate(month: string, requested?: string) {
-  const bounds = monthBounds(month);
-  if (requested && requested >= bounds.min && requested <= bounds.max) {
-    return requested;
-  }
-  const today = new Date().toISOString().slice(0, 10);
-  if (today >= bounds.min && today <= bounds.max) return today;
-  return bounds.min;
 }
 
 export function isEntryType(value: unknown): value is LedgerEntry['type'] {

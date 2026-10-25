@@ -1,15 +1,16 @@
 'use client';
 
-import { heldFundsApi, snapshotsApi } from '@/lib/api-client';
+import { snapshotsApi } from '@/lib/api-client';
 import { portfolioTotals } from '@/lib/finance';
 import { rateOf } from '@/lib/fx';
-import { formatMoney, type heldFunds } from '@/lib/ledger';
-import { useEffect, useState } from 'react';
+import { formatMoney } from '@/lib/ledger';
+import { useState } from 'react';
 import { BankSection, MutualFundsSection } from './HoldingTypes';
 import { FinancePageShell, MessageCard, StatCard, financeStyles } from './FinanceUI';
 import { FinanceToast, type FinanceToastState } from './FinanceToast';
 import { ExchangeRatesNote, useExchangeRates } from './ExchangeRates';
 import { useFinanceHandlers } from './useFinanceHandlers';
+import { useHeldFunds } from './useLoad';
 
 const DESCRIPTION =
   "The latest value of each account and fund, kept in sync with the newest ledger month: changing a value here records it as that account's closing balance.";
@@ -35,14 +36,7 @@ export default function FinanceEditor() {
   }));
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [toast, setToast] = useState<FinanceToastState>(null);
-  const [held, setHeld] = useState<ReturnType<typeof heldFunds> | null>(null);
-
-  useEffect(() => {
-    heldFundsApi
-      .load()
-      .then(setHeld)
-      .catch((err) => console.error('Failed to fetch /api/held-funds:', err));
-  }, []);
+  const { data: held } = useHeldFunds();
 
   async function handleSnapshot() {
     if (!holdings) return;

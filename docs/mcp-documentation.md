@@ -99,8 +99,8 @@ chat calls as `internal`, MCP and REST as `external` with the client's name.
 |                        | `health_metric_remove`   |
 
 `prayer_set` takes `test: true` for a test run: the count still changes, but nothing is written to the prayer history,
-which therefore holds only real changes. The REST API takes the same flag in the body of `POST /api/prayers` and
-`PUT /api/prayers/{id}`, and as `?test=true` on `DELETE /api/prayers/{id}`.
+which therefore holds only real changes. The REST API takes the same flag in the body of `PUT /api/prayers`, which sets
+one namaaz's count just as `prayer_set` does.
 
 Health readings name their metric, which must already exist in `health_metrics_list`; an unknown name is rejected.
 Metrics themselves are managed by id, and one with readings cannot be deleted — rename it instead.

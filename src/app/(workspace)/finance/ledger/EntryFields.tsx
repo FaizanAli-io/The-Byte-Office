@@ -3,7 +3,7 @@
 import { PKR, splitTransfer, TRANSFER_CATEGORIES } from '@/lib/fx';
 import { ENTRY_LABELS, eligibleAccounts, formatMoney, isHoldType, pickableCategories } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType } from '@/types/ledger';
-import { Field, financeStyles, openPicker } from '../components/FinanceUI';
+import { Field, SelectField, financeStyles, openPicker } from '../components/FinanceUI';
 
 export type EntryAccount = Pick<LedgerAccount, 'id' | 'name' | 'currency' | 'type' | 'exchangeRate'>;
 
@@ -69,13 +69,8 @@ export function draftIncomplete(draft: EntryDraft, accounts: EntryAccount[]) {
   );
 }
 
-function AccountOptions({ accounts }: { accounts: EntryAccount[] }) {
-  return accounts.map((account) => (
-    <option key={account.id} value={account.id}>
-      {account.name} · {account.currency}
-    </option>
-  ));
-}
+const accountOptions = (accounts: EntryAccount[]) =>
+  accounts.map((account): [string, string] => [account.id, `${account.name} · ${account.currency}`]);
 
 export function EntryFields({
   draft,
@@ -134,31 +129,22 @@ export function EntryFields({
           onChange={(event) => setDraft({ ...draft, date: event.target.value })}
         />
       </Field>
-      <Field label="Type">
-        <select
-          className={financeStyles.input}
-          value={draft.type}
-          disabled={disabled}
-          onChange={(event) => changeType(event.target.value as LedgerEntryType)}
-        >
-          {Object.entries(ENTRY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label={draft.type === 'transfer' ? 'From account' : 'Account'}>
-        <select
-          className={financeStyles.input}
-          value={draft.accountId}
-          disabled={disabled}
-          onChange={(event) => setDraft({ ...draft, accountId: event.target.value })}
-        >
-          {placeholders ? <option value="">Select account</option> : null}
-          <AccountOptions accounts={eligible} />
-        </select>
-      </Field>
+      <SelectField
+        label="Type"
+        value={draft.type}
+        disabled={disabled}
+        onChange={(type) => changeType(type as LedgerEntryType)}
+        options={Object.entries(ENTRY_LABELS)}
+      />
+      <SelectField
+        label={draft.type === 'transfer' ? 'From account' : 'Account'}
+        value={draft.accountId}
+        disabled={disabled}
+        onChange={(accountId) => setDraft({ ...draft, accountId })}
+        options={accountOptions(eligible)}
+      >
+        {placeholders ? <option value="">Select account</option> : null}
+      </SelectField>
       <Field label={draft.type === 'transfer' && adding ? 'Amount sent' : 'Amount'}>
         <input
           className={financeStyles.input}
@@ -173,17 +159,15 @@ export function EntryFields({
       </Field>
       {draft.type === 'transfer' ? (
         <>
-          <Field label="To account">
-            <select
-              className={financeStyles.input}
-              value={draft.destinationAccountId}
-              disabled={disabled}
-              onChange={(event) => setDraft({ ...draft, destinationAccountId: event.target.value })}
-            >
-              {placeholders ? <option value="">Select destination</option> : null}
-              <AccountOptions accounts={accounts.filter((account) => account.id !== draft.accountId)} />
-            </select>
-          </Field>
+          <SelectField
+            label="To account"
+            value={draft.destinationAccountId}
+            disabled={disabled}
+            onChange={(destinationAccountId) => setDraft({ ...draft, destinationAccountId })}
+            options={accountOptions(accounts.filter((account) => account.id !== draft.accountId))}
+          >
+            {placeholders ? <option value="">Select destination</option> : null}
+          </SelectField>
           <Field
             label={target ? `Amount received (${target.currency})` : `Amount received${adding ? ' (optional)' : ''}`}
           >
@@ -212,22 +196,19 @@ export function EntryFields({
           />
         </Field>
       ) : (
-        <Field label="Category (optional)">
-          <select
-            className={financeStyles.input}
-            value={draft.categoryId}
-            disabled={disabled}
-            onChange={(event) => setDraft({ ...draft, categoryId: event.target.value })}
-          >
-            <option value="">No category</option>
-            {pickable.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-                {category.archivedAt ? ' (archived)' : ''}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <SelectField
+          label="Category (optional)"
+          value={draft.categoryId}
+          disabled={disabled}
+          onChange={(categoryId) => setDraft({ ...draft, categoryId })}
+          options={[
+            ['', 'No category'],
+            ...pickable.map((category): [string, string] => [
+              category.id,
+              `${category.name}${category.archivedAt ? ' (archived)' : ''}`,
+            ]),
+          ]}
+        />
       )}
       <Field label="Note (optional)">
         <input

@@ -1,30 +1,49 @@
 import { z } from 'zod/v4';
 import { CATEGORY_KINDS, LEDGER_ENTRY_TYPES } from '@/types/ledger';
-import { ENTRY_SORT_DIRS, ENTRY_SORT_KEYS } from '@/lib/ledger';
+import { DATE_PATTERN, ENTRY_SORT_DIRS, ENTRY_SORT_KEYS, MONTH_PATTERN } from '@/lib/ledger';
 import { HOLDING_KINDS } from '@/types/finance';
 
 export const empty = z.object({});
 export const text = z.string().trim().min(1);
-export const month = z
-  .string()
-  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Month must be YYYY-MM')
-  .describe('Ledger month as YYYY-MM');
+export const month = z.string().regex(MONTH_PATTERN, 'Month must be YYYY-MM').describe('Ledger month as YYYY-MM');
 export const entrySerial = z
   .string()
   .regex(/^\d{4,}$/, 'Use a ledger serial such as 0001')
   .describe('Zero-padded serial from ledger_get, such as 0001');
 export const holdingKindSchema = z.enum(HOLDING_KINDS);
 export const entryTypeSchema = z.enum(LEDGER_ENTRY_TYPES);
-const isoDate = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .describe('ISO date YYYY-MM-DD within the ledger month');
+const isoDate = z.string().regex(DATE_PATTERN).describe('ISO date YYYY-MM-DD within the ledger month');
 
 export const holdingId = text.describe('Holding id from portfolio_get');
 export const metricId = text.describe('Metric id from health_metrics_list');
-export const categoryName = text.describe('Category name, as categories_list reports it');
+export const categoryName = z
+  .string()
+  .trim()
+  .min(1, 'A category needs a name')
+  .max(60, 'Category name is too long')
+  .describe('Category name, as categories_list reports it');
 export const categoryId = text.describe('Category id from categories_list');
 export const categoryKind = z.enum(CATEGORY_KINDS).describe('Which entry types may use it: income, expense, or both');
+
+// Shared by the categories API and the category tools.
+export const categoryInputSchema = z.object({ name: categoryName, kind: categoryKind.default('both') });
+export const categoryChangesSchema = z.object({
+  id: categoryId,
+  name: categoryName.optional().describe('New name'),
+  kind: categoryKind.optional(),
+  archived: z.boolean().optional().describe('True to archive, false to restore'),
+});
+
+const bounded = (label: string, max: number) => z.string().trim().max(max, `${label} is too long`);
+
+// The contact form and tbo_send_inquiry. Blank optional fields are dropped by parseInquiry.
+export const inquirySchema = z.object({
+  name: bounded('A name', 120).min(1, 'A name is required'),
+  email: bounded('An email', 254).regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'A valid email is required'),
+  company: bounded('Company', 160).optional(),
+  service: bounded('Service', 80).optional(),
+  message: bounded('A message', 5_000).min(1, 'A message is required'),
+});
 
 export const currencyCode = z
   .string()

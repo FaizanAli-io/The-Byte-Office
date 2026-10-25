@@ -1,10 +1,10 @@
 'use client';
 
-import { heldFundsApi } from '@/lib/api-client';
 import { categoryTotals, formatMoney, heldFunds, ledgerSummary } from '@/lib/ledger';
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { FinancePageShell, StatCard, financeStyles, openPicker } from '../components/FinanceUI';
 import { ExchangeRatesNote, useExchangeRates } from '../components/ExchangeRates';
+import { useHeldFunds } from '../components/useLoad';
 import { LedgerAccounts } from './LedgerAccounts';
 import { LedgerCategories } from './LedgerCategories';
 import { LedgerEntries } from './LedgerEntries';
@@ -37,20 +37,8 @@ export default function LedgerPage() {
   const rates = useExchangeRates();
   const summary = ledger ? ledgerSummary(ledger) : null;
   // Held funds carried in from earlier months; this month's own movement comes live from the ledger.
-  const [heldBefore, setHeldBefore] = useState<number | null>(null);
-  useEffect(() => {
-    if (!month) return;
-    let cancelled = false;
-    heldFundsApi
-      .load()
-      .then(({ movements }) => {
-        if (!cancelled) setHeldBefore(heldFunds(movements.filter((movement) => movement.month < month)).total);
-      })
-      .catch(() => !cancelled && setHeldBefore(null));
-    return () => {
-      cancelled = true;
-    };
-  }, [month]);
+  const { data: held } = useHeldFunds([month], Boolean(month));
+  const heldBefore = held ? heldFunds(held.movements.filter((movement) => movement.month < month)).total : null;
   const heldOutstanding = summary && heldBefore !== null ? heldBefore + summary.heldMovement : 0;
   const showHeld = heldBefore !== null && Boolean(heldOutstanding || summary?.heldMovement);
   const isFinalized = ledger?.status === 'finalized';

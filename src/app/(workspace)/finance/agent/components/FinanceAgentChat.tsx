@@ -4,6 +4,7 @@ import { FormEvent, Fragment, useEffect, useRef, useState } from 'react';
 import type { AgentConversation, AgentChatMessage, AgentStreamEvent, PendingAgentAction } from '@/lib/agent/types';
 import { agentApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
+import { readSseData } from '@/lib/sse';
 import { FinanceToast, type FinanceToastState } from '../../components/FinanceToast';
 import { financeStyles } from '../../components/FinanceUI';
 import { EmptyState, Message, ThinkingIndicator } from './ChatMessage';
@@ -89,12 +90,6 @@ export function FinanceAgentChat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, thinking, streaming]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 4500);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
   async function submit(content: string, historyOverride?: AgentChatMessage[], retry = false) {
     const text = content.trim();
     if (!text || loading || !chatId) return;
@@ -128,60 +123,40 @@ export function FinanceAgentChat() {
         const body = (await response.json()) as { error?: string };
         throw new Error(body.error || 'The assistant could not respond');
       }
+      // The streamed draft is shown under its own id until the saved message replaces it.
       const assistantId = crypto.randomUUID();
+      const showAssistant = (message: AgentChatMessage) =>
+        setMessages((current) =>
+          (current.some((item) => item.id === assistantId)
+            ? current.map((item) => (item.id === assistantId ? message : item))
+            : [...current, message]
+          ).slice(-MAX_STORED_MESSAGES)
+        );
       let streamedContent = '';
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      const addOrUpdateAssistant = (content: string) => {
-        setMessages((current) => {
-          const existing = current.some((message) => message.id === assistantId);
-          const message: AgentChatMessage = {
+      let completed = false;
+      await readSseData(response.body, (data) => {
+        const item = JSON.parse(data) as AgentStreamEvent;
+        if (item.type === 'status') {
+          if (!streamedContent) setThinking(item.status === 'reading' ? 'Reading workspace data…' : 'Thinking…');
+        } else if (item.type === 'delta') {
+          streamedContent += item.content;
+          setStreaming(true);
+          setThinking(null);
+          showAssistant({
             id: assistantId,
             role: 'assistant',
-            content,
+            content: streamedContent,
             createdAt: new Date().toISOString(),
-          };
-          return existing
-            ? current.map((item) => (item.id === assistantId ? { ...item, content } : item))
-            : [...current, message].slice(-MAX_STORED_MESSAGES);
-        });
-      };
-      let completed = false;
-      while (true) {
-        const { done, value } = await reader.read();
-        buffer += decoder.decode(value || new Uint8Array(), { stream: !done }).replace(/\r\n/g, '\n');
-        const events = buffer.split('\n\n');
-        buffer = events.pop() || '';
-        for (const event of events) {
-          const line = event.split('\n').find((item) => item.startsWith('data:'));
-          if (!line) continue;
-          const item = JSON.parse(line.slice(5).trim()) as AgentStreamEvent;
-          if (item.type === 'status') {
-            if (!streamedContent) {
-              setThinking(item.status === 'reading' ? 'Reading workspace data…' : 'Thinking…');
-            }
-          } else if (item.type === 'delta') {
-            streamedContent += item.content;
-            setStreaming(true);
-            setThinking(null);
-            addOrUpdateAssistant(streamedContent);
-          } else if (item.type === 'done') {
-            completed = true;
-            setThinking(null);
-            setStreaming(false);
-            setMessages((current) => {
-              const next = current.some((message) => message.id === assistantId)
-                ? current.map((message) => (message.id === assistantId ? item.response.message : message))
-                : [...current, item.response.message];
-              return next.slice(-MAX_STORED_MESSAGES);
-            });
-          } else {
-            throw new Error(item.error);
-          }
+          });
+        } else if (item.type === 'done') {
+          completed = true;
+          setThinking(null);
+          setStreaming(false);
+          showAssistant(item.response.message);
+        } else {
+          throw new Error(item.error);
         }
-        if (done) break;
-      }
+      });
       if (!completed) throw new Error('The assistant stream ended unexpectedly');
       const { chats: refreshed } = await agentApi.listChats();
       setChats(refreshed ?? chats);
@@ -256,22 +231,16 @@ export function FinanceAgentChat() {
   }
 
   async function startChat() {
-    let chat: AgentConversation | undefined;
     try {
-      ({ chat } = await agentApi.createChat());
+      const { chat } = await agentApi.createChat();
+      if (!chat) throw new Error('Could not create chat');
+      setChats((current) => [chat, ...current]);
+      activate(chat.id);
+      setMessages([]);
+      setFailedRequest(null);
     } catch (cause) {
       setToast({ tone: 'error', message: errorMessage(cause, 'Could not create chat') });
-      return;
     }
-    if (!chat) {
-      setToast({ tone: 'error', message: 'Could not create chat' });
-      return;
-    }
-    const newChat = chat;
-    setChats((current) => [newChat, ...current]);
-    activate(newChat.id);
-    setMessages([]);
-    setFailedRequest(null);
   }
 
   async function removeChat(id: string) {
@@ -425,24 +394,10 @@ export function FinanceAgentChat() {
   );
 }
 
+// Errors are assistant messages, so the last user message is the request to send again.
 function historyForRetry(source: AgentChatMessage[]) {
-  let end = source.length;
-  while (end > 0 && source[end - 1].isError) {
-    end -= 1;
-  }
-  const prefix = source.slice(0, end);
-  let lastUserIndex = -1;
-  for (let index = prefix.length - 1; index >= 0; index -= 1) {
-    if (prefix[index].role === 'user') {
-      lastUserIndex = index;
-      break;
-    }
-  }
-  if (lastUserIndex < 0) return null;
-  return {
-    content: prefix[lastUserIndex].content,
-    history: prefix.slice(0, lastUserIndex + 1),
-  };
+  const last = source.findLastIndex((message) => message.role === 'user');
+  return last < 0 ? null : { content: source[last].content, history: source.slice(0, last + 1) };
 }
 
 function mapAction(

@@ -5,8 +5,7 @@ import {
   healthInputSchema,
   healthMetricInputSchema,
   healthUpdateSchema,
-  prayerInputSchema,
-  prayerUpdateSchema,
+  prayerSetSchema,
 } from '@/lib/personal-validation';
 import { parseInquiry } from '@/lib/inquiry-email';
 import type { HoldingInput } from '@/types/finance';
@@ -202,15 +201,14 @@ describe('validateLedger', () => {
 });
 
 describe('personal schemas', () => {
-  it('accepts a prayer', () => expect(prayerInputSchema.safeParse({ namaaz: 'fajr', missed: 3 }).success).toBe(true));
-  it('defaults missed to absent rather than requiring it', () =>
-    expect(prayerInputSchema.safeParse({ namaaz: 'isha' }).success).toBe(true));
-  it('rejects an unknown namaaz', () => expect(prayerInputSchema.safeParse({ namaaz: 'nope' }).success).toBe(false));
+  it('accepts a prayer', () => expect(prayerSetSchema.safeParse({ namaaz: 'fajr', missed: 3 }).success).toBe(true));
+  it('requires the missed count', () => expect(prayerSetSchema.safeParse({ namaaz: 'isha' }).success).toBe(false));
+  it('rejects an unknown namaaz', () =>
+    expect(prayerSetSchema.safeParse({ namaaz: 'nope', missed: 0 }).success).toBe(false));
   it('rejects a fractional missed count', () =>
-    expect(prayerInputSchema.safeParse({ namaaz: 'fajr', missed: 1.5 }).success).toBe(false));
+    expect(prayerSetSchema.safeParse({ namaaz: 'fajr', missed: 1.5 }).success).toBe(false));
 
   it('rejects an update with no fields, which would be a silent no-op', () => {
-    expect(prayerUpdateSchema.safeParse({}).success).toBe(false);
     expect(healthUpdateSchema.safeParse({}).success).toBe(false);
   });
 

@@ -3,7 +3,13 @@ import { formatGroqErrorForUser, GroqError, PRIMARY_MODEL, requestGroq, type Gro
 import { getAgentRuntime } from '@/lib/agent/runtime';
 import type { AgentResponse, AgentChatMessage, AgentStreamEvent, PendingAgentAction } from '@/lib/agent/types';
 import { ApiError } from '@/lib/api';
-import { getConversation, listAgentMessages, logAgentToolCall, saveAgentMessage } from '@/lib/agent/repository';
+import {
+  bounded,
+  getConversation,
+  listAgentMessages,
+  logAgentToolCall,
+  saveAgentMessage,
+} from '@/lib/agent/repository';
 import { NextResponse } from 'next/server';
 
 export const maxDuration = 300;
@@ -104,7 +110,7 @@ export async function POST(request: Request) {
                 role: 'tool',
                 tool_call_id: call.id,
                 name: toolName,
-                content: safeJson(toolOutput),
+                content: JSON.stringify(bounded(toolOutput, 'Tool result was too large; narrow the request') ?? null),
               });
             }
           }
@@ -194,11 +200,6 @@ function parseToolArguments(raw: string): Record<string, unknown> {
     }
   } catch {}
   throw new Error(`The model returned invalid tool arguments: ${text.slice(0, 100)}`);
-}
-
-function safeJson(value: unknown) {
-  const json = JSON.stringify(value);
-  return json.length <= 12_000 ? json : JSON.stringify({ error: 'Tool result was too large; narrow the request' });
 }
 
 function error(message: string, status: number) {

@@ -3,7 +3,6 @@ import {
   assertMetricUnused,
   assertMetricNameIsFree,
   createHealthTracking,
-  createPrayer,
   deleteHealthTracking,
   getHealthTracking,
   getPrayerByNamaaz,
@@ -13,8 +12,8 @@ import {
   removeHealthMetric,
   renameHealthMetric,
   requireHealthMetricId,
+  setPrayer,
   updateHealthTracking,
-  updatePrayer,
 } from '@/lib/db/personal';
 import { assertUnchanged, fingerprint } from '@/lib/agent/action-utils';
 import type { AgentActionPayload, AgentProposal, PersonalActionType } from '@/lib/agent/types';
@@ -122,9 +121,7 @@ export async function executePersonalPayload(
     case 'prayer_set': {
       const current = await getPrayerByNamaaz(payload.namaaz);
       if (current && sourceFingerprint) assertUnchanged(fingerprint(current), sourceFingerprint, 'prayer row');
-      const { missed, test } = payload;
-      if (current) return updatePrayer(current.id, { missed, test });
-      return createPrayer({ namaaz: payload.namaaz, missed, test });
+      return setPrayer(payload);
     }
     case 'health_metric_add':
       return addHealthMetric(payload.name);

@@ -4,28 +4,15 @@ import type { FinanceToastState } from './FinanceToast';
 import { financeApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import type { Holding } from '@/types/finance';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useLoad } from './useLoad';
 
 export function useFinanceHandlers() {
-  const [holdings, setHoldings] = useState<Holding[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const loaded = useLoad(() => financeApi.load().then((data) => data.holdings), [], 'Failed to load finance data');
+  const { data: holdings, setData: setHoldings, loading } = loaded;
+  const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    financeApi
-      .load()
-      .then(({ holdings: loaded }) => {
-        if (!Array.isArray(loaded)) throw new Error('Finance data was empty or invalid');
-        setHoldings(loaded);
-        setError('');
-      })
-      .catch((err) => {
-        console.error('Failed to fetch /api/finance:', err);
-        setError(errorMessage(err, 'Failed to load finance data'));
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const error = saveError || loaded.error;
 
   const edit = (mutate: (current: Holding[]) => Holding[]) => setHoldings((current) => current && mutate(current));
 
@@ -35,12 +22,11 @@ export function useFinanceHandlers() {
     try {
       const { data } = await financeApi.save(holdings);
       if (data) setHoldings(data.holdings);
-      setError('');
+      setSaveError('');
       return { tone: 'success', message: 'Portfolio saved.' };
     } catch (err) {
-      console.error('Failed to save /api/finance:', err);
       const message = errorMessage(err, 'Failed to save portfolio');
-      setError(message);
+      setSaveError(message);
       return { tone: 'error', message };
     } finally {
       setSaving(false);

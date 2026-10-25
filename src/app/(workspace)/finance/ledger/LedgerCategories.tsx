@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { CategoryInput } from '@/lib/api-client';
 import { formatMoney } from '@/lib/ledger';
 import { CATEGORY_KINDS, type CategoryKind, type LedgerCategory } from '@/types/ledger';
-import { CollapseToggle, FinanceCard, financeStyles } from '../components/FinanceUI';
+import { CollapseToggle, FinanceCard, financeStyles, useConfirmDelete } from '../components/FinanceUI';
 
 const KIND_LABELS: Record<CategoryKind, string> = {
   income: 'Income only',
@@ -34,7 +34,7 @@ export function LedgerCategories({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<CategoryKind>('both');
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const { pending: pendingDelete, confirm } = useConfirmDelete();
 
   const active = categories.filter((category) => !category.archivedAt);
   const archived = categories.filter((category) => category.archivedAt);
@@ -117,14 +117,7 @@ export function LedgerCategories({
                       readOnly={readOnly}
                       confirmingDelete={pendingDelete === category.id}
                       onSave={onSave}
-                      onDelete={() => {
-                        if (pendingDelete !== category.id) {
-                          setPendingDelete(category.id);
-                          return;
-                        }
-                        setPendingDelete(null);
-                        onRemove(category.id);
-                      }}
+                      onDelete={() => confirm(category.id) && onRemove(category.id)}
                     />
                   ))}
                 </tbody>

@@ -1,6 +1,6 @@
 import BackgroundEffect from '@/components/site/BackgroundEffect';
 import SectionHeading from '@/components/site/SectionHeading';
-import { CTAButton } from '@/components/site/CTAButtons';
+import { CTAPanel } from '@/components/site/CTAButtons';
 import { company, ordinal, processSteps, services, siteUrl, techGroups } from '@/content/site';
 import { createMetadata, jsonLd } from '@/lib/seo';
 
@@ -126,20 +126,11 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      <section className="container-page section-tight">
-        <div className="surface-card grid gap-6 p-8 sm:p-10 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <h2 className="heading-lg">Need a product, AI workflow, or automation scoped?</h2>
-            <p className="body-copy mt-3">
-              Share the business goal and current constraints. The next step is a practical technical conversation.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <CTAButton href="/contact" label="Start a Project" />
-            <CTAButton href="/projects" label="View Work" variant="secondary" />
-          </div>
-        </div>
-      </section>
+      <CTAPanel
+        title="Need a product, AI workflow, or automation scoped?"
+        text="Share the business goal and current constraints. The next step is a practical technical conversation."
+        secondary={{ href: '/projects', label: 'View Work' }}
+      />
     </div>
   );
 }

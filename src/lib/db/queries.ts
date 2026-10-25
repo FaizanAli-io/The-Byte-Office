@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { idEq } from './ids';
+import { deleteById, idEq } from './ids';
 import { asc, desc, eq, inArray, lt, max, sql } from 'drizzle-orm';
 import type { FinanceSnapshot, SnapshotHolding } from '@/types/finance';
 import type {
@@ -242,12 +242,14 @@ export async function listCategories(): Promise<LedgerCategory[]> {
   return rows.map((row) => toCategory(row.category, row.entryCount));
 }
 
+const nextCategoryOrder = sql`(SELECT coalesce(max(sort_order), -1) + 1 FROM finance.categories)`;
+
 // Created on first use; the unique name index makes concurrent first uses converge on one row.
 export async function ensureCategory(input: { name: string; kind: CategoryKind }) {
   const db = getDb();
   await db
     .insert(categories)
-    .values({ ...input, sortOrder: sql`(SELECT coalesce(max(sort_order), -1) + 1 FROM finance.categories)` })
+    .values({ ...input, sortOrder: nextCategoryOrder })
     .onConflictDoNothing();
   const [row] = await db
     .select({ id: categories.id })
@@ -258,28 +260,22 @@ export async function ensureCategory(input: { name: string; kind: CategoryKind }
 }
 
 export async function createCategory(input: { name: string; kind: CategoryKind }): Promise<LedgerCategory> {
-  const [{ next }] = await getDb()
-    .select({ next: sql<number>`coalesce(max(${categories.sortOrder}), -1) + 1` })
-    .from(categories);
   const [row] = await getDb()
     .insert(categories)
-    .values({ name: input.name, kind: input.kind, sortOrder: next })
+    .values({ ...input, sortOrder: nextCategoryOrder })
     .returning();
   return toCategory(row);
 }
 
 export async function updateCategory(
   id: string,
-  changes: { name?: string; kind?: CategoryKind; sortOrder?: number; archived?: boolean }
+  { archived, ...changes }: { name?: string; kind?: CategoryKind; archived?: boolean }
 ): Promise<LedgerCategory | null> {
+  // Drizzle leaves undefined columns untouched.
+  const archivedAt = archived === undefined ? undefined : archived ? new Date() : null;
   const [row] = await getDb()
     .update(categories)
-    .set({
-      ...(changes.name === undefined ? {} : { name: changes.name }),
-      ...(changes.kind === undefined ? {} : { kind: changes.kind }),
-      ...(changes.sortOrder === undefined ? {} : { sortOrder: changes.sortOrder }),
-      ...(changes.archived === undefined ? {} : { archivedAt: changes.archived ? new Date() : null }),
-    })
+    .set({ ...changes, archivedAt })
     .where(idEq(categories.id, id))
     .returning();
   return row ? toCategory(row) : null;
@@ -293,10 +289,7 @@ export async function countCategoryUses(id: string) {
   return uses;
 }
 
-export async function deleteCategory(id: string) {
-  const deleted = await getDb().delete(categories).where(idEq(categories.id, id)).returning({ id: categories.id });
-  return deleted.length > 0;
-}
+export const deleteCategory = (id: string) => deleteById(categories, id);
 
 export async function loadHoldMovements() {
   const rows = await getDb()
@@ -364,10 +357,4 @@ export async function createSnapshot(holdings: SnapshotHolding[], grandTotal: nu
   return row.id;
 }
 
-export async function deleteSnapshot(id: string) {
-  const deleted = await getDb()
-    .delete(financeSnapshots)
-    .where(idEq(financeSnapshots.id, id))
-    .returning({ id: financeSnapshots.id });
-  return deleted.length > 0;
-}
+export const deleteSnapshot = (id: string) => deleteById(financeSnapshots, id);

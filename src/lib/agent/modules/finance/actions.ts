@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { assertUnchanged, fingerprint } from '@/lib/agent/action-utils';
 import { listCategories } from '@/lib/db/queries';
 import { addCategory, discardCategory, editCategory } from '@/lib/categories';
-import { resolveAccountId, resolveCategoryId } from '@/lib/ledger';
+import { dateInMonth, resolveAccountId, resolveCategoryId } from '@/lib/ledger';
 import { type CategoryKind, type LedgerCategory, type MonthlyLedger } from '@/types/ledger';
 import type { AgentActionPayload, AgentActionType, AgentProposal, PersonalActionType } from '@/lib/agent/types';
 import { applyAccountAction, isAccountAction, planAccountAction } from './ledger-accounts';
@@ -14,7 +14,6 @@ import { refreshExchangeRates } from '@/lib/exchange-rates';
 import {
   applyEntryOverride,
   assertLedger,
-  defaultEntryDate,
   definedFields,
   firstAccountId,
   isEntryType,
@@ -134,7 +133,7 @@ export async function proposeFinanceAction(
     const type = isEntryType(args.type) ? args.type : 'expense';
     const entry = {
       id: randomUUID(),
-      date: defaultEntryDate(month, given<string>('date')),
+      date: dateInMonth(month, 'min', given<string>('date')),
       type,
       accountId:
         ledger.accounts.find((account) => account.id === args.accountId)?.id ??

@@ -1,4 +1,4 @@
-import { idEq } from '@/lib/db/ids';
+import { deleteById, idEq } from '@/lib/db/ids';
 import { and, asc, desc, eq, gt, inArray } from 'drizzle-orm';
 import { toPublicAction } from './action-utils';
 import { getDb } from '@/lib/db';
@@ -14,13 +14,14 @@ import {
 
 const ACTION_TTL_MS = 15 * 60 * 1000;
 
-const MAX_LOGGED_JSON = 12_000;
+const MAX_JSON = 12_000;
 
-function bounded(value: unknown) {
+// A JSON-safe copy capped at 12,000 characters, for the tool log and for tool results sent back to the model.
+export function bounded(value: unknown, tooLarge = 'Too large to log') {
   if (value === undefined) return undefined;
   try {
     const json = JSON.stringify(value);
-    return json.length <= MAX_LOGGED_JSON ? (JSON.parse(json) as unknown) : { error: 'Too large to log' };
+    return json.length <= MAX_JSON ? (JSON.parse(json) as unknown) : { error: tooLarge };
   } catch {
     return { error: 'Could not be serialized for logs' };
   }
@@ -89,11 +90,7 @@ async function setActionStatus(
 
   const [action] = await getDb()
     .update(financeAgentActions)
-    .set({
-      status,
-      ...(options.error !== undefined ? { error: options.error } : {}),
-      ...(options.executed ? { executedAt: new Date() } : {}),
-    })
+    .set({ status, error: options.error, executedAt: options.executed ? new Date() : undefined })
     .where(and(...conditions))
     .returning();
   return action ?? null;
@@ -137,30 +134,12 @@ export async function createConversation(
   return toConversation(row);
 }
 
-export async function renameConversation(id: string, title: string) {
-  const [row] = await getDb()
-    .update(agentConversations)
-    .set({ title, updatedAt: new Date() })
-    .where(idEq(agentConversations.id, id))
-    .returning();
-  return row ? toConversation(row) : null;
-}
-
-export async function deleteConversation(id: string) {
-  const deleted = await getDb()
-    .delete(agentConversations)
-    .where(idEq(agentConversations.id, id))
-    .returning({ id: agentConversations.id });
-  return deleted.length > 0;
-}
+export const deleteConversation = (id: string) => deleteById(agentConversations, id);
 
 async function touchConversation(id: string, title?: string) {
   await getDb()
     .update(agentConversations)
-    .set({
-      updatedAt: new Date(),
-      ...(title ? { title } : {}),
-    })
+    .set({ updatedAt: new Date(), title: title || undefined })
     .where(idEq(agentConversations.id, id));
 }
 

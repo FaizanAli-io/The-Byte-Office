@@ -1,4 +1,5 @@
 import 'server-only';
+import { readSseData } from '@/lib/sse';
 import type { GroqTool } from './registry';
 
 export type GroqMessage =
@@ -34,13 +35,6 @@ type RawToolCall = {
 };
 
 const merge = (current: string, part: string) => (part.startsWith(current) ? part : current + part);
-
-const sseData = (event: string) =>
-  event
-    .split('\n')
-    .filter((line) => line.startsWith('data:'))
-    .map((line) => line.slice(5).trim())
-    .join('');
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 export const PRIMARY_MODEL = 'openai/gpt-oss-120b';
@@ -81,24 +75,15 @@ export async function requestGroq(input: {
     input.onText?.(text);
   };
 
-  try {
-    return await requestModel({ ...input, model: PRIMARY_MODEL, onText });
-  } catch (cause) {
-    if (!isRateLimitError(cause) || streamed) {
-      throw cause;
-    }
+  // A rate limit before any text has streamed falls back to the smaller model.
+  for (const model of [PRIMARY_MODEL, FALLBACK_MODEL]) {
     try {
-      return await requestModel({ ...input, model: FALLBACK_MODEL, onText });
-    } catch (fallbackCause) {
-      if (isRateLimitError(fallbackCause)) {
-        throw new GroqError(
-          `Groq rate limit reached for ${PRIMARY_MODEL} and ${FALLBACK_MODEL}. Try again later.`,
-          429
-        );
-      }
-      throw fallbackCause;
+      return await requestModel({ ...input, model, onText });
+    } catch (cause) {
+      if (!isRateLimitError(cause) || streamed) throw cause;
     }
   }
+  throw new GroqError(`Groq rate limit reached for ${PRIMARY_MODEL} and ${FALLBACK_MODEL}. Try again later.`, 429);
 }
 
 function isRateLimitError(error: unknown) {
@@ -144,9 +129,6 @@ async function requestModel(input: {
     throw new GroqError('Groq returned no stream', 502);
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
   let content = '';
   let responseModel = input.model;
   const toolCalls: GroqToolCall[] = [];
@@ -213,19 +195,7 @@ async function requestModel(input: {
     }
   };
 
-  while (true) {
-    const { done, value } = await reader.read();
-    buffer += decoder.decode(value || new Uint8Array(), { stream: !done }).replace(/\r\n/g, '\n');
-    const events = buffer.split('\n\n');
-    buffer = events.pop() || '';
-    for (const event of events) {
-      const data = sseData(event);
-      if (data) consume(data);
-    }
-    if (done) break;
-  }
-  const rest = sseData(buffer);
-  if (rest) consume(rest);
+  await readSseData(response.body, consume);
 
   const validToolCalls = toolCalls
     .map((tc) => ({

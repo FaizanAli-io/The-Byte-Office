@@ -1,13 +1,9 @@
-import { createPrayer, isUniqueViolation, loadPrayerTracker } from '@/lib/db/personal';
-import { prayerInputSchema } from '@/lib/personal-validation';
-import { ApiError, apiRoute, created, jsonBody, parseWith } from '@/lib/api';
+import { loadPrayerTracker, setPrayer } from '@/lib/db/personal';
+import { prayerSetSchema } from '@/lib/personal-validation';
+import { apiRoute, jsonBody, parseWith } from '@/lib/api';
 
 export const GET = apiRoute('GET /api/prayers', 'Failed to load prayers', () => loadPrayerTracker());
 
-export const POST = apiRoute('POST /api/prayers', 'Failed to create prayer', async (req: Request) => {
-  const input = parseWith(prayerInputSchema, await jsonBody(req));
-  const prayer = await createPrayer(input).catch((cause) => {
-    throw isUniqueViolation(cause) ? new ApiError('That namaaz already exists', 409) : cause;
-  });
-  return created(prayer);
-});
+export const PUT = apiRoute('PUT /api/prayers', 'Failed to set prayer', async (req: Request) =>
+  setPrayer(parseWith(prayerSetSchema, await jsonBody(req)))
+);

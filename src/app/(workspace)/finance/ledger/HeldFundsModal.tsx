@@ -1,33 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { heldFundsApi } from '@/lib/api-client';
-import { errorMessage } from '@/lib/client-api';
-import { formatMoney, type heldFunds } from '@/lib/ledger';
+import { formatMoney } from '@/lib/ledger';
 import { financeStyles } from '../components/FinanceUI';
 import { Modal } from '../components/Modal';
-
-type HeldFunds = ReturnType<typeof heldFunds>;
+import { useHeldFunds } from '../components/useLoad';
 
 export function HeldFundsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [held, setHeld] = useState<HeldFunds | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setLoading(true);
-    setError('');
-    heldFundsApi
-      .load()
-      .then((data) => !cancelled && setHeld(data))
-      .catch((cause) => !cancelled && setError(errorMessage(cause, 'Could not load held funds')))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [open]);
+  const { data: held, loading, error } = useHeldFunds([open], open);
 
   return (
     <Modal

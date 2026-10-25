@@ -1,44 +1,17 @@
-import { z } from 'zod/v4';
 import { isUuid } from '@/lib/db/ids';
-import { eligibleAccounts, isHoldType, isMonth, monthBounds } from '@/lib/ledger';
+import { DATE_PATTERN, eligibleAccounts, isHoldType, isMonth, monthBounds } from '@/lib/ledger';
 import { isCurrencyCode, PKR } from '@/lib/fx';
-import { HOLDING_KINDS, type HoldingInput } from '@/types/finance';
-import {
-  CATEGORY_KINDS,
-  LEDGER_ENTRY_TYPES,
-  type LedgerAccount,
-  type LedgerEntry,
-  type LedgerDraft,
-} from '@/types/ledger';
-
-const categoryName = z.string().trim().min(1, 'A category needs a name').max(60, 'Category name is too long');
-const categoryKind = z.enum(CATEGORY_KINDS);
-
-export const categoryInputSchema = z.object({
-  name: categoryName,
-  kind: categoryKind.default('both'),
-});
-
-export const categoryUpdateSchema = z.object({
-  id: z.string().min(1, 'id is required'),
-  name: categoryName.optional(),
-  kind: categoryKind.optional(),
-  sortOrder: z.int().nonnegative().optional(),
-  archived: z.boolean().optional(),
-});
-
-const KIND_NAMES: Record<string, string> = {
-  local_bank: 'local bank',
-  remote_bank: 'remote bank',
-  mutual_fund: 'fund',
-};
+import { HOLDING_LABELS } from '@/lib/finance';
+import { HOLDING_KINDS, type HoldingInput, type HoldingKind } from '@/types/finance';
+import { LEDGER_ENTRY_TYPES, type LedgerAccount, type LedgerEntry, type LedgerDraft } from '@/types/ledger';
 
 // The first problem with one holding, named so the person can find the row: "Wise: enter a currency code".
-function holdingError(holding: Record<string, unknown>, seen: Set<string>) {
+// The portfolio editor and the holding tools share it.
+export function holdingError(holding: Record<string, unknown>, seen = new Set<string>()) {
   const { id, kind, name, group, amount, currency } = holding;
   if (!(HOLDING_KINDS as readonly unknown[]).includes(kind)) return 'A holding has an unknown kind';
   const label = validName(name) ? name.trim() : '';
-  if (!label) return `Every ${KIND_NAMES[kind as string]} needs a name`;
+  if (!label) return `Every ${HOLDING_LABELS[kind as HoldingKind].toLowerCase()} needs a name`;
   if (id !== undefined && id !== null) {
     if (typeof id !== 'string' || !id.trim()) return `${label}: invalid id`;
     if (seen.has(id)) return `${label}: listed twice`;
@@ -64,13 +37,18 @@ export function parsePortfolio(value: unknown): HoldingInput[] | string {
   }
   return (value.holdings as HoldingInput[]).map((holding) => ({
     ...(holding.id ? { id: holding.id } : {}),
-    kind: holding.kind,
-    name: holding.name.trim(),
-    group: holding.kind === 'mutual_fund' ? holding.group!.trim() : null,
-    currency: holding.kind === 'remote_bank' ? holding.currency : PKR,
-    amount: holding.amount,
+    ...normalHolding(holding),
   }));
 }
+
+// A valid holding with the fields its kind does not use fixed: no bank outside funds, PKR outside remote banks.
+export const normalHolding = ({ kind, name, group, currency, amount }: HoldingInput) => ({
+  kind,
+  name: name.trim(),
+  group: kind === 'mutual_fund' ? group!.trim() : null,
+  currency: kind === 'remote_bank' ? currency : PKR,
+  amount,
+});
 
 export function parseSnapshotInput(value: unknown): HoldingInput[] | string {
   if (!isRecord(value)) return 'Invalid snapshot';
@@ -158,7 +136,7 @@ function validateLedgerEntry(
   if (!(LEDGER_ENTRY_TYPES as readonly string[]).includes(entry.type)) {
     return 'Invalid entry type';
   }
-  if (!entry.id || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) || entry.date < bounds.min || entry.date > bounds.max) {
+  if (!entry.id || !DATE_PATTERN.test(entry.date) || entry.date < bounds.min || entry.date > bounds.max) {
     return 'Every entry must have a valid date in this month';
   }
   if (!accountIds.has(entry.accountId) || !validPositiveNumber(entry.amount)) {

@@ -2,18 +2,9 @@
 
 import { exchangeRatesApi, type ExchangeRates } from '@/lib/api-client';
 import { formatQuote, PKR, quotePair } from '@/lib/fx';
-import { useEffect, useState } from 'react';
+import { useLoad } from './useLoad';
 
-export function useExchangeRates() {
-  const [rates, setRates] = useState<ExchangeRates | null>(null);
-  useEffect(() => {
-    exchangeRatesApi
-      .load()
-      .then(setRates)
-      .catch((cause) => console.error('Failed to fetch /api/exchange-rates:', cause));
-  }, []);
-  return rates;
-}
+export const useExchangeRates = () => useLoad(exchangeRatesApi.load, []).data;
 
 function age(updatedAt: string) {
   const minutes = Math.max(0, Math.round((Date.now() - new Date(updatedAt).getTime()) / 60000));

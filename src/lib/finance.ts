@@ -47,7 +47,7 @@ export function individualFundAllocations(holdings: Valued[]) {
   );
 }
 
-const KIND_LABELS: Record<HoldingKind, string> = {
+export const HOLDING_LABELS: Record<HoldingKind, string> = {
   local_bank: 'Local bank',
   remote_bank: 'Remote bank',
   mutual_fund: 'Mutual fund',
@@ -66,7 +66,7 @@ function snapshotLines(holdings: Valued[]) {
   const { values, add } = keyedValues();
   for (const holding of holdings) {
     const name = holding.kind === 'mutual_fund' ? `${holding.group ?? ''}: ${holding.name}` : holding.name;
-    add(KIND_LABELS[holding.kind], name, valuePkr(holding));
+    add(HOLDING_LABELS[holding.kind], name, valuePkr(holding));
   }
   return values;
 }

@@ -1,52 +1,31 @@
 'use client';
 
 import { agentApi, type ToolLog } from '@/lib/api-client';
-import { errorMessage } from '@/lib/client-api';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FinancePageShell, FinanceCard, financeStyles } from '../../components/FinanceUI';
-
-const LOGS_PER_PAGE = 10;
+import { PAGE_SIZES, Pagination } from '../../components/Pagination';
+import { useLoad } from '../../components/useLoad';
 
 export default function FinanceAgentLogsPage() {
-  const [logs, setLogs] = useState<ToolLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const [page, setPage] = useState(0);
+  const { data, loading, error, reload } = useLoad(
+    () => agentApi.logs().then((loaded) => loaded.logs ?? []),
+    [],
+    'Could not load logs'
+  );
+  const logs = data ?? [];
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
-  const hasLoadedRef = useRef(false);
-
-  const loadLogs = useCallback(async () => {
-    setRefreshing(true);
-    if (!hasLoadedRef.current) setLoading(true);
-    setError('');
-    try {
-      const { logs: loaded } = await agentApi.logs();
-      setLogs(loaded || []);
-      hasLoadedRef.current = true;
-    } catch (cause) {
-      setError(errorMessage(cause, 'Could not load logs'));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
 
   useEffect(() => {
-    void loadLogs();
-    const refreshTimer = window.setInterval(() => {
-      void loadLogs();
-    }, 5000);
+    const refreshTimer = window.setInterval(reload, 5000);
     return () => window.clearInterval(refreshTimer);
-  }, [loadLogs]);
+  }, [reload]);
 
-  const totalPages = Math.max(1, Math.ceil(logs.length / LOGS_PER_PAGE));
-  const currentPage = Math.min(page, totalPages - 1);
-  const visibleLogs = logs.slice(currentPage * LOGS_PER_PAGE, (currentPage + 1) * LOGS_PER_PAGE);
-
-  useEffect(() => {
-    setPage((value) => Math.min(value, totalPages - 1));
-  }, [totalPages]);
+  const pageCount = Math.max(1, Math.ceil(logs.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const firstOnPage = (currentPage - 1) * pageSize;
+  const visibleLogs = logs.slice(firstOnPage, firstOnPage + pageSize);
 
   return (
     <FinancePageShell
@@ -54,8 +33,8 @@ export default function FinanceAgentLogsPage() {
       title="Assistant logs"
       description="Every tool call: internal ones from the assistant, external ones from MCP and REST clients, with arguments, result, caller, timing and errors. Refreshes every 5 seconds."
       actions={
-        <button type="button" className={financeStyles.secondary} onClick={() => void loadLogs()} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh logs'}
+        <button type="button" className={financeStyles.secondary} onClick={reload} disabled={loading}>
+          {loading ? 'Refreshing…' : 'Refresh logs'}
         </button>
       }
     >
@@ -124,35 +103,16 @@ export default function FinanceAgentLogsPage() {
                 </tbody>
               </table>
             </div>
-            {totalPages > 1 ? (
-              <div className="mt-5 flex flex-col items-center justify-between gap-3 border-t border-white/8 pt-4 sm:flex-row">
-                <p className="text-xs text-slate-500">
-                  Showing {currentPage * LOGS_PER_PAGE + 1}–{Math.min((currentPage + 1) * LOGS_PER_PAGE, logs.length)}{' '}
-                  of {logs.length} logs
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className={financeStyles.secondary}
-                    disabled={currentPage === 0}
-                    onClick={() => setPage((value) => Math.max(0, value - 1))}
-                  >
-                    Previous
-                  </button>
-                  <span className="px-2 text-xs text-slate-500">
-                    Page {currentPage + 1} of {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    className={financeStyles.secondary}
-                    disabled={currentPage === totalPages - 1}
-                    onClick={() => setPage((value) => Math.min(totalPages - 1, value + 1))}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            ) : null}
+            <Pagination
+              page={currentPage}
+              pageCount={pageCount}
+              pageSize={pageSize}
+              firstOnPage={firstOnPage}
+              shown={visibleLogs.length}
+              total={logs.length}
+              onPage={setPage}
+              onPageSize={setPageSize}
+            />
           </>
         )}
       </FinanceCard>

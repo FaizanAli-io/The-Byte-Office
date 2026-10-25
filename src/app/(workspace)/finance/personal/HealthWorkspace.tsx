@@ -4,7 +4,16 @@ import { healthApi, healthMetricsApi } from '@/lib/api-client';
 import { errorMessage } from '@/lib/client-api';
 import type { HealthMetric, HealthTracking } from '@/types/personal';
 import { useCallback, useState } from 'react';
-import { FinanceCard, Field, StatCard, financeStyles, openPicker } from '../components/FinanceUI';
+import {
+  FinanceCard,
+  Field,
+  SelectField,
+  StatCard,
+  financeStyles,
+  openPicker,
+  pairs,
+  useConfirmDelete,
+} from '../components/FinanceUI';
 import { HealthChart } from './HealthChart';
 import { HealthMetrics } from './HealthMetrics';
 import { PersonalShell, usePersonalData } from './PersonalShell';
@@ -17,7 +26,7 @@ export function HealthWorkspace() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const { pending: pendingDelete, confirm, reset: resetDelete } = useConfirmDelete();
 
   const refresh = useCallback(async () => {
     const [readings, metricList] = await Promise.all([healthApi.list(), healthMetricsApi.list()]);
@@ -54,17 +63,13 @@ export function HealthWorkspace() {
   }
 
   async function remove(id: string) {
-    if (pendingDelete !== id) {
-      setPendingDelete(id);
-      return;
-    }
+    if (!confirm(id)) return;
     try {
       await healthApi.remove(id);
     } catch (cause) {
       setToast({ tone: 'error', message: errorMessage(cause, 'Could not delete entry') });
       return;
     }
-    setPendingDelete(null);
     if (editingId === id) resetForm();
     await refresh();
     setToast({ tone: 'success', message: 'Health entry deleted.' });
@@ -77,7 +82,7 @@ export function HealthWorkspace() {
       value: String(entry.value),
       createdAt: new Date(entry.createdAt).toISOString().slice(0, 16),
     });
-    setPendingDelete(null);
+    resetDelete();
   }
 
   return (
@@ -96,20 +101,12 @@ export function HealthWorkspace() {
       </div>
       <FinanceCard title="Health tracking" description="Leave the date empty to use now.">
         <div className={`${financeStyles.inset} mb-5 grid gap-4 p-4 md:grid-cols-4`}>
-          <Field label="Metric">
-            <select
-              className={financeStyles.input}
-              value={form.metric}
-              onChange={(event) => setForm({ ...form, metric: event.target.value })}
-            >
-              <option value="">Choose a metric</option>
-              {metrics.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <SelectField
+            label="Metric"
+            value={form.metric}
+            onChange={(metric) => setForm({ ...form, metric })}
+            options={[['', 'Choose a metric'], ...pairs(metrics)]}
+          />
           <Field label="Value">
             <input
               className={financeStyles.input}
