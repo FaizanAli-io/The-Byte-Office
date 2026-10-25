@@ -17,9 +17,10 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-// Money is stored in major units (rupees, dollars), never paisa or cents.
+// Every figure is stored to 2 dp. Money is in major units (rupees, dollars), never paisa or cents; rates are PKR
+// per unit, the precision the live rate table keeps.
 const money = (name: string) => numeric(name, { precision: 18, scale: 2, mode: 'number' });
-const rate = (name: string) => numeric(name, { precision: 18, scale: 6, mode: 'number' });
+const rate = money;
 const utc = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 const createdAt = () => utc('created_at').notNull().defaultNow();
 const updatedAt = () => utc('updated_at').notNull().defaultNow();
@@ -148,7 +149,7 @@ export const exchangeRates = finance.table(
   'exchange_rates',
   {
     currency: text('currency').primaryKey(),
-    value: numeric('value', { precision: 18, scale: 2, mode: 'number' }).notNull(),
+    value: rate('value').notNull(),
     updatedAt: utc('updated_at').notNull(),
     checkedAt: utc('checked_at').notNull(),
   },
@@ -340,7 +341,7 @@ export const healthTracking = personal.table(
     metricId: uuid('metric_id')
       .notNull()
       .references(() => healthMetrics.id, { onDelete: 'restrict' }),
-    value: numeric('value', { precision: 10, scale: 3, mode: 'number' }).notNull(),
+    value: numeric('value', { precision: 10, scale: 2, mode: 'number' }).notNull(),
     createdAt: createdAt(),
   },
   (table) => [

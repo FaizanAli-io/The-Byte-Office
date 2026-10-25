@@ -20,6 +20,7 @@ export default function LedgerPage() {
     error,
     notice,
     create,
+    refresh,
     save,
     saveAccounts,
     accountsDirty,
@@ -186,6 +187,8 @@ export default function LedgerPage() {
             categories={categories}
             entries={ledger.entries}
             readOnly={isFinalized}
+            busy={saving}
+            onRefresh={refresh}
             onAdd={addEntry}
             onUpdate={updateEntry}
             onRemove={removeEntry}

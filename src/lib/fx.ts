@@ -7,7 +7,8 @@ export type RateTable = Record<string, number>;
 export const isCurrencyCode = (value: unknown): value is string =>
   typeof value === 'string' && /^[A-Z]{3}$/.test(value);
 
-export const round2 = (value: number) => Math.round(value * 100) / 100;
+// To the paisa or cent. `|| 0` turns -0 into 0, so a balance that nets to nothing never shows as -$0.00.
+export const round2 = (value: number) => Math.round(value * 100) / 100 || 0;
 
 export const rateOf = (rates: RateTable, code: string): number | undefined => (code === PKR ? 1 : rates[code]);
 

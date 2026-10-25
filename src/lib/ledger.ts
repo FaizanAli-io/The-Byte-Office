@@ -113,8 +113,11 @@ export function accountMovement(accountId: string, entry: LedgerEntry) {
   return -entry.amount;
 }
 
+// Every computed balance is rounded to 2 dp: 845.30 − 822.67 − 22.63 is otherwise -3.55e-15, not 0.
 export function expectedBalance(account: LedgerAccount, entries: LedgerEntry[]) {
-  return entries.reduce((balance, entry) => balance + accountMovement(account.id, entry), account.openingBalance);
+  return round2(
+    entries.reduce((balance, entry) => balance + accountMovement(account.id, entry), account.openingBalance)
+  );
 }
 
 export function reconcileDate(month: string) {
@@ -140,28 +143,29 @@ export function formatVariancePct(pct: number | null | undefined) {
 export function accountStats(account: LedgerAccount, entries: LedgerEntry[]) {
   const expected = expectedBalance(account, entries);
   const actual = account.actualClosingBalance;
-  const netInvested =
+  const netInvested = round2(
     (account.openingCostBasis ?? account.openingBalance) +
-    entries.reduce((total, entry) => {
-      if (entry.accountId === account.id) {
-        if (entry.type === 'fund_contribution') return total + entry.amount;
-        if (entry.type === 'fund_withdrawal') return total - entry.amount;
-      }
-      if (entry.destinationAccountId === account.id && entry.type === 'transfer' && account.type === 'fund') {
-        return total + (entry.destinationAmount ?? entry.amount);
-      }
-      if (entry.accountId === account.id && entry.type === 'transfer' && account.type === 'fund') {
-        return total - entry.amount;
-      }
-      return total;
-    }, 0);
+      entries.reduce((total, entry) => {
+        if (entry.accountId === account.id) {
+          if (entry.type === 'fund_contribution') return total + entry.amount;
+          if (entry.type === 'fund_withdrawal') return total - entry.amount;
+        }
+        if (entry.destinationAccountId === account.id && entry.type === 'transfer' && account.type === 'fund') {
+          return total + (entry.destinationAmount ?? entry.amount);
+        }
+        if (entry.accountId === account.id && entry.type === 'transfer' && account.type === 'fund') {
+          return total - entry.amount;
+        }
+        return total;
+      }, 0)
+  );
 
   return {
     expected,
     actual,
-    difference: actual === undefined ? undefined : actual - expected,
+    difference: actual === undefined ? undefined : round2(actual - expected),
     netInvested,
-    gainLoss: account.type === 'fund' && actual !== undefined ? actual - netInvested : undefined,
+    gainLoss: account.type === 'fund' && actual !== undefined ? round2(actual - netInvested) : undefined,
   };
 }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { ledgerApi } from '@/lib/api-client';
+import { round2 } from '@/lib/fx';
 import { accountMovement, emptyFilters, entryDetail, monthBounds, type EntryFilters } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -18,6 +19,8 @@ export function LedgerEntries({
   categories,
   entries,
   readOnly,
+  busy,
+  onRefresh,
   onAdd,
   onUpdate,
   onRemove,
@@ -27,6 +30,9 @@ export function LedgerEntries({
   categories: LedgerCategory[];
   entries: LedgerEntry[];
   readOnly: boolean;
+  // Saving or refreshing: a refresh mid-save would race it.
+  busy: boolean;
+  onRefresh: () => void;
   onAdd: (entry: LedgerEntry) => void;
   onUpdate: (entry: LedgerEntry) => void;
   onRemove: (id: string) => void;
@@ -98,7 +104,9 @@ export function LedgerEntries({
       let balance = filtered.openingBalance;
       // The date sort breaks ties by id, so newest-first is exactly oldest-first reversed.
       const chronological = filters.sortDir === 'asc' ? visibleEntries : [...visibleEntries].reverse();
-      for (const entry of chronological) balances.set(entry.id, (balance += accountMovement(filtered.id, entry)));
+      for (const entry of chronological) {
+        balances.set(entry.id, (balance = round2(balance + accountMovement(filtered.id, entry))));
+      }
     }
 
     return visibleEntries.map((entry) => ({
@@ -174,6 +182,9 @@ export function LedgerEntries({
           ) : null}
           <button type="button" className={financeStyles.secondary} onClick={() => setHoldingsOpen(true)}>
             View holdings
+          </button>
+          <button type="button" className={financeStyles.secondary} disabled={busy} onClick={onRefresh}>
+            Refresh
           </button>
         </div>
       }

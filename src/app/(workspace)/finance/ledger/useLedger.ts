@@ -76,6 +76,19 @@ export function useLedger() {
     }
   }
 
+  // Picks up changes made elsewhere (MCP, the chat assistant, another tab) without blanking the page; account edits
+  // not yet saved are kept.
+  const refresh = () =>
+    run(
+      async () => {
+        const fresh = await ledgerApi.load(month);
+        const current = ledgerRef.current;
+        adopt(fresh && current && accountsDirty ? { ...fresh, accounts: current.accounts } : fresh);
+      },
+      'Ledger refreshed.',
+      'Could not refresh the ledger'
+    );
+
   const create = () =>
     run(
       async () => adopt(await ledgerApi.create(month)),
@@ -262,6 +275,7 @@ export function useLedger() {
     error,
     notice,
     create,
+    refresh,
     save,
     saveAccounts,
     accountsDirty,

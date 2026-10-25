@@ -136,6 +136,27 @@ describe('expectedBalance', () => {
   });
 });
 
+describe('balance rounding', () => {
+  // October's Deel: $845.30 sent as a $822.67 transfer plus a $22.63 exchange cost.
+  const deel = bank({ id: 'deel', currency: 'USD', openingBalance: 845.3, actualClosingBalance: 0 });
+  const entries = [
+    entry({ id: 't', type: 'transfer', accountId: 'deel', destinationAccountId: 'pkr', amount: 822.67 }),
+    entry({ id: 'c', type: 'expense', accountId: 'deel', amount: 22.63 }),
+  ];
+
+  it('nets to exactly 0, not -3.55e-15 or -0', () => {
+    const stats = accountStats(deel, entries);
+    expect(Object.is(stats.expected, 0)).toBe(true);
+    expect(Object.is(stats.difference, 0)).toBe(true);
+  });
+
+  it('keeps every computed balance to 2 dp', () => {
+    const account = bank({ id: 'a', openingBalance: 0.1 });
+    const adds = [0.2, 0.7].map((amount, i) => entry({ id: `i${i}`, type: 'income', accountId: 'a', amount }));
+    expect(accountStats(account, adds).expected).toBe(1);
+  });
+});
+
 describe('accountStats', () => {
   it('reports no difference until an actual closing balance is entered', () => {
     const stats = accountStats(bank(), []);

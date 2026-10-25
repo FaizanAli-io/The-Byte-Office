@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { formatQuote, quotePair, splitTransfer } from '@/lib/fx';
+import { formatQuote, quotePair, round2, splitTransfer } from '@/lib/fx';
 
 const PKR = { currency: 'PKR', rate: 1 };
 const USD = { currency: 'USD', rate: 280.92 };
 const GBP = { currency: 'GBP', rate: 356.4 };
+
+describe('round2', () => {
+  it('rounds to 2 dp and never returns -0', () => {
+    expect(round2(1.005 + 0.0001)).toBe(1.01);
+    expect(Object.is(round2(-3.552713678800501e-15), 0)).toBe(true);
+    expect(round2(-0.004)).toBe(0);
+  });
+});
 
 describe('quotePair', () => {
   it('quotes PKR last and follows the market order between foreign currencies', () => {

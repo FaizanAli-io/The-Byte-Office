@@ -1,5 +1,5 @@
 {
-  "id": "2eba1043-1cd0-424a-ad88-509f11fdb0cc",
+  "id": "9e29cc99-ff45-4014-8c41-32bdfdfb2fd4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -162,6 +162,52 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "finance.exchange_rates": {
+      "name": "exchange_rates",
+      "schema": "finance",
+      "columns": {
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "checked_at": {
+          "name": "checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "exchange_rates_currency_code": {
+          "name": "exchange_rates_currency_code",
+          "value": "\"finance\".\"exchange_rates\".\"currency\" ~ '^[A-Z]{3}$'"
+        },
+        "exchange_rates_value_positive": {
+          "name": "exchange_rates_value_positive",
+          "value": "\"finance\".\"exchange_rates\".\"value\" > 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "finance.finance_agent_actions": {
@@ -390,6 +436,14 @@
           "primaryKey": false,
           "notNull": true
         },
+        "type": {
+          "name": "type",
+          "type": "tool_log_type",
+          "typeSchema": "finance",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'internal'"
+        },
         "model": {
           "name": "model",
           "type": "text",
@@ -549,6 +603,55 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "personal.health_metrics": {
+      "name": "health_metrics",
+      "schema": "personal",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "health_metrics_name_uidx": {
+          "name": "health_metrics_name_uidx",
+          "columns": [
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "personal.health_tracking": {
       "name": "health_tracking",
       "schema": "personal",
@@ -560,15 +663,15 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "metric": {
-          "name": "metric",
-          "type": "text",
+        "metric_id": {
+          "name": "metric_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "value": {
           "name": "value",
-          "type": "numeric(10, 3)",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true
         },
@@ -596,11 +699,121 @@
           "method": "btree",
           "with": {}
         },
-        "health_tracking_metric_idx": {
-          "name": "health_tracking_metric_idx",
+        "health_tracking_metric_id_idx": {
+          "name": "health_tracking_metric_id_idx",
           "columns": [
             {
-              "expression": "metric",
+              "expression": "metric_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "health_tracking_metric_id_health_metrics_id_fk": {
+          "name": "health_tracking_metric_id_health_metrics_id_fk",
+          "tableFrom": "health_tracking",
+          "tableTo": "health_metrics",
+          "schemaTo": "personal",
+          "columnsFrom": [
+            "metric_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "finance.holdings": {
+      "name": "holdings",
+      "schema": "finance",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "holding_kind",
+          "typeSchema": "finance",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "group_name": {
+          "name": "group_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PKR'"
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "holdings_kind_sort_idx": {
+          "name": "holdings_kind_sort_idx",
+          "columns": [
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -616,7 +829,20 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "holdings_group_only_for_funds": {
+          "name": "holdings_group_only_for_funds",
+          "value": "(\"finance\".\"holdings\".\"kind\" = 'mutual_fund') = (\"finance\".\"holdings\".\"group_name\" IS NOT NULL)"
+        },
+        "holdings_currency_code": {
+          "name": "holdings_currency_code",
+          "value": "\"finance\".\"holdings\".\"currency\" ~ '^[A-Z]{3}$'"
+        },
+        "holdings_foreign_only_remote": {
+          "name": "holdings_foreign_only_remote",
+          "value": "(\"finance\".\"holdings\".\"kind\" = 'remote_bank') = (\"finance\".\"holdings\".\"currency\" <> 'PKR')"
+        }
+      },
       "isRLSEnabled": false
     },
     "finance.ledger_accounts": {
@@ -635,23 +861,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "ledger_account_type",
-          "typeSchema": "finance",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "ledger_currency",
-          "typeSchema": "finance",
+        "holding_id": {
+          "name": "holding_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -675,17 +887,9 @@
         },
         "exchange_rate": {
           "name": "exchange_rate",
-          "type": "numeric(18, 6)",
+          "type": "numeric(18, 2)",
           "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
+          "notNull": false
         }
       },
       "indexes": {
@@ -700,6 +904,27 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ledger_accounts_holding_uidx": {
+          "name": "ledger_accounts_holding_uidx",
+          "columns": [
+            {
+              "expression": "ledger_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "holding_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -718,6 +943,20 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ledger_accounts_holding_id_holdings_id_fk": {
+          "name": "ledger_accounts_holding_id_holdings_id_fk",
+          "tableFrom": "ledger_accounts",
+          "tableTo": "holdings",
+          "schemaTo": "finance",
+          "columnsFrom": [
+            "holding_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
           "onUpdate": "no action"
         }
       },
@@ -782,7 +1021,7 @@
         },
         "exchange_rate": {
           "name": "exchange_rate",
-          "type": "numeric(18, 6)",
+          "type": "numeric(18, 2)",
           "primaryKey": false,
           "notNull": false
         },
@@ -1003,60 +1242,6 @@
       },
       "isRLSEnabled": false
     },
-    "finance.local_banks": {
-      "name": "local_banks",
-      "schema": "finance",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_pkr": {
-          "name": "amount_pkr",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "finance.magic_links": {
       "name": "magic_links",
       "schema": "finance",
@@ -1104,66 +1289,6 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "finance.mutual_funds": {
-      "name": "mutual_funds",
-      "schema": "finance",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "bank_name": {
-          "name": "bank_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fund_name": {
-          "name": "fund_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -1411,6 +1536,32 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "personal.prayer_history": {
+      "name": "prayer_history",
+      "schema": "personal",
+      "columns": {
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "now()"
+        },
+        "counts": {
+          "name": "counts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "personal.prayers": {
       "name": "prayers",
       "schema": "personal",
@@ -1435,13 +1586,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {
@@ -1472,67 +1616,6 @@
         }
       },
       "isRLSEnabled": false
-    },
-    "finance.remote_banks": {
-      "name": "remote_banks",
-      "schema": "finance",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_usd": {
-          "name": "amount_usd",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "exchange_rate": {
-          "name": "exchange_rate",
-          "type": "numeric(18, 6)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -1556,20 +1639,13 @@
         "failed"
       ]
     },
-    "finance.ledger_account_type": {
-      "name": "ledger_account_type",
+    "finance.holding_kind": {
+      "name": "holding_kind",
       "schema": "finance",
       "values": [
-        "bank",
-        "fund"
-      ]
-    },
-    "finance.ledger_currency": {
-      "name": "ledger_currency",
-      "schema": "finance",
-      "values": [
-        "PKR",
-        "USD"
+        "local_bank",
+        "remote_bank",
+        "mutual_fund"
       ]
     },
     "finance.ledger_entry_type": {
@@ -1602,6 +1678,14 @@
         "asar",
         "maghreb",
         "isha"
+      ]
+    },
+    "finance.tool_log_type": {
+      "name": "tool_log_type",
+      "schema": "finance",
+      "values": [
+        "internal",
+        "external"
       ]
     }
   },
