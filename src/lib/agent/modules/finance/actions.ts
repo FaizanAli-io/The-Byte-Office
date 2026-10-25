@@ -10,6 +10,7 @@ import { applyAccountAction, isAccountAction, planAccountAction } from './ledger
 import { requireLedger } from './tools';
 import { changeLedgerEntry } from '@/lib/ledger-entries';
 import { addHolding, getHolding, removeHolding, saveLedgerSynced, updateHolding } from '@/lib/db/portfolio';
+import { refreshExchangeRates } from '@/lib/exchange-rates';
 import {
   applyEntryOverride,
   assertLedger,
@@ -35,6 +36,10 @@ export async function proposeFinanceAction(
   actionType: AgentActionType,
   args: Record<string, unknown>
 ): Promise<AgentProposal> {
+  if (actionType === 'exchange_rates_refresh') {
+    return { actionType, payload: { actionType }, preview: { title: 'Refresh exchange rates from the provider' } };
+  }
+
   if (actionType === 'portfolio_item_add') {
     const item = parseHolding(args);
     return {
@@ -118,6 +123,12 @@ export async function proposeFinanceAction(
     return { actionType, payload, preview, sourceFingerprint };
   }
 
+  const destinationAccountId = (args.destinationAccountId ??
+    resolveAccountId(ledger.accounts, args.destinationAccountName)) as string | undefined;
+  if (args.destinationAccountName !== undefined && !destinationAccountId) {
+    throw new ApiError('destinationAccountName matches no single account in this ledger');
+  }
+
   if (actionType === 'ledger_entry_add') {
     const given = <T>(key: string) => (args[key] ?? undefined) as T | undefined;
     const type = isEntryType(args.type) ? args.type : 'expense';
@@ -129,10 +140,9 @@ export async function proposeFinanceAction(
         ledger.accounts.find((account) => account.id === args.accountId)?.id ??
         resolveAccountId(ledger.accounts, args.accountName) ??
         firstAccountId(ledger.accounts, type),
-      destinationAccountId: given<string>('destinationAccountId'),
+      destinationAccountId,
       amount: given<number>('amount'),
       destinationAmount: given<number>('destinationAmount'),
-      exchangeRate: given<number>('exchangeRate'),
       categoryId: resolveCategoryArg(categoryList, args.category) ?? undefined,
       counterparty: given<string>('counterparty'),
       note: given<string>('note'),
@@ -160,13 +170,13 @@ export async function proposeFinanceAction(
     };
   }
 
-  const { exchangeRate: _rate, ...formEntry } = current;
+  const entry = { ...current, ...(destinationAccountId ? { destinationAccountId } : {}) };
   return {
     actionType,
-    payload: { actionType: 'ledger_entry_update', month, entryId, entry: current },
+    payload: { actionType: 'ledger_entry_update', month, entryId, entry },
     preview: { title: 'Update ledger entry', before: current },
     sourceFingerprint,
-    form: ledgerForm('ledger_entry_update', month, ledger.accounts, categoryList, formEntry),
+    form: ledgerForm('ledger_entry_update', month, ledger.accounts, categoryList, entry),
   };
 }
 
@@ -194,6 +204,8 @@ export async function executeFinancePayload(
     case 'category_remove':
       await discardCategory(payload.id);
       return { id: payload.id, name: payload.name, removed: true };
+    case 'exchange_rates_refresh':
+      return refreshExchangeRates();
     default: {
       const unrouted: never = payload;
       throw new ApiError(`No executor for ${(unrouted as { actionType: string }).actionType}`, 500);
@@ -234,7 +246,12 @@ async function executeLedgerPayload(payload: LedgerPayload, sourceFingerprint: s
   if (payload.actionType === 'ledger_entry_add' || payload.actionType === 'ledger_entry_update') {
     const entry = parseLedgerEntry(withCategory(payload.entry), { id: payload.entry.id });
     const kind = payload.actionType === 'ledger_entry_add' ? 'add' : 'update';
-    return ledgerWriteResult(payload, await changeLedgerEntry(payload.month, { kind, entry }));
+    const saved = await changeLedgerEntry(payload.month, { kind, entry });
+    const result = ledgerWriteResult(payload, saved);
+    // A new transfer may also add its exchange cost, gain or fee; report it with its serial.
+    const known = new Set([...ledger.entries.map((item) => item.id), entry.id]);
+    const index = saved.entries.findIndex((item) => !known.has(item.id));
+    return index < 0 ? result : { ...result, alsoAdded: { ...saved.entries[index], serial: serialFor(index) } };
   }
   if (payload.actionType === 'ledger_entry_remove') {
     return ledgerWriteResult(payload, await changeLedgerEntry(payload.month, { kind: 'remove', id: payload.entryId }));

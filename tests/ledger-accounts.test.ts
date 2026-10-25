@@ -21,10 +21,11 @@ const run = (type: Parameters<typeof planAccountAction>[0], args: Record<string,
   applyAccountAction(planAccountAction(type, { month: ledger.month, ...args }, ledger).payload, ledger);
 
 describe('ledger account actions', () => {
-  it('adds a PKR bank by default and requires a rate for USD', () => {
+  it('adds a PKR bank by default, takes any currency without a rate, and keeps funds in PKR', () => {
     const added = run('ledger_account_add', { name: 'Meezan' }).at(-1);
-    expect(added).toMatchObject({ name: 'Meezan', type: 'bank', currency: 'PKR', openingBalance: 0, exchangeRate: 1 });
-    expect(() => run('ledger_account_add', { name: 'Payoneer', currency: 'USD' })).toThrow(/exchangeRate/);
+    expect(added).toMatchObject({ name: 'Meezan', type: 'bank', currency: 'PKR', openingBalance: 0 });
+    expect(run('ledger_account_add', { name: 'Wise GBP', currency: 'GBP' }).at(-1)).toMatchObject({ currency: 'GBP' });
+    expect(() => run('ledger_account_add', { name: 'Fund', type: 'fund', currency: 'USD' })).toThrow(/PKR/);
   });
 
   it('updates by name, and null clears an optional balance', () => {
@@ -42,8 +43,8 @@ describe('ledger account actions', () => {
     expect('actualClosingBalance' in cleared[0]).toBe(false);
   });
 
-  it('refuses a rate on a PKR account and an update with nothing in it', () => {
-    expect(() => run('ledger_account_update', { accountId: 'a', exchangeRate: 2 })).toThrow(/PKR/);
+  it('ignores a typed rate and refuses an update with nothing in it', () => {
+    expect(() => run('ledger_account_update', { accountId: 'b', exchangeRate: 2 })).toThrow(/Nothing to change/);
     expect(() => run('ledger_account_update', { accountId: 'a' })).toThrow(/Nothing to change/);
   });
 
@@ -67,24 +68,26 @@ describe('ledger account actions', () => {
 });
 
 describe('parseHolding', () => {
-  it('needs a bank for a fund and a rate for a remote bank, and fixes the rest', () => {
+  it('needs a bank for a fund and a foreign currency for a remote bank, and fixes the rest', () => {
     expect(parseHolding({ kind: 'mutual_fund', name: 'Cash', group: 'Meezan', amount: 5 })).toEqual({
       kind: 'mutual_fund',
       name: 'Cash',
       group: 'Meezan',
+      currency: 'PKR',
       amount: 5,
-      exchangeRate: 1,
     });
     expect(() => parseHolding({ kind: 'mutual_fund', name: 'Cash', amount: 5 })).toThrow(/group/);
-    expect(() => parseHolding({ kind: 'remote_bank', name: 'Wise', amount: 5 })).toThrow(/exchangeRate/);
-    expect(parseHolding({ kind: 'local_bank', name: 'HBL', group: 'x', amount: 1, exchangeRate: 9 })).toMatchObject({
+    expect(() => parseHolding({ kind: 'remote_bank', name: 'Wise', amount: 5 })).toThrow(/foreign currency/);
+    expect(() => parseHolding({ kind: 'remote_bank', name: 'Wise', amount: 5, currency: 'PKR' })).toThrow(/foreign/);
+    expect(() => parseHolding({ kind: 'local_bank', name: 'HBL', amount: 5, currency: 'USD' })).toThrow(/remote/);
+    expect(parseHolding({ kind: 'local_bank', name: 'HBL', group: 'x', amount: 1 })).toMatchObject({
       group: null,
-      exchangeRate: 1,
+      currency: 'PKR',
     });
   });
 
   it('fills an update from the current holding and never changes its kind', () => {
-    const current = { kind: 'remote_bank' as const, name: 'Wise', group: null, amount: 100, exchangeRate: 280 };
+    const current = { kind: 'remote_bank' as const, name: 'Wise', group: null, currency: 'USD', amount: 100 };
     expect(parseHolding({ amount: 120, kind: 'local_bank' }, current)).toEqual({ ...current, amount: 120 });
   });
 });

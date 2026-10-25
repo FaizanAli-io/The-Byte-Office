@@ -12,6 +12,7 @@ export function Field({
   placeholder,
   numeric,
   money,
+  disabled,
   onChange,
 }: {
   label: string;
@@ -19,6 +20,7 @@ export function Field({
   placeholder?: string;
   numeric?: boolean;
   money?: boolean;
+  disabled?: boolean;
   onChange: (value: string | number) => void;
 }) {
   const isNumber = numeric || money;
@@ -32,6 +34,7 @@ export function Field({
         step={money ? '0.01' : undefined}
         value={value}
         placeholder={placeholder}
+        disabled={disabled}
         onChange={(event) => onChange(isNumber ? numberOrZero(event.target.value) : event.target.value)}
       />
     </div>

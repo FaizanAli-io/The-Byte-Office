@@ -58,7 +58,7 @@ describe('generated Groq tool schemas', () => {
 });
 
 describe('http method mapping', () => {
-  it('serves parameterless tools over GET and the rest over POST', () => {
+  it('serves parameterless reads over GET and the rest, every write included, over POST', () => {
     const byMethod = Object.fromEntries(mcpToolRegistry.map((tool) => [tool.name, httpMethodFor(tool)]));
     expect(byMethod).toMatchObject({
       portfolio_get: 'get',
@@ -67,6 +67,8 @@ describe('http method mapping', () => {
       ledger_get: 'post',
       snapshot_get: 'post',
       portfolio_item_add: 'post',
+      exchange_rates_get: 'get',
+      exchange_rates_refresh: 'post',
     });
   });
 });
@@ -115,6 +117,7 @@ describe('scope filtering', () => {
   it('shows a read-only finance token exactly the finance reads', () => {
     expect(names(['finance:read'])).toEqual([
       'portfolio_get',
+      'exchange_rates_get',
       'snapshots_list',
       'snapshot_get',
       'categories_list',
@@ -137,8 +140,8 @@ describe('scope filtering', () => {
 
   it('exposes every MCP tool when every scope is granted', () => {
     expect(visibleWith([...OAUTH_SCOPES])).toHaveLength(mcpToolRegistry.length);
-    expect(agentToolRegistry).toHaveLength(32);
-    expect(mcpToolRegistry).toHaveLength(31);
+    expect(agentToolRegistry).toHaveLength(34);
+    expect(mcpToolRegistry).toHaveLength(33);
   });
 
   it('offers no scope that would grant nothing', () => {

@@ -1,11 +1,13 @@
+import { round2 } from '@/lib/fx';
 import type { HoldingKind, SnapshotHolding } from '@/types/finance';
 
 type Valued = Pick<SnapshotHolding, 'kind' | 'name' | 'group' | 'amount' | 'exchangeRate'>;
 
-const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+// Rounded to the paisa, so live rates such as 276.85 never surface as 2952778.8049999997.
+const sum = (values: number[]) => round2(values.reduce((total, value) => total + value, 0));
 
 export const valuePkr = (holding: Pick<Valued, 'kind' | 'amount' | 'exchangeRate'>) =>
-  holding.kind === 'remote_bank' ? holding.amount * holding.exchangeRate : holding.amount;
+  holding.kind === 'remote_bank' ? round2(holding.amount * holding.exchangeRate) : holding.amount;
 
 const totalOf = (holdings: Valued[], kind: HoldingKind) =>
   sum(holdings.filter((holding) => holding.kind === kind).map(valuePkr));
@@ -14,8 +16,8 @@ export function portfolioTotals(holdings: Valued[], held = 0) {
   const local = totalOf(holdings, 'local_bank');
   const remote = totalOf(holdings, 'remote_bank');
   const mutual = totalOf(holdings, 'mutual_fund');
-  const grandTotal = local + remote + mutual;
-  return { local, remote, mutual, grandTotal, held, net: grandTotal - held };
+  const grandTotal = round2(local + remote + mutual);
+  return { local, remote, mutual, grandTotal, held, net: round2(grandTotal - held) };
 }
 
 export function portfolioAllocations(holdings: Valued[]) {

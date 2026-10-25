@@ -2,6 +2,7 @@ import { ApiError } from '@/lib/api';
 import { fingerprint } from '@/lib/agent/action-utils';
 import { entryTypeSchema } from '@/lib/agent/fields';
 import { isRecord, validPositiveNumber, validateLedger } from '@/lib/finance-validation';
+import { PKR } from '@/lib/fx';
 import { eligibleAccounts, monthBounds } from '@/lib/ledger';
 import type { HoldingKind } from '@/types/finance';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, MonthlyLedger } from '@/types/ledger';
@@ -44,12 +45,8 @@ export function ledgerStructureFingerprint(ledger: MonthlyLedger) {
   return fingerprint({
     month: ledger.month,
     status: ledger.status,
-    accounts: ledger.accounts.map(({ id, type, currency, exchangeRate }) => ({
-      id,
-      type,
-      currency,
-      exchangeRate,
-    })),
+    // Not exchangeRate: a draft's live rate moves on its own between proposal and confirmation.
+    accounts: ledger.accounts.map(({ id, type, currency }) => ({ id, type, currency })),
   });
 }
 
@@ -59,23 +56,28 @@ export const holdingLabel = (kind: HoldingKind) => kind.replace('_', ' ');
 export function parseHolding(args: Record<string, unknown>, current?: HoldingInput): HoldingInput {
   const merged = { ...current, ...args } as Partial<HoldingInput>;
   const kind = current?.kind ?? merged.kind!;
-  if (kind === 'mutual_fund' && !merged.group) throw new ApiError('group is required for a mutual fund');
-  if (kind === 'remote_bank' && !merged.exchangeRate) {
-    throw new ApiError('exchangeRate is required for a remote bank');
+  const label = merged.name ? `${merged.name}: ` : '';
+  if (kind === 'mutual_fund' && !merged.group) throw new ApiError(`${label}group is required for a mutual fund`);
+  const remote = kind === 'remote_bank';
+  if (remote && (!merged.currency || merged.currency === PKR)) {
+    throw new ApiError(`${label}a remote bank needs a foreign currency, such as USD`);
+  }
+  if (!remote && merged.currency !== undefined && merged.currency !== PKR) {
+    throw new ApiError(`${label}only remote banks hold a foreign currency`);
   }
   return {
     kind,
     name: merged.name!,
     group: kind === 'mutual_fund' ? merged.group! : null,
+    currency: remote ? merged.currency! : PKR,
     amount: merged.amount!,
-    exchangeRate: kind === 'remote_bank' ? merged.exchangeRate! : 1,
   };
 }
 
 export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<LedgerEntry>): LedgerEntry {
   const carriedString = (key: 'destinationAccountId' | 'categoryId' | 'counterparty' | 'note') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requireString(args[key], key);
-  const carriedNumber = (key: 'destinationAmount' | 'exchangeRate') =>
+  const carriedNumber = (key: 'destinationAmount') =>
     args[key] === null ? undefined : args[key] === undefined ? base[key] : requirePositive(args[key], key);
 
   return {
@@ -86,7 +88,6 @@ export function parseLedgerEntry(args: Record<string, unknown>, base: Partial<Le
     destinationAccountId: carriedString('destinationAccountId'),
     amount: requirePositive(args.amount ?? base.amount, 'amount'),
     destinationAmount: carriedNumber('destinationAmount'),
-    exchangeRate: carriedNumber('exchangeRate'),
     categoryId: carriedString('categoryId'),
     counterparty: carriedString('counterparty'),
     note: carriedString('note'),

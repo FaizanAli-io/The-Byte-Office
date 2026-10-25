@@ -6,11 +6,17 @@ export interface Holding {
   kind: HoldingKind;
   name: string;
   group: string | null;
+  // ISO 4217 code: PKR except for remote banks. Fixed once the holding exists.
+  currency: string;
   amount: number;
+  // PKR per unit, read-only: the live rate, or the rate frozen into a snapshot.
   exchangeRate: number;
 }
 
-export type SnapshotHolding = Omit<Holding, 'id'>;
+export type HoldingInput = Omit<Holding, 'id' | 'exchangeRate'> & { id?: string };
+
+// Snapshots taken before currencies existed carry no currency; their remote banks are USD.
+export type SnapshotHolding = Omit<Holding, 'id' | 'currency'> & { currency?: string };
 
 export interface FinanceSnapshot {
   id: string;

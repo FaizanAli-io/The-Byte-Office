@@ -9,13 +9,14 @@ import {
   prayerUpdateSchema,
 } from '@/lib/personal-validation';
 import { parseInquiry } from '@/lib/inquiry-email';
+import type { HoldingInput } from '@/types/finance';
 import type { LedgerDraft } from '@/types/ledger';
 
 const portfolio = (holdings: unknown[] = []) => ({
   holdings: [
-    { id: 'a', kind: 'local_bank', name: 'HBL', group: null, amount: 10, exchangeRate: 1 },
-    { id: 'b', kind: 'remote_bank', name: 'Wise', group: null, amount: 5, exchangeRate: 280 },
-    { id: 'c', kind: 'mutual_fund', name: 'Cash', group: 'Meezan', amount: 1, exchangeRate: 1 },
+    { id: 'a', kind: 'local_bank', name: 'HBL', group: null, amount: 10 },
+    { id: 'b', kind: 'remote_bank', name: 'Wise', group: null, currency: 'USD', amount: 5 },
+    { id: 'c', kind: 'mutual_fund', name: 'Cash', group: 'Meezan', amount: 1 },
     ...holdings,
   ],
 });
@@ -26,31 +27,56 @@ describe('parsePortfolio', () => {
   it('accepts holdings with ids and holdings just added without one', () => {
     expect(parsePortfolio(portfolio([{ kind: 'local_bank', name: 'New', amount: 0 }]))).toHaveLength(4);
   });
-  it('normalizes: only funds keep a group, only remote banks keep a rate', () => {
+  it('normalizes: only funds keep a group, a typed rate is dropped, and local holdings are PKR', () => {
     const [parsed] = parsePortfolio({
       holdings: [{ kind: 'local_bank', name: ' HBL ', group: 'x', amount: 1, exchangeRate: 9 }],
-    })!;
-    expect(parsed).toEqual({ kind: 'local_bank', name: 'HBL', group: null, amount: 1, exchangeRate: 1 });
+    }) as HoldingInput[];
+    expect(parsed).toEqual({ kind: 'local_bank', name: 'HBL', group: null, currency: 'PKR', amount: 1 });
   });
   it.each([
-    ['a negative amount', { kind: 'local_bank', name: 'X', amount: -1 }],
-    ['a zero exchange rate', { kind: 'remote_bank', name: 'X', amount: 1, exchangeRate: 0 }],
-    ['a blank name', { kind: 'local_bank', name: '  ', amount: 1 }],
-    ['a fund without a bank', { kind: 'mutual_fund', name: 'X', amount: 1 }],
-    ['an unknown kind', { kind: 'crypto', name: 'X', amount: 1 }],
-    ['a non-string id', { id: 7, kind: 'local_bank', name: 'X', amount: 1 }],
-    ['a duplicate id', { id: 'a', kind: 'local_bank', name: 'X', amount: 1 }],
-  ])('rejects %s', (_label, holding) => expect(parsePortfolio(portfolio([holding]))).toBeNull());
+    [
+      'a negative amount',
+      { kind: 'local_bank', name: 'X', amount: -1 },
+      'X: the amount must be a number, zero or more',
+    ],
+    [
+      'a remote bank without a currency',
+      { kind: 'remote_bank', name: 'Wise', amount: 1 },
+      'Wise: enter a three-letter currency code, such as USD',
+    ],
+    [
+      'a remote bank in PKR',
+      { kind: 'remote_bank', name: 'Wise', amount: 1, currency: 'PKR' },
+      'Wise: a remote bank holds a foreign currency, not PKR',
+    ],
+    [
+      'a malformed currency',
+      { kind: 'remote_bank', name: 'Wise', amount: 1, currency: 'usd' },
+      'Wise: enter a three-letter currency code, such as USD',
+    ],
+    [
+      'a local bank in a foreign currency',
+      { kind: 'local_bank', name: 'HBL', amount: 1, currency: 'USD' },
+      'HBL: only remote banks hold a foreign currency',
+    ],
+    ['a blank name', { kind: 'local_bank', name: '  ', amount: 1 }, 'Every local bank needs a name'],
+    ['a fund without a bank', { kind: 'mutual_fund', name: 'Cash', amount: 1 }, 'Cash: a fund needs its bank'],
+    ['an unknown kind', { kind: 'crypto', name: 'X', amount: 1 }, 'A holding has an unknown kind'],
+    ['a non-string id', { id: 7, kind: 'local_bank', name: 'X', amount: 1 }, 'X: invalid id'],
+    ['a duplicate id', { id: 'a', kind: 'local_bank', name: 'X', amount: 1 }, 'X: listed twice'],
+    ['a non-object', 'nope', 'Invalid portfolio data'],
+  ])('rejects %s, naming the row', (_label, holding, message) =>
+    expect(parsePortfolio(portfolio([holding]))).toBe(message)
+  );
 });
 
 describe('parseSnapshotInput', () => {
-  it('accepts a valid snapshot', () =>
-    expect(parseSnapshotInput({ data: portfolio(), grandTotal: 10 })).toEqual({
-      holdings: parsePortfolio(portfolio()),
-      grandTotal: 10,
-    }));
-  it('rejects a negative total', () =>
-    expect(parseSnapshotInput({ data: portfolio(), grandTotal: -1 })).toBe('Invalid portfolio total'));
+  it('accepts a valid snapshot, ignoring any total the client sends', () =>
+    expect(parseSnapshotInput({ data: portfolio(), grandTotal: -1 })).toEqual(parsePortfolio(portfolio())));
+  it('passes on the holding error', () =>
+    expect(parseSnapshotInput({ data: portfolio([{ kind: 'mutual_fund', name: 'Cash', amount: 1 }]) })).toBe(
+      'Cash: a fund needs its bank'
+    ));
 });
 
 describe('validateLedger', () => {
@@ -156,6 +182,13 @@ describe('validateLedger', () => {
       { ...base().entries[0], type: 'transfer' as const, destinationAccountId: 'b', destinationAmount: 0.04 },
     ];
     expect(validateLedger({ ...base(), entries })).toBeNull();
+  });
+
+  it('refuses a fund in a foreign currency and a malformed code', () => {
+    const fund = { id: 'f', name: 'Fund', type: 'fund' as const, currency: 'USD', openingBalance: 0, exchangeRate: 1 };
+    expect(validateLedger({ ...base(), accounts: [...base().accounts, fund] })).toBe('Invalid currency');
+    const odd = { ...base().accounts[0], id: 'z', currency: 'dollars' };
+    expect(validateLedger({ ...base(), accounts: [...base().accounts, odd] })).toBe('Invalid currency');
   });
 
   it('refuses to finalize before every account is reconciled', () => {

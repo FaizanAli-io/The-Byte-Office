@@ -48,6 +48,7 @@ export const holdings = finance.table(
     kind: holdingKindEnum('kind').notNull(),
     name: text('name').notNull(),
     group: text('group_name'),
+    currency: text('currency').notNull().default('PKR'),
     sortOrder: sortOrder(),
     archivedAt: utc('archived_at'),
     createdAt: createdAt(),
@@ -56,6 +57,8 @@ export const holdings = finance.table(
   (table) => [
     index('holdings_kind_sort_idx').on(table.kind, table.sortOrder),
     check('holdings_group_only_for_funds', sql`(${table.kind} = 'mutual_fund') = (${table.group} IS NOT NULL)`),
+    check('holdings_currency_code', sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check('holdings_foreign_only_remote', sql`(${table.kind} = 'remote_bank') = (${table.currency} <> 'PKR')`),
   ]
 );
 
@@ -88,7 +91,8 @@ export const ledgerAccounts = finance.table(
     openingBalance: money('opening_balance').notNull(),
     openingCostBasis: money('opening_cost_basis'),
     actualClosingBalance: money('actual_closing_balance'),
-    exchangeRate: rate('exchange_rate').notNull().default(1),
+    // Null while the month is a draft (live rates apply); frozen when it is finalized.
+    exchangeRate: rate('exchange_rate'),
   },
   (table) => [
     index('ledger_accounts_ledger_idx').on(table.ledgerId),
@@ -135,6 +139,22 @@ export const ledgerEntries = finance.table(
     index('ledger_entries_account_idx').on(table.accountId),
     index('ledger_entries_category_idx').on(table.categoryId),
     check('ledger_entries_amount_positive', sql`${table.amount} > 0`),
+  ]
+);
+
+// One row per currency: PKR per unit. updated_at is the last successful fetch, checked_at the last attempt; every
+// row is written at once, so they agree.
+export const exchangeRates = finance.table(
+  'exchange_rates',
+  {
+    currency: text('currency').primaryKey(),
+    value: numeric('value', { precision: 18, scale: 2, mode: 'number' }).notNull(),
+    updatedAt: utc('updated_at').notNull(),
+    checkedAt: utc('checked_at').notNull(),
+  },
+  (table) => [
+    check('exchange_rates_currency_code', sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check('exchange_rates_value_positive', sql`${table.value} > 0`),
   ]
 );
 

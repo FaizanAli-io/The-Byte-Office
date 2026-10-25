@@ -1,11 +1,12 @@
 import { randomUUID } from 'crypto';
 import { accountStats, entryUsesAccount, expectedBalance } from '@/lib/ledger';
+import { PKR } from '@/lib/fx';
 import type { HoldingKind } from '@/types/finance';
 import type { LedgerAccount, MonthlyLedger } from '@/types/ledger';
 
-export type HoldingIdentity = { id: string; kind: HoldingKind; name: string; group: string | null };
+export type HoldingIdentity = { id: string; kind: HoldingKind; name: string; group: string | null; currency: string };
 
-export type HoldingValue = { amount: number; exchangeRate: number };
+export type HoldingValue = { amount: number };
 
 export type PortfolioChange = {
   create: { holding: HoldingIdentity & { sortOrder?: number }; value: HoldingValue }[];
@@ -17,17 +18,11 @@ type LedgerState = Pick<MonthlyLedger, 'accounts' | 'entries' | 'status'>;
 
 const FUND_SEPARATOR = ' · ';
 
-const SHAPES = {
-  local_bank: { type: 'bank', currency: 'PKR' },
-  remote_bank: { type: 'bank', currency: 'USD' },
-  mutual_fund: { type: 'fund', currency: 'PKR' },
-} as const;
-
-export const shapeOf = (kind: HoldingKind) => SHAPES[kind];
+export const typeOf = (kind: HoldingKind) => (kind === 'mutual_fund' ? 'fund' : 'bank');
 
 function kindOf(account: Pick<LedgerAccount, 'type' | 'currency'>): HoldingKind {
   if (account.type === 'fund') return 'mutual_fund';
-  return account.currency === 'USD' ? 'remote_bank' : 'local_bank';
+  return account.currency === PKR ? 'local_bank' : 'remote_bank';
 }
 
 export function displayName(holding: Pick<HoldingIdentity, 'name' | 'group'>) {
@@ -48,10 +43,7 @@ export function valuesFrom(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'> |
   const values = new Map<string, HoldingValue>();
   for (const account of ledger?.accounts ?? []) {
     if (!account.holdingId) continue;
-    values.set(account.holdingId, {
-      amount: accountValue(account, ledger!.entries),
-      exchangeRate: account.exchangeRate,
-    });
+    values.set(account.holdingId, { amount: accountValue(account, ledger!.entries) });
   }
   return values;
 }
@@ -59,15 +51,17 @@ export function valuesFrom(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'> |
 export const differs = (a: number, b: number) => Math.abs(a - b) >= 0.005;
 
 function accountFor(holding: HoldingIdentity, value: HoldingValue, finalized = false): LedgerAccount {
-  const shape = shapeOf(holding.kind);
+  const type = typeOf(holding.kind);
   return {
     id: randomUUID(),
     holdingId: holding.id,
     name: displayName(holding),
-    ...shape,
+    type,
+    currency: holding.currency,
     openingBalance: value.amount,
-    exchangeRate: shape.currency === 'USD' ? value.exchangeRate : 1,
-    ...(shape.type === 'fund' ? { openingCostBasis: value.amount } : {}),
+    // Rates are resolved when the month is read; a draft stores none.
+    exchangeRate: 1,
+    ...(type === 'fund' ? { openingCostBasis: value.amount } : {}),
     ...(finalized ? { actualClosingBalance: value.amount } : {}),
   };
 }
@@ -91,15 +85,28 @@ export function planLedgerHoldings(
     const kind = kindOf(account);
     if (!account.holdingId) {
       // Only the newest month feeds the portfolio; an account added to an older one is history.
-      const holding = { id: randomUUID(), kind, ...splitName(kind, account.name), archived: !newest };
+      const holding = {
+        id: randomUUID(),
+        kind,
+        ...splitName(kind, account.name),
+        currency: account.currency,
+        archived: !newest,
+      };
       create.push(holding);
       return { ...account, holdingId: holding.id };
     }
+    // An existing account's currency comes from its holding, never from the request.
     const was = previous.get(account.id);
+    const known = was ? { ...account, currency: was.currency } : account;
     if (was && was.name !== account.name) {
-      rename.push({ id: account.holdingId, kind, ...splitName(kind, account.name) });
+      rename.push({
+        id: account.holdingId,
+        kind: kindOf(known),
+        ...splitName(kindOf(known), account.name),
+        currency: known.currency,
+      });
     }
-    return account;
+    return known;
   });
 
   return { accounts, create, rename, archive };
@@ -118,8 +125,6 @@ export function planPortfolioAccounts(ledger: LedgerState, change: PortfolioChan
     return [
       {
         ...account,
-        exchangeRate:
-          account.currency === 'USD' && value.exchangeRate !== undefined ? value.exchangeRate : account.exchangeRate,
         actualClosingBalance:
           value.amount !== undefined && differs(accountValue(account, ledger.entries), value.amount)
             ? value.amount
@@ -140,7 +145,7 @@ export function accountsForNewMonth(
 ) {
   const values = valuesFrom(previous);
   return holdings.map((holding) => {
-    const fresh = accountFor(holding, values.get(holding.id) ?? { amount: 0, exchangeRate: 1 });
+    const fresh = accountFor(holding, values.get(holding.id) ?? { amount: 0 });
     const carried = previous?.accounts.find((account) => account.holdingId === holding.id);
     return carried && fresh.type === 'fund'
       ? { ...fresh, openingCostBasis: accountStats(carried, previous!.entries).netInvested }

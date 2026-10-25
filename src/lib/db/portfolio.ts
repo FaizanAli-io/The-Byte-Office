@@ -19,9 +19,10 @@ import {
   type HoldingValue,
   type PortfolioChange,
 } from '@/lib/accounts';
+import { assertSupportedCurrencies, ratesFor, requireRate } from '@/lib/exchange-rates';
 import { portfolioTotals } from '@/lib/finance';
 import { currentMonth, nextMonth } from '@/lib/ledger';
-import type { Holding } from '@/types/finance';
+import type { Holding, HoldingInput } from '@/types/finance';
 import type { MonthlyLedger, MonthlyLedgerPayload } from '@/types/ledger';
 
 type PortfolioRow = HoldingValue & { row: HoldingRow };
@@ -31,6 +32,7 @@ const identity = (row: HoldingRow): HoldingIdentity => ({
   kind: row.kind,
   name: row.name,
   group: row.group,
+  currency: row.currency,
 });
 
 async function newestLedger() {
@@ -38,21 +40,20 @@ async function newestLedger() {
   return newest ? loadLedger(newest.month) : null;
 }
 
-const rateFor = (holding: Pick<Holding, 'kind' | 'exchangeRate'>) =>
-  holding.kind === 'remote_bank' ? holding.exchangeRate : 1;
-
 async function loadPortfolio(): Promise<PortfolioRow[]> {
   const [rows, ledger] = await Promise.all([loadActiveHoldings(), newestLedger()]);
   const values = valuesFrom(ledger);
-  return rows.map((row) => ({ row, ...(values.get(row.id) ?? { amount: 0, exchangeRate: 1 }) }));
+  return rows.map((row) => ({ row, ...(values.get(row.id) ?? { amount: 0 }) }));
+}
+
+// The portfolio is always valued at live rates.
+export async function priceHoldings<T extends Omit<Holding, 'exchangeRate'>>(holdings: T[]) {
+  const rates = await ratesFor(holdings.map((holding) => holding.currency));
+  return holdings.map((holding) => ({ ...holding, exchangeRate: requireRate(rates, holding.currency, holding.name) }));
 }
 
 export async function loadPortfolioHoldings(): Promise<Holding[]> {
-  return (await loadPortfolio()).map(({ row, amount, exchangeRate }) => ({
-    ...identity(row),
-    amount,
-    exchangeRate: rateFor({ kind: row.kind, exchangeRate }),
-  }));
+  return priceHoldings((await loadPortfolio()).map(({ row, amount }) => ({ ...identity(row), amount })));
 }
 
 export async function getHolding(id: string) {
@@ -87,7 +88,7 @@ async function applyPortfolioChange(change: PortfolioChange, identities: Identit
   throw new Error(`The ${ledger.month} ledger kept changing while saving the portfolio. Try again.`);
 }
 
-export async function savePortfolio(next: Holding[]) {
+export async function savePortfolio(next: HoldingInput[]) {
   const current = new Map((await loadPortfolio()).map((p) => [p.row.id, p]));
   const change: PortfolioChange = { create: [], update: [], archive: [] };
   const identities: IdentityUpdate[] = [];
@@ -100,8 +101,8 @@ export async function savePortfolio(next: Holding[]) {
     const existing = holding.id && !seen.has(holding.id) ? current.get(holding.id) : undefined;
     if (!existing) {
       change.create.push({
-        holding: { id: randomUUID(), kind: holding.kind, name: holding.name, group: holding.group, sortOrder },
-        value: { amount: holding.amount, exchangeRate: rateFor(holding) },
+        holding: { id: randomUUID(), ...identityOf(holding), sortOrder },
+        value: { amount: holding.amount },
       });
       continue;
     }
@@ -110,41 +111,37 @@ export async function savePortfolio(next: Holding[]) {
     if (name !== holding.name || group !== holding.group || existing.row.sortOrder !== sortOrder) {
       identities.push({ id: existing.row.id, name: holding.name, group: holding.group, sortOrder });
     }
-    const value: Partial<HoldingValue> = {
-      ...(differs(existing.amount, holding.amount) ? { amount: holding.amount } : {}),
-      ...(holding.kind === 'remote_bank' && differs(existing.exchangeRate, holding.exchangeRate)
-        ? { exchangeRate: holding.exchangeRate }
-        : {}),
-    };
-    if (Object.keys(value).length) change.update.push({ id: existing.row.id, value });
+    if (differs(existing.amount, holding.amount))
+      change.update.push({ id: existing.row.id, value: { amount: holding.amount } });
   }
   for (const id of current.keys()) if (!seen.has(id)) change.archive.push(id);
 
+  await assertSupportedCurrencies(change.create.map(({ holding }) => holding));
   await applyPortfolioChange(change, identities);
   return loadPortfolioHoldings();
 }
 
-export async function addHolding(input: Omit<Holding, 'id'>) {
-  const holding = { id: randomUUID(), kind: input.kind, name: input.name, group: input.group };
-  await applyPortfolioChange({
-    create: [{ holding, value: { amount: input.amount, exchangeRate: rateFor(input) } }],
-    update: [],
-    archive: [],
-  });
-  return getHolding(holding.id);
+const identityOf = ({ kind, name, group, currency }: Omit<HoldingInput, 'id' | 'amount'>) => ({
+  kind,
+  name,
+  group,
+  currency,
+});
+
+export async function addHolding(input: Omit<HoldingInput, 'id'>) {
+  const create = [{ holding: { id: randomUUID(), ...identityOf(input) }, value: { amount: input.amount } }];
+  await assertSupportedCurrencies([input]);
+  await applyPortfolioChange({ create, update: [], archive: [] });
+  return getHolding(create[0].holding.id);
 }
 
-export async function updateHolding(id: string, changes: Partial<Omit<Holding, 'id' | 'kind'>>) {
-  const current = await getHolding(id);
-  if (!current) return null;
-  const { name, group, amount, exchangeRate } = changes;
-  const value = {
-    ...(amount === undefined ? {} : { amount }),
-    ...(exchangeRate === undefined || current.kind !== 'remote_bank' ? {} : { exchangeRate }),
-  };
+// A holding's kind and currency are fixed once it exists: past months were valued in that currency.
+export async function updateHolding(id: string, changes: Partial<Pick<HoldingInput, 'name' | 'group' | 'amount'>>) {
+  if (!(await getHolding(id))) return null;
+  const { name, group, amount } = changes;
   const identities = name !== undefined || group !== undefined ? [{ id, name, group }] : [];
   await applyPortfolioChange(
-    { create: [], update: Object.keys(value).length ? [{ id, value }] : [], archive: [] },
+    { create: [], update: amount === undefined ? [] : [{ id, value: { amount } }], archive: [] },
     identities
   );
   return getHolding(id);
@@ -160,9 +157,11 @@ export async function removeHolding(id: string) {
 export async function saveLedgerSynced(existing: MonthlyLedger, body: MonthlyLedgerPayload) {
   const [newest] = await listLedgerSummaries();
   const plan = planLedgerHoldings(existing, body, body.month === newest?.month);
+  await assertSupportedCurrencies(plan.create);
+  const rates = body.status === 'finalized' ? await ratesFor(plan.accounts.map((account) => account.currency)) : {};
 
   await insertHoldings(plan.create);
-  const saved = await saveLedger(existing, { ...body, accounts: plan.accounts });
+  const saved = await saveLedger(existing, { ...body, accounts: plan.accounts }, rates);
   if (!saved) {
     await deleteHoldings(plan.create.map((holding) => holding.id));
     return null;

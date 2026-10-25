@@ -1,4 +1,3 @@
-type LedgerCurrency = 'PKR' | 'USD';
 type LedgerStatus = 'draft' | 'finalized';
 type LedgerAccountType = 'bank' | 'fund';
 export const LEDGER_ENTRY_TYPES = [
@@ -31,10 +30,12 @@ export interface LedgerAccount {
   holdingId?: string;
   name: string;
   type: LedgerAccountType;
-  currency: LedgerCurrency;
+  // ISO 4217 code, from the account's holding.
+  currency: string;
   openingBalance: number;
   openingCostBasis?: number;
   actualClosingBalance?: number;
+  // PKR per unit, read-only: live while the month is a draft, frozen when it is finalized.
   exchangeRate: number;
 }
 
@@ -46,6 +47,7 @@ export interface LedgerEntry {
   destinationAccountId?: string;
   amount: number;
   destinationAmount?: number;
+  // Stamped by the server at write time; client values are ignored.
   exchangeRate?: number;
   categoryId?: string;
   counterparty?: string;

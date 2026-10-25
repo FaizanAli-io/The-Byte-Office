@@ -1,3 +1,4 @@
+import { PKR, round2 } from '@/lib/fx';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType, MonthlyLedger } from '@/types/ledger';
 
 export const ENTRY_LABELS: Record<LedgerEntry['type'], string> = {
@@ -193,7 +194,14 @@ export function ledgerSummary(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'
     }))
   ).total;
 
-  return { income, expenses, netCashFlow: income - expenses, fundFlow, heldMovement };
+  // Rounded to the paisa: live rates such as 276.85 otherwise surface as 19491.898999999998.
+  return {
+    income: round2(income),
+    expenses: round2(expenses),
+    netCashFlow: round2(income - expenses),
+    fundFlow: round2(fundFlow),
+    heldMovement: round2(heldMovement),
+  };
 }
 
 export function categoryTotals(ledger: Pick<MonthlyLedger, 'accounts' | 'entries'>) {
@@ -219,7 +227,7 @@ export function ledgerCategoryTotals(
   const list = (type: 'income' | 'expense') =>
     rows
       .filter((row) => row[type])
-      .map((row) => ({ category: row.category, amountPkr: row[type] }))
+      .map((row) => ({ category: row.category, amountPkr: round2(row[type]) }))
       .sort((a, b) => b.amountPkr - a.amountPkr);
   return { income: list('income'), expenses: list('expense') };
 }
@@ -260,7 +268,7 @@ export function heldFunds(movements: HoldMovement[]) {
 
 function toPkr(amount: number, accountId: string, accounts: LedgerAccount[], exchangeRate?: number) {
   const account = accounts.find((item) => item.id === accountId);
-  return account?.currency === 'USD' ? amount * (exchangeRate ?? account.exchangeRate) : amount;
+  return account && account.currency !== PKR ? amount * (exchangeRate ?? account.exchangeRate) : amount;
 }
 
 export function entryUsesAccount(entry: LedgerEntry, id: string) {

@@ -4,6 +4,7 @@ import { heldFundsApi } from '@/lib/api-client';
 import { categoryTotals, formatMoney, heldFunds, ledgerSummary } from '@/lib/ledger';
 import { useEffect, useState, type ReactNode } from 'react';
 import { FinancePageShell, StatCard, financeStyles, openPicker } from '../components/FinanceUI';
+import { ExchangeRatesNote, useExchangeRates } from '../components/ExchangeRates';
 import { LedgerAccounts } from './LedgerAccounts';
 import { LedgerCategories } from './LedgerCategories';
 import { LedgerEntries } from './LedgerEntries';
@@ -32,6 +33,7 @@ export default function LedgerPage() {
     saveCategory,
     removeCategory,
   } = useLedger();
+  const rates = useExchangeRates();
   const summary = ledger ? ledgerSummary(ledger) : null;
   // Held funds carried in from earlier months; this month's own movement comes live from the ledger.
   const [heldBefore, setHeldBefore] = useState<number | null>(null);
@@ -123,6 +125,9 @@ export default function LedgerPage() {
                 : 'Transactions save automatically. Account balances save when you click Save.'}
             </p>
           </div>
+          {isFinalized ? null : (
+            <ExchangeRatesNote rates={rates} currencies={ledger.accounts.map((account) => account.currency)} />
+          )}
 
           {summary ? (
             <div className={`grid gap-4 sm:grid-cols-2 ${showHeld ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
@@ -153,6 +158,7 @@ export default function LedgerPage() {
             month={ledger.month}
             accounts={ledger.accounts}
             categories={categories}
+            currencies={Object.keys(rates?.currencies ?? {}).sort()}
             entries={ledger.entries}
             readOnly={isFinalized}
             saving={saving}

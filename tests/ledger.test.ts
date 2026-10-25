@@ -287,12 +287,25 @@ describe('decimal amounts', () => {
     expect(formatVariancePct(variancePct(stats.difference, stats.expected))).toBe('0.00%');
   });
 
-  it('converts a foreign-currency entry at the full rate, without rounding', () => {
+  it('converts at the full rate and rounds only the total, to the paisa', () => {
     const summary = ledgerSummary({
       accounts: [bank({ id: 'usd', currency: 'USD', exchangeRate: 283.456789 }), bank({ id: 'pkr' })],
       entries: [entry({ id: 'i', accountId: 'usd', type: 'income', amount: 123.45 })],
     });
-    expect(summary.income).toBeCloseTo(123.45 * 283.456789, 6);
+    // 123.45 × 283.456789 = 34992.7406…, not 123.45 × 283.46.
+    expect(summary.income).toBe(34992.74);
+  });
+
+  it('never surfaces floating-point noise in its totals', () => {
+    const summary = ledgerSummary({
+      accounts: [bank({ id: 'usd', currency: 'USD', exchangeRate: 276.85 }), bank({ id: 'pkr' })],
+      entries: [
+        entry({ id: 'a', accountId: 'usd', type: 'expense', amount: 3 }),
+        entry({ id: 'b', accountId: 'usd', type: 'expense', amount: 0.54 }),
+        entry({ id: 'c', accountId: 'pkr', type: 'expense', amount: 16196.92 }),
+      ],
+    });
+    expect(summary.expenses).toBe(17176.97);
   });
 });
 

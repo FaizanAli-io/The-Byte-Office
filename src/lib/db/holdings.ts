@@ -34,6 +34,7 @@ export async function insertHoldings(created: (HoldingIdentity & { archived?: bo
         kind: holding.kind,
         name: holding.name,
         group: holding.group,
+        currency: holding.currency,
         sortOrder,
         archivedAt: holding.archived ? new Date() : null,
       });

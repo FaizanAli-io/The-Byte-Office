@@ -1,7 +1,8 @@
 import { z } from 'zod/v4';
 import { isUuid } from '@/lib/db/ids';
 import { eligibleAccounts, isHoldType, isMonth, monthBounds } from '@/lib/ledger';
-import { HOLDING_KINDS, type Holding } from '@/types/finance';
+import { isCurrencyCode, PKR } from '@/lib/fx';
+import { HOLDING_KINDS, type HoldingInput } from '@/types/finance';
 import {
   CATEGORY_KINDS,
   LEDGER_ENTRY_TYPES,
@@ -26,43 +27,54 @@ export const categoryUpdateSchema = z.object({
   archived: z.boolean().optional(),
 });
 
-export function parsePortfolio(value: unknown): Holding[] | null {
-  if (!isRecord(value) || !Array.isArray(value.holdings)) return null;
-  const ids = new Set<string>();
-  const valid = value.holdings.every(
-    (holding) =>
-      isRecord(holding) &&
-      validHoldingId(holding.id, ids) &&
-      (HOLDING_KINDS as readonly unknown[]).includes(holding.kind) &&
-      validName(holding.name) &&
-      (holding.kind !== 'mutual_fund' || validName(holding.group)) &&
-      validMoney(holding.amount) &&
-      (holding.kind !== 'remote_bank' || validPositiveNumber(holding.exchangeRate))
-  );
-  if (!valid) return null;
-  return (value.holdings as Holding[]).map((holding) => ({
+const KIND_NAMES: Record<string, string> = {
+  local_bank: 'local bank',
+  remote_bank: 'remote bank',
+  mutual_fund: 'fund',
+};
+
+// The first problem with one holding, named so the person can find the row: "Wise: enter a currency code".
+function holdingError(holding: Record<string, unknown>, seen: Set<string>) {
+  const { id, kind, name, group, amount, currency } = holding;
+  if (!(HOLDING_KINDS as readonly unknown[]).includes(kind)) return 'A holding has an unknown kind';
+  const label = validName(name) ? name.trim() : '';
+  if (!label) return `Every ${KIND_NAMES[kind as string]} needs a name`;
+  if (id !== undefined && id !== null) {
+    if (typeof id !== 'string' || !id.trim()) return `${label}: invalid id`;
+    if (seen.has(id)) return `${label}: listed twice`;
+    seen.add(id);
+  }
+  if (kind === 'mutual_fund' && !validName(group)) return `${label}: a fund needs its bank`;
+  if (!validMoney(amount)) return `${label}: the amount must be a number, zero or more`;
+  if (kind === 'remote_bank') {
+    if (currency === PKR) return `${label}: a remote bank holds a foreign currency, not PKR`;
+    if (!isCurrencyCode(currency)) return `${label}: enter a three-letter currency code, such as USD`;
+  } else if (currency !== undefined && currency !== PKR) {
+    return `${label}: only remote banks hold a foreign currency`;
+  }
+  return null;
+}
+
+export function parsePortfolio(value: unknown): HoldingInput[] | string {
+  if (!isRecord(value) || !Array.isArray(value.holdings)) return 'Invalid portfolio data';
+  const seen = new Set<string>();
+  for (const holding of value.holdings) {
+    const error = isRecord(holding) ? holdingError(holding, seen) : 'Invalid portfolio data';
+    if (error) return error;
+  }
+  return (value.holdings as HoldingInput[]).map((holding) => ({
     ...(holding.id ? { id: holding.id } : {}),
     kind: holding.kind,
     name: holding.name.trim(),
     group: holding.kind === 'mutual_fund' ? holding.group!.trim() : null,
+    currency: holding.kind === 'remote_bank' ? holding.currency : PKR,
     amount: holding.amount,
-    exchangeRate: holding.kind === 'remote_bank' ? holding.exchangeRate : 1,
   }));
 }
 
-function validHoldingId(value: unknown, seen: Set<string>) {
-  if (value === undefined || value === null) return true;
-  if (typeof value !== 'string' || !value.trim() || seen.has(value)) return false;
-  seen.add(value);
-  return true;
-}
-
-export function parseSnapshotInput(value: unknown): { holdings: Holding[]; grandTotal: number } | string {
+export function parseSnapshotInput(value: unknown): HoldingInput[] | string {
   if (!isRecord(value)) return 'Invalid snapshot';
-  const holdings = parsePortfolio(value.data);
-  if (!holdings) return 'Invalid portfolio data';
-  if (!validMoney(value.grandTotal)) return 'Invalid portfolio total';
-  return { holdings, grandTotal: value.grandTotal };
+  return parsePortfolio(value.data);
 }
 
 export function validateLedger(body: LedgerDraft, categoryIds: ReadonlySet<string> = new Set()) {
@@ -84,14 +96,10 @@ export function validateLedger(body: LedgerDraft, categoryIds: ReadonlySet<strin
       return 'Every account needs a name';
     }
     if (!['bank', 'fund'].includes(account.type)) return 'Invalid account type';
-    if (!['PKR', 'USD'].includes(account.currency)) return 'Invalid currency';
-    if (
-      !validMoney(account.openingBalance) ||
-      !validMoney(account.exchangeRate) ||
-      (account.currency === 'USD' && account.exchangeRate === 0)
-    ) {
-      return 'Account balances and exchange rates must be valid';
+    if (!isCurrencyCode(account.currency) || (account.type === 'fund' && account.currency !== PKR)) {
+      return 'Invalid currency';
     }
+    if (!validMoney(account.openingBalance)) return 'Account balances must be valid';
     if (account.type === 'fund' && account.openingCostBasis !== undefined && !validMoney(account.openingCostBasis)) {
       return 'Fund cost basis must be valid';
     }
@@ -175,9 +183,6 @@ function validateLedgerEntry(
   }
   if (entry.destinationAmount !== undefined && !validPositiveNumber(entry.destinationAmount)) {
     return 'Destination amount must be positive';
-  }
-  if (entry.exchangeRate !== undefined && !validPositiveNumber(entry.exchangeRate)) {
-    return 'Entry exchange rate must be positive';
   }
   return null;
 }

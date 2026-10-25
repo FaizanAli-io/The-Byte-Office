@@ -18,7 +18,8 @@ export async function loadPrayerTracker() {
   return { prayers: rows, updatedAt: latest?.recordedAt ?? null };
 }
 
-async function recordPrayerHistory() {
+async function recordPrayerHistory(test?: boolean) {
+  if (test) return;
   const db = getDb();
   const [rows, [latest]] = await Promise.all([
     db.select().from(prayers),
@@ -41,7 +42,7 @@ export async function getPrayerByNamaaz(namaaz: PrayerInput['namaaz']) {
   return row ?? null;
 }
 
-export async function createPrayer(input: PrayerInput) {
+export async function createPrayer({ test, ...input }: PrayerInput) {
   const [row] = await getDb()
     .insert(prayers)
     .values({
@@ -49,19 +50,19 @@ export async function createPrayer(input: PrayerInput) {
       missed: input.missed ?? 0,
     })
     .returning();
-  await recordPrayerHistory();
+  await recordPrayerHistory(test);
   return row;
 }
 
-export async function updatePrayer(id: string, input: PrayerUpdate) {
+export async function updatePrayer(id: string, { test, ...input }: PrayerUpdate) {
   const [row] = await getDb().update(prayers).set(defined(input)).where(idEq(prayers.id, id)).returning();
-  if (row) await recordPrayerHistory();
+  if (row) await recordPrayerHistory(test);
   return row ?? null;
 }
 
-export async function deletePrayer(id: string) {
+export async function deletePrayer(id: string, test?: boolean) {
   const deleted = await getDb().delete(prayers).where(idEq(prayers.id, id)).returning({ id: prayers.id });
-  if (deleted.length) await recordPrayerHistory();
+  if (deleted.length) await recordPrayerHistory(test);
   return deleted.length > 0;
 }
 
@@ -136,12 +137,16 @@ export async function renameHealthMetric(id: string, name: string) {
   return row;
 }
 
+export function assertMetricUnused(metric: { name: string; readingCount: number }) {
+  const { name, readingCount: count } = metric;
+  if (count)
+    throw new ApiError(`${count} ${count === 1 ? 'reading uses' : 'readings use'} "${name}" — rename it instead`, 409);
+}
+
 export async function removeHealthMetric(id: string) {
   const metric = (await listHealthMetrics()).find((row) => row.id === id);
   if (!metric) throw new ApiError('Health metric not found', 404);
-  if (metric.readingCount) {
-    throw new ApiError(`${metric.readingCount} readings use "${metric.name}" — rename it instead`, 409);
-  }
+  assertMetricUnused(metric);
   await getDb().delete(healthMetrics).where(idEq(healthMetrics.id, id));
   return metric;
 }

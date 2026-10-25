@@ -1,6 +1,7 @@
 import { ApiError } from '@/lib/api';
 import { z } from 'zod/v4';
 import { NAMAAZ_VALUES } from '@/types/personal';
+import { prayerTestFlag } from '@/lib/personal-validation';
 import {
   empty,
   text,
@@ -17,6 +18,7 @@ import {
   entryRef,
   accountFields,
   accountRef,
+  currencyCode,
 } from './fields';
 
 type AgentToolModule = 'finance' | 'personal' | 'tbo';
@@ -39,8 +41,29 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Get portfolio',
     module: 'finance',
     description:
-      "Get the live portfolio as one list of holdings (id, kind, name, group for a fund's bank, amount in its currency, exchangeRate, valuePkr), with a gross PKR total, the amount held for other people, and the net total that is actually yours.",
+      "Get the live portfolio as one list of holdings (id, kind, name, group for a fund's bank, currency, amount in that currency, the live exchangeRate in PKR per unit, valuePkr), with a gross PKR total, the amount held for other people, and the net total that is actually yours.",
     schema: empty,
+    mcp: true,
+  },
+  {
+    name: 'exchange_rates_get',
+    title: 'Get exchange rates',
+    module: 'finance',
+    description:
+      'Get the live exchange-rate table every PKR conversion uses: PKR per one unit of each supported currency, when it was last refreshed, and stale when the latest refresh failed.',
+    schema: empty,
+    mcp: true,
+  },
+  {
+    name: 'exchange_rates_refresh',
+    title: 'Refresh exchange rates',
+    module: 'finance',
+    description:
+      'Fetch the latest rates from the provider now, ignoring the hourly limit, store them, and return the updated table as exchange_rates_get does. If the provider does not answer, the stored rates are left unchanged and an error is returned.',
+    chatDescription:
+      'Create a confirmation proposal to fetch the latest exchange rates from the provider now and store them. Never claim the rates were refreshed before confirmation.',
+    schema: empty,
+    write: true,
     mcp: true,
   },
   {
@@ -131,10 +154,14 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Add portfolio item',
     module: 'finance',
     description:
-      'Add one holding immediately: kind, name, amount, plus group for a mutual fund and exchangeRate for a remote bank. The newest ledger month gains a matching account.',
+      'Add one holding immediately: kind, name, amount, plus group for a mutual fund and currency for a remote bank. Rates are never typed: they come from the live table. The newest ledger month gains a matching account.',
     chatDescription:
-      'Create a confirmation proposal to add one holding: kind, name, amount, plus group for a mutual fund and exchangeRate for a remote bank. This never writes before user confirmation.',
-    schema: z.object({ kind: holdingKindSchema, ...holdingFields }),
+      'Create a confirmation proposal to add one holding: kind, name, amount, plus group for a mutual fund and currency for a remote bank. This never writes before user confirmation.',
+    schema: z.object({
+      kind: holdingKindSchema,
+      ...holdingFields,
+      currency: currencyCode.optional().describe('Remote banks only, and required for them: ISO code such as USD'),
+    }),
     write: true,
     mcp: true,
   },
@@ -143,7 +170,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Update portfolio item',
     module: 'finance',
     description:
-      "Update one portfolio item by stable ID. Include only changed fields. A changed amount becomes the matching ledger account's actual closing balance in the newest month.",
+      "Update one portfolio item by stable ID. Include only changed fields; kind and currency cannot change. A changed amount becomes the matching ledger account's actual closing balance in the newest month.",
     chatDescription:
       'Create a confirmation proposal to update one portfolio item by stable ID. Include only changed fields. This never writes before confirmation.',
     schema: z.object({
@@ -171,7 +198,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Add ledger entry',
     module: 'finance',
     description:
-      'Add an entry to a draft ledger immediately. Prefer accountId from ledger_get; accountName works when it matches one account. Finalized ledgers are read-only.',
+      'Add an entry to a draft ledger immediately. Prefer accountId from ledger_get; accountName works when it matches one account. For a transfer, amount is what was sent and destinationAmount what was received; any difference is added as a separate Exchange cost, Exchange gain or Transfer fees entry on the source account. Rates are stamped by the server. Finalized ledgers are read-only.',
     chatDescription:
       'Immediately open the add-entry form for a draft ledger. Call this as soon as the user wants to add an entry. Do not ask for type, account, amount, date, or notes — the form collects them. Type defaults to expense, account to the first account, and date to today. Only month is required. The user submits the form to save; do not claim the entry was saved.',
     schema: z.object({ month, ...ledgerEntryFields }),
@@ -183,7 +210,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Update ledger entry',
     module: 'finance',
     description:
-      'Update a draft ledger entry by serial from ledger_get (for example, 0001). Include only changed fields.',
+      'Update a draft ledger entry by serial from ledger_get (for example, 0001). Include only changed fields. Amounts are saved as given: a transfer is not split again.',
     chatDescription:
       'Immediately open an edit form prefilled with an existing draft ledger entry. Use entrySerial from ledger_get (for example, 0001); entryId is only for internal compatibility. Do not ask the user to retype fields. The user submits the form to save. Do not claim the entry was updated.',
     schema: z.object({ ...entryRef, ...ledgerEntryFields }),
@@ -216,7 +243,7 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'List ledger accounts and balances',
     module: 'finance',
     description:
-      "List a monthly ledger's accounts as the ledger page shows them: opening, expected closing and actual closing balances, exchange rate and the reconciliation difference. Banks also report variance percent and whether they are reconciled; funds report opening cost basis, net invested and gain/loss. Balances are in each account's own currency.",
+      "List a monthly ledger's accounts as the ledger page shows them: opening, expected closing and actual closing balances, exchange rate (live for a draft, frozen once finalized) and the reconciliation difference. Banks also report variance percent and whether they are reconciled; funds report opening cost basis, net invested and gain/loss. Balances are in each account's own currency.",
     schema: z.object({ month }),
     mcp: true,
   },
@@ -225,15 +252,15 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     title: 'Add ledger account',
     module: 'finance',
     description:
-      'Add an account to a draft ledger immediately. Type defaults to bank, currency to PKR and opening balance to 0. USD accounts need exchangeRate. In the newest month it also adds the matching portfolio holding.',
+      'Add an account to a draft ledger immediately. Type defaults to bank, currency to PKR and opening balance to 0; funds are always PKR. In the newest month it also adds the matching portfolio holding.',
     chatDescription:
-      'Create a confirmation proposal to add an account to a draft ledger. Type defaults to bank, currency to PKR and opening balance to 0. USD accounts need exchangeRate. Never claim it was added before confirmation.',
+      'Create a confirmation proposal to add an account to a draft ledger. Type defaults to bank, currency to PKR and opening balance to 0; funds are always PKR. Never claim it was added before confirmation.',
     schema: z.object({
       month,
       ...accountFields,
       name: text.describe('Account name'),
       type: z.enum(['bank', 'fund']).optional(),
-      currency: z.enum(['PKR', 'USD']).optional(),
+      currency: currencyCode.optional(),
     }),
     write: true,
     mcp: true,
@@ -277,10 +304,11 @@ export const agentToolRegistry: AgentToolDefinition[] = [
     name: 'prayer_set',
     title: 'Set missed prayers',
     module: 'personal',
-    description: 'Set the missed count for one namaaz immediately.',
+    description:
+      'Set the missed count for one namaaz immediately. Pass test: true when testing or checking the tool, so the change is kept out of the prayer history.',
     chatDescription:
       'Create a confirmation proposal to set the missed count for one namaaz. Never claim the change was saved.',
-    schema: z.object({ namaaz: z.enum(NAMAAZ_VALUES), missed: z.int().min(0) }),
+    schema: z.object({ namaaz: z.enum(NAMAAZ_VALUES), missed: z.int().min(0), test: prayerTestFlag }),
     write: true,
     mcp: true,
   },
@@ -432,4 +460,6 @@ export type GroqTool = (typeof groqTools)[number];
 
 export const takesNoArgs = (tool: AgentToolDefinition) => Object.keys(tool.schema.shape).length === 0;
 
-export const httpMethodFor = (tool: AgentToolDefinition): 'get' | 'post' => (takesNoArgs(tool) ? 'get' : 'post');
+// Reads without arguments are GETs; anything that writes is a POST, even with no arguments.
+export const httpMethodFor = (tool: AgentToolDefinition): 'get' | 'post' =>
+  !tool.write && takesNoArgs(tool) ? 'get' : 'post';

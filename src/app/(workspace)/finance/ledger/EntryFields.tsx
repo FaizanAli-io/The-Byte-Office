@@ -1,6 +1,7 @@
 'use client';
 
-import { ENTRY_LABELS, eligibleAccounts, isHoldType, pickableCategories } from '@/lib/ledger';
+import { PKR, splitTransfer, TRANSFER_CATEGORIES } from '@/lib/fx';
+import { ENTRY_LABELS, eligibleAccounts, formatMoney, isHoldType, pickableCategories } from '@/lib/ledger';
 import type { LedgerAccount, LedgerCategory, LedgerEntry, LedgerEntryType } from '@/types/ledger';
 import { Field, financeStyles, openPicker } from '../components/FinanceUI';
 
@@ -82,6 +83,7 @@ export function EntryFields({
   accounts,
   categories,
   bounds,
+  adding = false,
   disabled = false,
   placeholders = false,
 }: {
@@ -90,6 +92,8 @@ export function EntryFields({
   accounts: EntryAccount[];
   categories: LedgerCategory[];
   bounds: { min: string; max: string };
+  // A new transfer is entered as sent and received, and split on save; an edit saves the amounts as they are.
+  adding?: boolean;
   disabled?: boolean;
   placeholders?: boolean;
 }) {
@@ -155,7 +159,7 @@ export function EntryFields({
           <AccountOptions accounts={eligible} />
         </select>
       </Field>
-      <Field label="Amount">
+      <Field label={draft.type === 'transfer' && adding ? 'Amount sent' : 'Amount'}>
         <input
           className={financeStyles.input}
           type="number"
@@ -180,7 +184,9 @@ export function EntryFields({
               <AccountOptions accounts={accounts.filter((account) => account.id !== draft.accountId)} />
             </select>
           </Field>
-          <Field label={target ? `Amount received (${target.currency})` : 'Destination amount (optional)'}>
+          <Field
+            label={target ? `Amount received (${target.currency})` : `Amount received${adding ? ' (optional)' : ''}`}
+          >
             <input
               className={financeStyles.input}
               type="number"
@@ -188,10 +194,11 @@ export function EntryFields({
               step="any"
               value={draft.destinationAmount}
               disabled={disabled}
-              placeholder="For currency conversion"
+              placeholder={target ? '0' : draft.amount || 'Same as sent'}
               onChange={(event) => setDraft({ ...draft, destinationAmount: event.target.value })}
             />
           </Field>
+          {adding ? <TransferPreview draft={draft} accounts={accounts} /> : null}
         </>
       ) : null}
       {isHoldType(draft.type) ? (
@@ -233,4 +240,32 @@ export function EntryFields({
       </Field>
     </>
   );
+}
+
+// The split the server will write, at the live rates the page loaded; the server's rates at save time are final.
+function TransferPreview({ draft, accounts }: { draft: EntryDraft; accounts: EntryAccount[] }) {
+  const source = accounts.find((account) => account.id === draft.accountId);
+  const destination = accounts.find((account) => account.id === draft.destinationAccountId);
+  const sent = Number(draft.amount);
+  const same = source?.currency === destination?.currency;
+  const received = draft.destinationAmount ? Number(draft.destinationAmount) : same ? sent : NaN;
+  if (!source || !destination || !(sent > 0) || !(received > 0)) return null;
+
+  const split = splitTransfer({
+    sent,
+    received,
+    source: { currency: source.currency, rate: source.exchangeRate },
+    destination: { currency: destination.currency, rate: destination.exchangeRate },
+  });
+
+  let text: string;
+  if ('error' in split) text = split.error;
+  else if (!split.difference)
+    text = same ? 'Arrives in full.' : 'Received at the market rate: no exchange cost or gain.';
+  else {
+    const { amount, type, category, note } = split.difference;
+    const pkr = source.currency === PKR ? '' : ` (${formatMoney(amount * source.exchangeRate, PKR)})`;
+    text = `${note ? `${note} · ` : ''}${TRANSFER_CATEGORIES[category].name} ${formatMoney(amount, source.currency)}${pkr} → ${type} on ${source.name}`;
+  }
+  return <p className={`text-xs md:col-span-2 ${'error' in split ? 'text-rose-300' : 'text-slate-400'}`}>{text}</p>;
 }

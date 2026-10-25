@@ -9,7 +9,14 @@ const FUND_FIELDS: HoldingField[] = [
   { key: 'amount', label: 'Value (PKR)', money: true },
 ];
 
-const fund = (bank: string): Holding => ({ kind: 'mutual_fund', name: '', group: bank, amount: 0, exchangeRate: 1 });
+const fund = (bank: string): Holding => ({
+  kind: 'mutual_fund',
+  name: '',
+  group: bank,
+  currency: 'PKR',
+  amount: 0,
+  exchangeRate: 1,
+});
 const total = (funds: IndexedHolding[]) => funds.reduce((sum, item) => sum + valuePkr(item), 0);
 
 export function MutualFundsSection({

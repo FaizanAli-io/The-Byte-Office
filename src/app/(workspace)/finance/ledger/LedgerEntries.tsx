@@ -89,7 +89,6 @@ export function LedgerEntries({
   };
 
   const showRunning = filters.accountId !== 'all' && filters.sortBy === 'date';
-  const sourceAccount = accounts.find((account) => account.id === draft.accountId);
 
   const rows = useMemo<EntryRow[]>(() => {
     const byId = new Map(accounts.map((account) => [account.id, account]));
@@ -129,7 +128,7 @@ export function LedgerEntries({
     }
     const destinationAmount =
       draft.type === 'transfer' && draft.destinationAmount ? Number(draft.destinationAmount) : undefined;
-    const previous = entries.find((item) => item.id === editingId);
+    // A new transfer's amount is what was sent; the server splits off any cost or gain and stamps the rates.
     const entry: LedgerEntry = {
       id: editingId ?? crypto.randomUUID(),
       date: draft.date,
@@ -138,10 +137,6 @@ export function LedgerEntries({
       destinationAccountId: draft.type === 'transfer' ? draft.destinationAccountId : undefined,
       amount,
       destinationAmount,
-      exchangeRate:
-        previous?.accountId === draft.accountId
-          ? (previous.exchangeRate ?? sourceAccount?.exchangeRate ?? 1)
-          : (sourceAccount?.exchangeRate ?? 1),
       categoryId: draft.categoryId || undefined,
       counterparty: draft.counterparty.trim() || undefined,
       note: draft.note.trim() || undefined,
@@ -199,6 +194,7 @@ export function LedgerEntries({
             accounts={accounts}
             categories={categories}
             bounds={bounds}
+            adding={!editingId}
             placeholders
           />
         </div>

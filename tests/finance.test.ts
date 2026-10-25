@@ -14,6 +14,7 @@ const bank = (id: string, name: string, amount: number): Holding => ({
   kind: 'local_bank',
   name,
   group: null,
+  currency: 'PKR',
   amount,
   exchangeRate: 1,
 });
@@ -22,10 +23,19 @@ const fund = (id: string, group: string, name: string, amount: number): Holding 
   kind: 'mutual_fund',
   name,
   group,
+  currency: 'PKR',
   amount,
   exchangeRate: 1,
 });
-const wise: Holding = { id: 'r1', kind: 'remote_bank', name: 'Wise', group: null, amount: 100, exchangeRate: 280 };
+const wise: Holding = {
+  id: 'r1',
+  kind: 'remote_bank',
+  name: 'Wise',
+  group: null,
+  currency: 'USD',
+  amount: 100,
+  exchangeRate: 280,
+};
 
 const holdings: Holding[] = [
   bank('l1', 'HBL', 1000),

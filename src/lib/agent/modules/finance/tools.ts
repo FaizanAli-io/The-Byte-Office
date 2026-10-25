@@ -8,6 +8,7 @@ import {
   loadLedger,
 } from '@/lib/db/queries';
 import { loadPortfolioHoldings } from '@/lib/db/portfolio';
+import { getExchangeRates } from '@/lib/exchange-rates';
 import { portfolioTotals, valuePkr } from '@/lib/finance';
 import { categoryName, heldFunds, ledgerCategoryTotals, ledgerSummary } from '@/lib/ledger';
 import { filterLedgerEntries } from '@/lib/ledger-entries';
@@ -28,6 +29,8 @@ export async function readFinanceTool(name: string, args: Record<string, unknown
         heldForOthers: held.byCounterparty,
       };
     }
+    case 'exchange_rates_get':
+      return getExchangeRates();
     case 'snapshots_list':
       return listSnapshotSummaries();
     case 'snapshot_get': {

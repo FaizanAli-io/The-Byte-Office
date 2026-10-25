@@ -5,10 +5,12 @@ import { DeleteButton, Field, SectionCard, SectionTotal } from './shared';
 export type IndexedHolding = Holding & { index: number };
 
 export type HoldingField = {
-  key: 'name' | 'amount' | 'exchangeRate';
+  key: 'name' | 'amount' | 'currency';
   label: string;
   numeric?: boolean;
   money?: boolean;
+  // A three-letter code, fixed once the holding is saved: past months were valued in it.
+  currency?: boolean;
   placeholder?: string;
 };
 
@@ -35,7 +37,17 @@ export function HoldingRow({
           money={field.money}
           placeholder={field.placeholder ?? (field.numeric || field.money ? '0' : undefined)}
           value={holding[field.key]}
-          onChange={(value) => onChange(holding.index, { [field.key]: value })}
+          disabled={field.currency && holding.id !== undefined}
+          onChange={(value) =>
+            onChange(holding.index, {
+              [field.key]: field.currency
+                ? String(value)
+                    .toUpperCase()
+                    .replace(/[^A-Z]/g, '')
+                    .slice(0, 3)
+                : value,
+            })
+          }
         />
       ))}
       <DeleteButton onClick={() => onDelete(holding.index)} />

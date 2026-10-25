@@ -15,11 +15,17 @@ const createdAt = z.coerce.date({ error: 'createdAt must be a valid date' });
 
 const hasAnyField = (value: object) => Object.values(value).some((field) => field !== undefined);
 
-export const prayerInputSchema = z.object({ namaaz: namaazSchema, missed: missed.optional() });
+// A test write changes the count but leaves no prayer history entry, so the history holds only real changes.
+export const prayerTestFlag = z
+  .boolean({ error: 'test must be true or false' })
+  .default(false)
+  .describe('Defaults to false. Only true for a test run: the count changes, but no prayer history entry is written');
+
+export const prayerInputSchema = z.object({ namaaz: namaazSchema, missed: missed.optional(), test: prayerTestFlag });
 
 export const prayerUpdateSchema = z
-  .object({ namaaz: namaazSchema.optional(), missed: missed.optional() })
-  .refine(hasAnyField, { error: 'Provide namaaz or missed to update' });
+  .object({ namaaz: namaazSchema.optional(), missed: missed.optional(), test: prayerTestFlag })
+  .refine(({ test: _test, ...fields }) => hasAnyField(fields), { error: 'Provide namaaz or missed to update' });
 
 export const healthInputSchema = z.object({ metricId, value: reading, createdAt: createdAt.optional() });
 
@@ -37,7 +43,8 @@ export const healthMetricInputSchema = z.object({ name: metric });
 
 export const healthMetricUpdateSchema = z.object({ id: z.string().min(1), name: metric });
 
-export type PrayerInput = z.infer<typeof prayerInputSchema>;
-export type PrayerUpdate = z.infer<typeof prayerUpdateSchema>;
+// Inputs, so `test` may be left out and counts as false.
+export type PrayerInput = z.input<typeof prayerInputSchema>;
+export type PrayerUpdate = z.input<typeof prayerUpdateSchema>;
 export type HealthTrackingInput = z.infer<typeof healthInputSchema>;
 export type HealthTrackingUpdate = z.infer<typeof healthUpdateSchema>;

@@ -26,6 +26,11 @@ export const categoryName = text.describe('Category name, as categories_list rep
 export const categoryId = text.describe('Category id from categories_list');
 export const categoryKind = z.enum(CATEGORY_KINDS).describe('Which entry types may use it: income, expense, or both');
 
+export const currencyCode = z
+  .string()
+  .regex(/^[A-Z]{3}$/, 'Use a three-letter ISO currency code such as USD')
+  .describe('ISO 4217 code such as USD or GBP; see exchange_rates_get for the supported ones');
+
 export const holdingFields = {
   name: text.describe('Bank or fund name'),
   group: z
@@ -34,8 +39,7 @@ export const holdingFields = {
     .nullable()
     .optional()
     .describe("A mutual fund's bank; required for funds, omitted otherwise"),
-  amount: z.number().nonnegative().describe('Balance in its currency: USD for a remote bank, otherwise PKR'),
-  exchangeRate: z.number().positive().optional().describe('PKR per 1 USD; remote banks only'),
+  amount: z.number().nonnegative().describe("Balance in the holding's own currency"),
 };
 
 export const ledgerEntryFields = {
@@ -43,10 +47,21 @@ export const ledgerEntryFields = {
   type: entryTypeSchema.optional(),
   accountId: text.optional().describe('Stable account UUID when known'),
   accountName: text.optional().describe('Account name or shorthand, such as TBO'),
-  destinationAccountId: text.nullable().optional(),
-  amount: z.number().positive().optional(),
-  destinationAmount: z.number().positive().nullable().optional(),
-  exchangeRate: z.number().positive().nullable().optional(),
+  destinationAccountId: text.nullable().optional().describe('Transfers only: the receiving account UUID'),
+  destinationAccountName: text.optional().describe('Transfers only: the receiving account by name or shorthand'),
+  amount: z
+    .number()
+    .positive()
+    .optional()
+    .describe("In the account's currency. When adding a transfer, the amount sent from the source account"),
+  destinationAmount: z
+    .number()
+    .positive()
+    .nullable()
+    .optional()
+    .describe(
+      "Transfers only: the amount received, in the destination's currency. Required across currencies; defaults to the amount sent otherwise"
+    ),
   category: z
     .string()
     .min(1)
@@ -103,7 +118,6 @@ export const accountFields = {
     .nullable()
     .optional()
     .describe('Funds only: cash invested at month start, not the market value; null clears it'),
-  exchangeRate: z.number().positive().optional().describe('PKR per 1 USD. USD accounts only'),
 };
 
 export const accountRef = {

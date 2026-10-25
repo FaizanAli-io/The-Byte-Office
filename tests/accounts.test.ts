@@ -49,10 +49,11 @@ const month = (
   accounts: LedgerAccount[],
   entries: LedgerEntry[] = []
 ): Pick<MonthlyLedger, 'accounts' | 'entries' | 'status'> => ({ accounts, entries, status: 'draft' });
-const identity = (id: string, kind: HoldingIdentity['kind'], display: string): HoldingIdentity => ({
+const identity = (id: string, kind: HoldingIdentity['kind'], display: string, currency = 'PKR'): HoldingIdentity => ({
   id,
   kind,
   ...splitName(kind, display),
+  currency,
 });
 
 describe('names', () => {
@@ -66,9 +67,9 @@ describe('names', () => {
 describe('valuesFrom', () => {
   it('values each holding at its statement balance, else at what the entries add up to', () => {
     const values = valuesFrom(month([meezan, { ...nbp, actualClosingBalance: 5400 }, deel], [expense(150)]));
-    expect(values.get('h-meezan')).toEqual({ amount: 850, exchangeRate: 1 });
-    expect(values.get('h-nbp')).toEqual({ amount: 5400, exchangeRate: 1 });
-    expect(values.get('h-deel')).toEqual({ amount: 100, exchangeRate: 280 });
+    expect(values.get('h-meezan')).toEqual({ amount: 850 });
+    expect(values.get('h-nbp')).toEqual({ amount: 5400 });
+    expect(values.get('h-deel')).toEqual({ amount: 100 });
   });
 });
 
@@ -77,9 +78,34 @@ describe('planLedgerHoldings (ledger → holdings)', () => {
     const added: LedgerAccount = { ...nbp, id: 'a-new', holdingId: undefined, name: 'MCB Funds · Cash' };
     const { accounts, create } = planLedgerHoldings(month([meezan]), month([meezan, added]), true);
     expect(create).toEqual([
-      { id: expect.any(String), kind: 'mutual_fund', name: 'Cash', group: 'MCB Funds', archived: false },
+      {
+        id: expect.any(String),
+        kind: 'mutual_fund',
+        name: 'Cash',
+        group: 'MCB Funds',
+        currency: 'PKR',
+        archived: false,
+      },
     ]);
     expect(accounts[1].holdingId).toBe(create[0].id);
+  });
+
+  it('gives a foreign bank account a remote holding in its currency', () => {
+    const added: LedgerAccount = { ...deel, id: 'a-wise', holdingId: undefined, name: 'Wise', currency: 'GBP' };
+    expect(planLedgerHoldings(month([meezan]), month([meezan, added]), true).create[0]).toMatchObject({
+      kind: 'remote_bank',
+      currency: 'GBP',
+    });
+  });
+
+  it("keeps an existing account's currency, whatever the request says", () => {
+    const { accounts, rename } = planLedgerHoldings(
+      month([deel]),
+      month([{ ...deel, name: 'Deel USD', currency: 'GBP' }]),
+      true
+    );
+    expect(accounts[0].currency).toBe('USD');
+    expect(rename[0]).toMatchObject({ kind: 'remote_bank', currency: 'USD' });
   });
 
   it('files an account added to an older month as an archived holding', () => {
@@ -89,7 +115,9 @@ describe('planLedgerHoldings (ledger → holdings)', () => {
 
   it('renames the holding when its account is renamed', () => {
     const { rename } = planLedgerHoldings(month([meezan]), month([{ ...meezan, name: 'Meezan Current' }]), true);
-    expect(rename).toEqual([{ id: 'h-meezan', kind: 'local_bank', name: 'Meezan Current', group: null }]);
+    expect(rename).toEqual([
+      { id: 'h-meezan', kind: 'local_bank', name: 'Meezan Current', group: null, currency: 'PKR' },
+    ]);
   });
 
   it('archives the holding of an account removed from the newest month only', () => {
@@ -107,18 +135,11 @@ describe('planPortfolioAccounts (portfolio → newest month)', () => {
       ...none,
       update: [
         { id: 'h-meezan', value: { amount: 900 } },
-        { id: 'h-deel', value: { amount: 100, exchangeRate: 285 } },
+        { id: 'h-deel', value: { amount: 100 } },
       ],
     });
     expect(accounts[0].actualClosingBalance).toBe(900);
-    expect(accounts[1]).toEqual({ ...deel, exchangeRate: 285, actualClosingBalance: undefined });
-  });
-
-  it('never gives a PKR account a rate', () => {
-    expect(
-      planPortfolioAccounts(month([meezan]), { ...none, update: [{ id: 'h-meezan', value: { exchangeRate: 5 } }] })[0]
-        .exchangeRate
-    ).toBe(1);
+    expect(accounts[1]).toEqual({ ...deel, actualClosingBalance: undefined });
   });
 
   it('drops the account of an archived holding unless entries use it', () => {
@@ -130,7 +151,7 @@ describe('planPortfolioAccounts (portfolio → newest month)', () => {
     const holding = identity('h-hbl', 'local_bank', 'HBL');
     const [, added] = planPortfolioAccounts(month([meezan]), {
       ...none,
-      create: [{ holding, value: { amount: 300, exchangeRate: 1 } }],
+      create: [{ holding, value: { amount: 300 } }],
     });
     expect(added).toMatchObject({ holdingId: 'h-hbl', name: 'HBL', currency: 'PKR', openingBalance: 300 });
   });
@@ -144,7 +165,7 @@ describe('accountsForNewMonth', () => {
     };
     const holdings = [
       identity('h-meezan', 'local_bank', 'Meezan'),
-      identity('h-deel', 'remote_bank', 'Deel'),
+      identity('h-deel', 'remote_bank', 'Deel', 'USD'),
       identity('h-nbp', 'mutual_fund', 'NBP Funds · Energy'),
       identity('h-new', 'local_bank', 'New'),
     ];
@@ -157,6 +178,6 @@ describe('accountsForNewMonth', () => {
     ]);
     expect(accounts.some((account) => ['a-meezan', 'a-nbp', 'a-deel'].includes(account.id))).toBe(false);
     expect(accounts[2].openingCostBasis).toBe(5500);
-    expect(accounts[1]).toMatchObject({ currency: 'USD', exchangeRate: 280 });
+    expect(accounts[1]).toMatchObject({ currency: 'USD', type: 'bank' });
   });
 });

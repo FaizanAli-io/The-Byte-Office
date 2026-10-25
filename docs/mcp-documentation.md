@@ -37,27 +37,40 @@ chat calls as `internal`, MCP and REST as `external` with the client's name.
 
 ## Finance
 
-| Read (`finance:read`)  | Write (`finance:write`) |
-| ---------------------- | ----------------------- |
-| `portfolio_get`        | `portfolio_item_add`    |
-|                        | `portfolio_item_update` |
-|                        | `portfolio_item_remove` |
-| `snapshots_list`       |                         |
-| `snapshot_get`         |                         |
-| `ledgers_list`         | `ledger_entry_add`      |
-| `ledger_get`           | `ledger_entry_update`   |
-| `ledger_summary`       | `ledger_entry_remove`   |
-| `ledger_accounts_list` | `ledger_account_add`    |
-|                        | `ledger_account_update` |
-|                        | `ledger_account_remove` |
-| `categories_list`      | `category_add`          |
-|                        | `category_update`       |
-|                        | `category_remove`       |
+| Read (`finance:read`)  | Write (`finance:write`)  |
+| ---------------------- | ------------------------ |
+| `portfolio_get`        | `portfolio_item_add`     |
+|                        | `portfolio_item_update`  |
+|                        | `portfolio_item_remove`  |
+| `exchange_rates_get`   | `exchange_rates_refresh` |
+| `snapshots_list`       |                          |
+| `snapshot_get`         |                          |
+| `ledgers_list`         | `ledger_entry_add`       |
+| `ledger_get`           | `ledger_entry_update`    |
+| `ledger_summary`       | `ledger_entry_remove`    |
+| `ledger_accounts_list` | `ledger_account_add`     |
+|                        | `ledger_account_update`  |
+|                        | `ledger_account_remove`  |
+| `categories_list`      | `category_add`           |
+|                        | `category_update`        |
+|                        | `category_remove`        |
 
 - **Holdings are one flat list.** `portfolio_get` returns `holdings`, each with `id`, `kind` (`local_bank`,
-  `remote_bank`, `mutual_fund`), `name`, `group` (a fund's bank), `amount` in its currency (USD for a remote bank,
-  otherwise PKR), `exchangeRate` and `valuePkr`. `portfolio_item_add` takes the same fields; update and remove take
-  the `id`.
+  `remote_bank`, `mutual_fund`), `name`, `group` (a fund's bank), `currency` (ISO 4217; PKR except for remote banks),
+  `amount` in that currency, the live `exchangeRate` (PKR per unit) and `valuePkr`. `portfolio_item_add` takes `kind`,
+  `name`, `amount`, `group` for a fund and `currency` for a remote bank; update and remove take the `id`, and kind and
+  currency never change.
+- **No rate is ever typed.** One server-maintained table, refreshed from open.er-api.com at most once an hour, supplies
+  every PKR conversion; `exchange_rates_get` returns it with `updatedAt` and `stale` (the latest refresh failed), and
+  `exchange_rates_refresh` fetches it now, ignoring the hourly limit, and returns the result (a provider failure
+  leaves the stored rates unchanged). Draft
+  months use it live, finalizing freezes it onto the month's accounts, and snapshots freeze it when taken.
+- **Transfers record what actually moved.** On `ledger_entry_add` and `ledger_entry_update` with `type: "transfer"`,
+  `amount` is what was sent and `destinationAmount` what arrived (it defaults to the amount sent for the same currency).
+  On add, any difference becomes a second, independent entry on the source account: `Exchange cost` or `Exchange gain`
+  across currencies, whose note states the received and market rates (`Received at USD/PKR 279.00; market 280.92`),
+  and `Transfer fees` for a same-currency shortfall. After that both are ordinary entries: an update saves the amounts
+  as given, and removing one leaves the other. `destinationAccountName` resolves the receiving account by name.
 - **The portfolio is read from the newest ledger month**, so a changed amount becomes that account's closing balance
   and removing a holding used by past months archives it.
 - **Entries name their category.** `ledger_entry_add` and `ledger_entry_update` take `category` as a name: an exact
@@ -84,6 +97,10 @@ chat calls as `internal`, MCP and REST as `external` with the client's name.
 | `health_metrics_list`  | `health_metric_add`      |
 |                        | `health_metric_update`   |
 |                        | `health_metric_remove`   |
+
+`prayer_set` takes `test: true` for a test run: the count still changes, but nothing is written to the prayer history,
+which therefore holds only real changes. The REST API takes the same flag in the body of `POST /api/prayers` and
+`PUT /api/prayers/{id}`, and as `?test=true` on `DELETE /api/prayers/{id}`.
 
 Health readings name their metric, which must already exist in `health_metrics_list`; an unknown name is rejected.
 Metrics themselves are managed by id, and one with readings cannot be deleted — rename it instead.

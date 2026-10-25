@@ -1,5 +1,6 @@
 import {
   addHealthMetric,
+  assertMetricUnused,
   assertMetricNameIsFree,
   createHealthTracking,
   createPrayer,
@@ -36,12 +37,16 @@ export async function proposePersonalAction(
   args: Record<string, unknown>
 ): Promise<AgentProposal> {
   if (actionType === 'prayer_set') {
-    const { namaaz, missed } = args as { namaaz: Namaaz; missed: number };
+    const { namaaz, missed, test } = args as { namaaz: Namaaz; missed: number; test?: boolean };
     const current = await getPrayerByNamaaz(namaaz);
     return {
       actionType,
-      payload: { actionType, namaaz, missed },
-      preview: { title: `Set ${namaaz} missed count`, before: current, after: { namaaz, missed } },
+      payload: { actionType, namaaz, missed, ...(test ? { test } : {}) },
+      preview: {
+        title: `Set ${namaaz} missed count${test ? ' (test, not logged)' : ''}`,
+        before: current,
+        after: { namaaz, missed },
+      },
       sourceFingerprint: current ? fingerprint(current) : null,
     };
   }
@@ -56,9 +61,7 @@ export async function proposePersonalAction(
     const current = (await listHealthMetrics()).find((metric) => metric.id === args.id);
     if (!current) throw new ApiError('Health metric not found. Call health_metrics_list for the ids.', 404);
     if (actionType === 'health_metric_remove') {
-      if (current.readingCount) {
-        throw new ApiError(`${current.readingCount} readings use "${current.name}" — rename it instead`, 409);
-      }
+      assertMetricUnused(current);
       return {
         actionType,
         payload: { actionType, id: current.id },
@@ -119,8 +122,9 @@ export async function executePersonalPayload(
     case 'prayer_set': {
       const current = await getPrayerByNamaaz(payload.namaaz);
       if (current && sourceFingerprint) assertUnchanged(fingerprint(current), sourceFingerprint, 'prayer row');
-      if (current) return updatePrayer(current.id, { missed: payload.missed });
-      return createPrayer({ namaaz: payload.namaaz, missed: payload.missed });
+      const { missed, test } = payload;
+      if (current) return updatePrayer(current.id, { missed, test });
+      return createPrayer({ namaaz: payload.namaaz, missed, test });
     }
     case 'health_metric_add':
       return addHealthMetric(payload.name);

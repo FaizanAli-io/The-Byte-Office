@@ -12,6 +12,13 @@ export type EntryRow = {
   running?: number;
 };
 
+// A cross-currency transfer shows both sides: "$993.17 → PKR 279,000".
+function amountText({ entry, account, destination }: EntryRow) {
+  const sent = formatMoney(entry.amount, account?.currency ?? 'PKR');
+  if (!destination || entry.destinationAmount === undefined || destination.currency === account?.currency) return sent;
+  return `${sent} → ${formatMoney(entry.destinationAmount, destination.currency)}`;
+}
+
 export type RowActions = {
   readOnly: boolean;
   runningCurrency: string;
@@ -27,41 +34,42 @@ const entryDate = (date: string, options: Intl.DateTimeFormatOptions = {}) =>
 export function EntryCards({ rows, readOnly, runningCurrency, onEdit, onRemove }: RowActions & { rows: EntryRow[] }) {
   return (
     <div className="space-y-3 md:hidden">
-      {rows.map(({ entry, account, destination, detail, running }) => (
-        <article key={entry.id} className={`${financeStyles.inset} p-4`}>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs text-slate-500">{entryDate(entry.date, { year: 'numeric' })}</p>
-              <p className="mt-2 font-bold text-slate-100">{account?.name ?? 'Unknown account'}</p>
-              {destination ? <p className="mt-1 text-xs text-slate-500">to {destination.name}</p> : null}
+      {rows.map((row) => {
+        const { entry, account, destination, detail, running } = row;
+        return (
+          <article key={entry.id} className={`${financeStyles.inset} p-4`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs text-slate-500">{entryDate(entry.date, { year: 'numeric' })}</p>
+                <p className="mt-2 font-bold text-slate-100">{account?.name ?? 'Unknown account'}</p>
+                {destination ? <p className="mt-1 text-xs text-slate-500">to {destination.name}</p> : null}
+              </div>
+              <p className="shrink-0 text-right font-bold text-cyan-300">{amountText(row)}</p>
             </div>
-            <p className="shrink-0 text-right font-bold text-cyan-300">
-              {formatMoney(entry.amount, account?.currency ?? 'PKR')}
-            </p>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <TypeBadge type={entry.type} />
-            {detail ? <span className="text-slate-400">{detail}</span> : null}
-          </div>
-          {entry.note ? <p className="mt-3 break-words text-xs leading-5 text-slate-500">{entry.note}</p> : null}
-          {running !== undefined ? (
-            <div className="mt-3 flex justify-between border-t border-white/6 pt-3 text-xs">
-              <span className="text-slate-500">Running balance</span>
-              <span className="font-bold text-cyan-300">{formatMoney(running, runningCurrency)}</span>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <TypeBadge type={entry.type} />
+              {detail ? <span className="text-slate-400">{detail}</span> : null}
             </div>
-          ) : null}
-          {!readOnly ? (
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button type="button" className={financeStyles.secondary} onClick={() => onEdit(entry)}>
-                Edit
-              </button>
-              <button type="button" className={financeStyles.danger} onClick={() => onRemove(entry.id)}>
-                Delete
-              </button>
-            </div>
-          ) : null}
-        </article>
-      ))}
+            {entry.note ? <p className="mt-3 break-words text-xs leading-5 text-slate-500">{entry.note}</p> : null}
+            {running !== undefined ? (
+              <div className="mt-3 flex justify-between border-t border-white/6 pt-3 text-xs">
+                <span className="text-slate-500">Running balance</span>
+                <span className="font-bold text-cyan-300">{formatMoney(running, runningCurrency)}</span>
+              </div>
+            ) : null}
+            {!readOnly ? (
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button type="button" className={financeStyles.secondary} onClick={() => onEdit(entry)}>
+                  Edit
+                </button>
+                <button type="button" className={financeStyles.danger} onClick={() => onRemove(entry.id)}>
+                  Delete
+                </button>
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -89,50 +97,51 @@ export function EntryTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ entry, account, destination, detail, running }) => (
-            <tr key={entry.id} className="text-slate-300">
-              <td className={`${CELL} text-slate-500`}>{entryDate(entry.date)}</td>
-              <td className={CELL}>
-                <TypeBadge type={entry.type} />
-              </td>
-              <td className={CELL}>
-                {account?.name ?? 'Unknown'}
-                {destination ? <span className="block text-xs text-slate-600">to {destination.name}</span> : null}
-              </td>
-              <td className={CELL}>
-                <span>{detail || '—'}</span>
-                {entry.note ? (
-                  <span className="block max-w-xs truncate text-xs text-slate-600">{entry.note}</span>
-                ) : null}
-              </td>
-              <td className={`${CELL} text-right font-semibold`}>
-                {formatMoney(entry.amount, account?.currency ?? 'PKR')}
-              </td>
-              <td className={`${CELL} text-right font-semibold text-cyan-300`}>
-                {running === undefined ? '' : formatMoney(running, runningCurrency)}
-              </td>
-              <td className={`${CELL} text-right`}>
-                {!readOnly ? (
-                  <div className="flex justify-end gap-3">
-                    <button
-                      type="button"
-                      className="text-xs font-semibold text-cyan-400 hover:text-cyan-300"
-                      onClick={() => onEdit(entry)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="text-xs font-semibold text-rose-400 hover:text-rose-300"
-                      onClick={() => onRemove(entry.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ) : null}
-              </td>
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const { entry, account, destination, detail, running } = row;
+            return (
+              <tr key={entry.id} className="text-slate-300">
+                <td className={`${CELL} text-slate-500`}>{entryDate(entry.date)}</td>
+                <td className={CELL}>
+                  <TypeBadge type={entry.type} />
+                </td>
+                <td className={CELL}>
+                  {account?.name ?? 'Unknown'}
+                  {destination ? <span className="block text-xs text-slate-600">to {destination.name}</span> : null}
+                </td>
+                <td className={CELL}>
+                  <span>{detail || '—'}</span>
+                  {entry.note ? (
+                    <span className="block max-w-xs truncate text-xs text-slate-600">{entry.note}</span>
+                  ) : null}
+                </td>
+                <td className={`${CELL} text-right font-semibold`}>{amountText(row)}</td>
+                <td className={`${CELL} text-right font-semibold text-cyan-300`}>
+                  {running === undefined ? '' : formatMoney(running, runningCurrency)}
+                </td>
+                <td className={`${CELL} text-right`}>
+                  {!readOnly ? (
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-cyan-400 hover:text-cyan-300"
+                        onClick={() => onEdit(entry)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-rose-400 hover:text-rose-300"
+                        onClick={() => onRemove(entry.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ) : null}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

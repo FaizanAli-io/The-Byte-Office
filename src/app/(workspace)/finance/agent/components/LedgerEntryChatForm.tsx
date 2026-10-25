@@ -19,7 +19,6 @@ export function LedgerEntryChatForm({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(() => draftFromForm(form));
-  const sourceAccount = form.accounts.find((account) => account.id === draft.accountId);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -35,7 +34,6 @@ export function LedgerEntryChatForm({
       amount,
       destinationAmount:
         draft.type === 'transfer' && draft.destinationAmount ? Number(draft.destinationAmount) : undefined,
-      exchangeRate: sourceAccount?.exchangeRate ?? 1,
       categoryId: draft.categoryId || undefined,
       counterparty: draft.counterparty.trim() || undefined,
       note: draft.note.trim() || undefined,
@@ -50,6 +48,7 @@ export function LedgerEntryChatForm({
         accounts={form.accounts}
         categories={form.categories ?? []}
         bounds={monthBounds(form.month)}
+        adding={form.kind === 'ledger_entry_add'}
         disabled={busy}
       />
       <div className="flex flex-col gap-2 pt-1 md:col-span-2 sm:flex-row">

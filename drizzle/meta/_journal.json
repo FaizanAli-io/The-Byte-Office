@@ -50,6 +50,13 @@
       "when": 1791127081782,
       "tag": "0006_flatten_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792881838019,
+      "tag": "0007_live_exchange_rates",
+      "breakpoints": true
     }
   ]
 }

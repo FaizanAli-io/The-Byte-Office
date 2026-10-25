@@ -11,11 +11,13 @@ import {
 import type { LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 import { useState } from 'react';
 import { FinanceCard, Field, financeStyles } from '../components/FinanceUI';
+import { pkrQuote } from '../components/ExchangeRates';
 
 export function LedgerAccounts({
   month,
   accounts,
   categories,
+  currencies,
   entries,
   readOnly,
   saving,
@@ -29,6 +31,8 @@ export function LedgerAccounts({
   month: string;
   accounts: LedgerAccount[];
   categories: LedgerCategory[];
+  // Codes the live rate table supports, for a new account's currency.
+  currencies: string[];
   entries: LedgerEntry[];
   readOnly: boolean;
   saving: boolean;
@@ -40,14 +44,11 @@ export function LedgerAccounts({
   onSave: () => void;
 }) {
   const [showAdd, setShowAdd] = useState(false);
-  const [draft, setDraft] = useState({
-    name: '',
-    type: 'bank' as LedgerAccount['type'],
-    currency: 'PKR' as LedgerAccount['currency'],
-  });
+  const [draft, setDraft] = useState({ name: '', type: 'bank' as LedgerAccount['type'], currency: 'PKR' });
+  const supported = draft.currency === 'PKR' || currencies.includes(draft.currency);
 
   function addAccount() {
-    if (!draft.name.trim()) return;
+    if (!draft.name.trim() || !supported) return;
     onAdd({
       id: crypto.randomUUID(),
       name: draft.name.trim(),
@@ -55,7 +56,8 @@ export function LedgerAccounts({
       currency: draft.currency,
       openingBalance: 0,
       openingCostBasis: draft.type === 'fund' ? 0 : undefined,
-      exchangeRate: draft.currency === 'USD' ? 280 : 1,
+      // Read-only: the server values the month at live rates.
+      exchangeRate: 1,
     });
     setDraft({ name: '', type: 'bank', currency: 'PKR' });
     setShowAdd(false);
@@ -68,7 +70,6 @@ export function LedgerAccounts({
       type: difference > 0 ? 'income' : 'expense',
       accountId: account.id,
       amount: Math.round(Math.abs(difference) * 100) / 100,
-      exchangeRate: account.exchangeRate,
       categoryId: categories.find((category) => category.name === RECONCILIATION_CATEGORY)?.id,
       note: 'Force reconcile',
     });
@@ -123,23 +124,29 @@ export function LedgerAccounts({
               <option value="fund">Mutual fund</option>
             </select>
           </Field>
-          <Field label="Currency">
-            <select
+          <Field label="Currency" hint={supported ? undefined : 'Not a supported currency'}>
+            <input
               className={financeStyles.input}
               disabled={draft.type === 'fund'}
+              list="ledger-currencies"
+              maxLength={3}
               value={draft.currency}
               onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  currency: event.target.value as LedgerAccount['currency'],
-                })
+                setDraft({ ...draft, currency: event.target.value.toUpperCase().replace(/[^A-Z]/g, '') })
               }
-            >
-              <option value="PKR">PKR</option>
-              <option value="USD">USD</option>
-            </select>
+            />
+            <datalist id="ledger-currencies">
+              {['PKR', ...currencies].map((code) => (
+                <option key={code} value={code} />
+              ))}
+            </datalist>
           </Field>
-          <button type="button" onClick={addAccount} className={`${financeStyles.primary} self-end`}>
+          <button
+            type="button"
+            onClick={addAccount}
+            disabled={!supported}
+            className={`${financeStyles.primary} self-end`}
+          >
             Add
           </button>
         </div>
@@ -202,13 +209,11 @@ export function LedgerAccounts({
                       />
                     </Field>
                   ) : null}
-                  {account.currency === 'USD' ? (
-                    <Field label="PKR per USD">
-                      <MoneyInput
-                        value={account.exchangeRate}
-                        disabled={readOnly}
-                        onChange={(exchangeRate) => onChange(account.id, { exchangeRate })}
-                      />
+                  {account.currency !== 'PKR' ? (
+                    <Field label={readOnly ? 'Rate frozen at finalize' : 'Live rate'}>
+                      <p className="py-2.5 text-sm font-semibold text-slate-300">
+                        {pkrQuote(account.currency, account.exchangeRate)}
+                      </p>
                     </Field>
                   ) : null}
                 </div>

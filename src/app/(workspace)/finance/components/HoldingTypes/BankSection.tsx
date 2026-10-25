@@ -18,8 +18,8 @@ const SECTIONS = {
     rowClass: `${financeStyles.inset} grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto] xl:items-end`,
     fields: [
       { key: 'name', label: 'Bank', placeholder: 'Bank name' },
-      { key: 'amount', label: 'Amount (USD)', money: true },
-      { key: 'exchangeRate', label: 'Exchange Rate', numeric: true },
+      { key: 'amount', label: 'Amount', money: true },
+      { key: 'currency', label: 'Currency', placeholder: 'USD', currency: true },
     ],
   },
 } satisfies Record<string, { title: string; addLabel: string; rowClass: string; fields: HoldingField[] }>;
@@ -42,7 +42,16 @@ export function BankSection({
     <HoldingSection
       {...section}
       rows={holdings.filter((holding) => holding.kind === kind)}
-      onAdd={() => onAdd({ kind, name: '', group: null, amount: 0, exchangeRate: kind === 'remote_bank' ? 0 : 1 })}
+      onAdd={() =>
+        onAdd({
+          kind,
+          name: '',
+          group: null,
+          currency: kind === 'remote_bank' ? 'USD' : 'PKR',
+          amount: 0,
+          exchangeRate: 1,
+        })
+      }
       onChange={onChange}
       onDelete={onDelete}
     />

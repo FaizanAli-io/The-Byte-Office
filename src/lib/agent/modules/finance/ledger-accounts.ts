@@ -3,12 +3,13 @@ import { randomUUID } from 'crypto';
 import type { ActionPreview, AgentActionPayload, AgentActionType, LedgerAccountChanges } from '@/lib/agent/types';
 import { accountStats, entryUsesAccount, resolveAccountId, variancePct } from '@/lib/ledger';
 import type { LedgerAccount, MonthlyLedger } from '@/types/ledger';
+import { PKR } from '@/lib/fx';
 import { definedFields } from './action-parsing';
 
 type AccountActionType = 'ledger_account_add' | 'ledger_account_update' | 'ledger_account_remove';
 type AccountPayload = Extract<AgentActionPayload, { actionType: AccountActionType }>;
 
-const CHANGE_KEYS = ['name', 'openingBalance', 'exchangeRate', 'actualClosingBalance', 'openingCostBasis'] as const;
+const CHANGE_KEYS = ['name', 'openingBalance', 'actualClosingBalance', 'openingCostBasis'] as const;
 
 export function isAccountAction(actionType: AgentActionType): actionType is AccountActionType {
   return actionType.startsWith('ledger_account_');
@@ -39,17 +40,17 @@ export function planAccountAction(
   const month = ledger.month;
 
   if (actionType === 'ledger_account_add') {
-    const currency = args.currency === 'USD' ? 'USD' : 'PKR';
-    if (currency === 'USD' && args.exchangeRate === undefined) {
-      throw new ApiError('exchangeRate is required for a USD account');
-    }
+    const type = args.type === 'fund' ? 'fund' : 'bank';
+    const currency = (args.currency as string | undefined) ?? PKR;
+    if (type === 'fund' && currency !== PKR) throw new ApiError('Funds are always PKR');
     const account = {
       id: randomUUID(),
       name: args.name,
-      type: args.type === 'fund' ? 'fund' : 'bank',
+      type,
       currency,
       openingBalance: args.openingBalance ?? 0,
-      exchangeRate: currency === 'PKR' ? 1 : args.exchangeRate,
+      // Read-only and resolved when the month is read.
+      exchangeRate: 1,
       ...(args.openingCostBasis == null ? {} : { openingCostBasis: args.openingCostBasis }),
       ...(args.actualClosingBalance == null ? {} : { actualClosingBalance: args.actualClosingBalance }),
     } as LedgerAccount;
@@ -68,9 +69,6 @@ export function planAccountAction(
   }
 
   const changes = definedFields(args, CHANGE_KEYS) as LedgerAccountChanges;
-  if (account.currency === 'PKR' && changes.exchangeRate !== undefined) {
-    throw new ApiError('PKR accounts have no exchange rate');
-  }
   if (!Object.keys(changes).length) {
     throw new ApiError(`Nothing to change: pass one of ${CHANGE_KEYS.join(', ')}`);
   }

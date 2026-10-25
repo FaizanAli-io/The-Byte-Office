@@ -1,13 +1,12 @@
 import type { Namaaz } from '@/types/personal';
-import type { Holding } from '@/types/finance';
+import type { HoldingInput as PortfolioInput } from '@/types/finance';
 import type { CategoryKind, LedgerAccount, LedgerCategory, LedgerEntry } from '@/types/ledger';
 
-export type HoldingInput = Omit<Holding, 'id'>;
+export type HoldingInput = Omit<PortfolioInput, 'id'>;
 
 export type LedgerAccountChanges = {
   name?: string;
   openingBalance?: number;
-  exchangeRate?: number;
   actualClosingBalance?: number | null;
   openingCostBasis?: number | null;
 };
@@ -72,10 +71,12 @@ export type AgentActionPayload =
       id: string;
       name: string;
     }
+  | { actionType: 'exchange_rates_refresh' }
   | {
       actionType: 'prayer_set';
       namaaz: Namaaz;
       missed: number;
+      test?: boolean;
     }
   | {
       actionType: 'health_add';

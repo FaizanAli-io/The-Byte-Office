@@ -2,19 +2,37 @@
 
 import { heldFundsApi, snapshotsApi } from '@/lib/api-client';
 import { portfolioTotals } from '@/lib/finance';
+import { rateOf } from '@/lib/fx';
 import { formatMoney, type heldFunds } from '@/lib/ledger';
 import { useEffect, useState } from 'react';
 import { BankSection, MutualFundsSection } from './HoldingTypes';
 import { FinancePageShell, MessageCard, StatCard, financeStyles } from './FinanceUI';
 import { FinanceToast, type FinanceToastState } from './FinanceToast';
+import { ExchangeRatesNote, useExchangeRates } from './ExchangeRates';
 import { useFinanceHandlers } from './useFinanceHandlers';
 
 const DESCRIPTION =
   "The latest value of each account and fund, kept in sync with the newest ledger month: changing a value here records it as that account's closing balance.";
 
 export default function FinanceEditor() {
-  const { holdings, error, saving, loading, handleSave, add, remove, change, renameBank, removeBank } =
-    useFinanceHandlers();
+  const {
+    holdings: edited,
+    error,
+    saving,
+    loading,
+    handleSave,
+    add,
+    remove,
+    change,
+    renameBank,
+    removeBank,
+  } = useFinanceHandlers();
+  const rates = useExchangeRates();
+  // Valued at live rates, including rows not saved yet.
+  const holdings = edited?.map((holding) => ({
+    ...holding,
+    exchangeRate: (rates && rateOf(rates.currencies, holding.currency)) ?? holding.exchangeRate,
+  }));
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [toast, setToast] = useState<FinanceToastState>(null);
   const [held, setHeld] = useState<ReturnType<typeof heldFunds> | null>(null);
@@ -30,7 +48,7 @@ export default function FinanceEditor() {
     if (!holdings) return;
     setSnapshotLoading(true);
     try {
-      await snapshotsApi.create(holdings, portfolioTotals(holdings).grandTotal);
+      await snapshotsApi.create(holdings);
       setToast({ message: 'Snapshot saved.', tone: 'success' });
     } catch (error) {
       console.error('Error saving snapshot:', error);
@@ -106,6 +124,10 @@ export default function FinanceEditor() {
             />
           </>
         ) : null}
+      </div>
+
+      <div className="mb-6">
+        <ExchangeRatesNote rates={rates} currencies={holdings.map((holding) => holding.currency)} />
       </div>
 
       <div className="space-y-6">

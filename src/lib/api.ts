@@ -88,7 +88,7 @@ export function idResource<Row, Update>(config: {
   noun: string;
   get: (id: string) => Promise<Row | null>;
   update: (id: string, data: Update) => Promise<Row | null>;
-  remove: (id: string) => Promise<boolean>;
+  remove: (id: string, request: Request) => Promise<boolean>;
   schema: z.ZodType<Update>;
   mapError?: (cause: unknown) => ApiError | null;
 }) {
@@ -109,8 +109,8 @@ export function idResource<Row, Update>(config: {
     DELETE: apiRoute(
       `DELETE ${config.path}`,
       `Failed to delete ${config.noun}`,
-      async (_req: Request, ctx: IdContext) => {
-        found((await config.remove((await ctx.params).id)) || null, config.notFound);
+      async (req: Request, ctx: IdContext) => {
+        found((await config.remove((await ctx.params).id, req)) || null, config.notFound);
         return { success: true };
       }
     ),
